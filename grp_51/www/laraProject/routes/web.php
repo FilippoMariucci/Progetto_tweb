@@ -4,106 +4,89 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProdottoController;
 use App\Http\Controllers\MalfunzionamentoController;
-use App\Http\Controllers\CentroAssistenzaController;
+use App\Http\Controllers\SoluzioneController;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\HomeController;
-use App\Http\Controllers\StaffController;
-use App\Http\Controllers\AdminController;
-use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\CentroAssistenzaController;
 
 /*
 |--------------------------------------------------------------------------
-| Web Routes - Sistema Assistenza Tecnica
+| Web Routes per il Sistema di Assistenza Tecnica
 |--------------------------------------------------------------------------
-| Route organizzate per livelli di accesso secondo le specifiche del progetto
-| VERSIONE CORRETTA - Fix errori 404 API
+|
+| Qui sono definite tutte le route web per l'applicazione.
+| Le route sono organizzate per livello di accesso e funzionalità.
+|
 */
 
-// ================================================
-// ROUTE PUBBLICHE (Livello 1 - Accesso Libero)
-// ================================================
+// ===================================================
+// ROUTE PUBBLICHE (Livello 1 - Tutti gli utenti)
+// ===================================================
 
-// Homepage e informazioni aziendali
-Route::get('/', [HomeController::class, 'index'])->name('home');
-Route::get('/azienda', [HomeController::class, 'azienda'])->name('azienda');
-Route::get('/contatti', [HomeController::class, 'contatti'])->name('contatti');
-Route::post('/contatti/invia', [HomeController::class, 'inviaContatto'])->name('contatti.invia');
+/**
+ * Home Page e Informazioni Generali
+ */
+Route::get('/', function () {
+    return view('welcome');
+})->name('home');
 
-// Catalogo prodotti PUBBLICO (senza malfunzionamenti)
-Route::get('/prodotti', [ProdottoController::class, 'indexPubblico'])->name('prodotti.index');
-Route::get('/prodotti/{prodotto}', [ProdottoController::class, 'showPubblico'])->name('prodotti.show');
-Route::get('/prodotti/categoria/{categoria}', [ProdottoController::class, 'categoria'])->name('prodotti.categoria');
+/**
+ * Pagina About - Informazioni sull'azienda
+ */
+Route::get('/about', function () {
+    return view('about');
+})->name('about');
 
-// Ricerca prodotti pubblica
-Route::get('/prodotti/search', [ProdottoController::class, 'search'])->name('prodotti.search');
+/**
+ * Centri di Assistenza - Visualizzazione Pubblica
+ * Accessibile a tutti gli utenti (anche non autenticati)
+ */
+Route::get('/centri', [CentroAssistenzaController::class, 'index'])->name('centri.index');
+Route::get('/centri/{centro}', [CentroAssistenzaController::class, 'show'])->name('centri.show');
 
-// Centri di assistenza (informazioni pubbliche)
-Route::get('/centri-assistenza', [CentroAssistenzaController::class, 'index'])->name('centri.index');
-Route::get('/centri-assistenza/{centro}', [CentroAssistenzaController::class, 'show'])->name('centri.show');
+/**
+ * Prodotti - Catalogo Pubblico (senza malfunzionamenti)
+ * Accessibile a tutti per visualizzare il catalogo base
+ */
+Route::get('/prodotti', [ProdottoController::class, 'index'])->name('prodotti.index');
+Route::get('/prodotti/{prodotto}', [ProdottoController::class, 'show'])->name('prodotti.show');
 
-// Documentazione
-Route::get('/documentazione', function () {
-    $documentPath = public_path('docs/documentazione_progetto.pdf');
-    
-    if (file_exists($documentPath)) {
-        return response()->file($documentPath);
-    } else {
-        return view('documentazione.placeholder');
-    }
-})->name('documentazione');
-
-// ================================================
+// ===================================================
 // AUTENTICAZIONE
-// ================================================
+// ===================================================
 
-// Login e Logout
+/**
+ * Route per login/logout
+ */
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// ================================================
-// API ROUTES (SPOSTATI FUORI DAL MIDDLEWARE GENERALE)
-// ================================================
+// ===================================================
+// ROUTE PROTETTE (Solo utenti autenticati)
+// ===================================================
 
-Route::prefix('api')->name('api.')->group(function () {
-    
-    // === API PUBBLICHE (senza autenticazione) ===
-    
-    // Ricerca prodotti pubblica
-    Route::get('/prodotti/search', [ProdottoController::class, 'apiSearch'])->name('prodotti.search');
-    
-    // Lista prodotti pubblica (per AJAX)
-    Route::get('/prodotti', [ProdottoController::class, 'apiIndex'])->name('prodotti.index');
-    
-    // Dettagli prodotto singolo (per AJAX)
-    Route::get('/prodotti/{prodotto}', [ProdottoController::class, 'apiShow'])->name('prodotti.show');
-    
-    // Informazioni centri assistenza pubbliche
-    Route::get('/centri', [CentroAssistenzaController::class, 'apiIndex'])->name('centri.index');
-    Route::get('/centri/search', [CentroAssistenzaController::class, 'apiSearch'])->name('centri.search');
-    Route::get('/centri/citta-per-provincia', [CentroAssistenzaController::class, 'apiCittaPerProvincia'])->name('centri.citta-per-provincia');
-    
-    // Categorie prodotti pubbliche
-    Route::get('/categorie', [ProdottoController::class, 'apiCategorie'])->name('categorie.index');
-    
-    // === API PER UTENTI AUTENTICATI ===
-    
-    Route::middleware(['auth'])->group(function () {
-        
-        // Statistiche per dashboard generale
-        Route::get('/stats/dashboard', [HomeController::class, 'dashboardStats'])->name('stats.dashboard');
+Route::middleware(['auth'])->group(function () {
+
+    /**
+     * Dashboard principale - reindirizza in base al livello utente
+     */
+    Route::get('/dashboard', [AuthController::class, 'dashboard'])->name('dashboard');
+
+    // ===================================================
+    // ROUTE API PER CHIAMATE AJAX
+    // ===================================================
+
+    Route::prefix('api')->name('api.')->group(function () {
         
         // === API TECNICI (Livello 2+) ===
         Route::middleware(['check.level:2'])->group(function () {
             
-            // Ricerca malfunzionamenti (per tecnici)
-            Route::get('/malfunzionamenti/search', [MalfunzionamentoController::class, 'apiSearch'])->name('malfunzionamenti.search');
+            // Statistiche tecnico per dashboard
+            Route::get('/tecnico/stats', [AuthController::class, 'tecnicoStats'])->name('tecnico.stats');
             
-            // Malfunzionamenti per prodotto specifico
-            Route::get('/prodotti/{prodotto}/malfunzionamenti', [MalfunzionamentoController::class, 'apiByProdotto'])->name('prodotti.malfunzionamenti');
-            
-            // Prodotti con vista tecnica completa
-            Route::get('/prodotti/tech/search', [ProdottoController::class, 'apiSearchTech'])->name('prodotti.search.tech');
+            // Malfunzionamenti per tecnici
+            Route::get('/malfunzionamenti', [MalfunzionamentoController::class, 'apiIndex'])->name('malfunzionamenti.api');
+            Route::get('/malfunzionamenti/{malfunzionamento}', [MalfunzionamentoController::class, 'apiShow'])->name('malfunzionamenti.api.show');
             
             // Segnalazione malfunzionamento
             Route::post('/malfunzionamenti/{malfunzionamento}/segnala', [MalfunzionamentoController::class, 'apiSegnala'])->name('malfunzionamenti.segnala');
@@ -122,18 +105,18 @@ Route::prefix('api')->name('api.')->group(function () {
             Route::get('/staff/soluzioni', [AuthController::class, 'staffUltimeSoluzioni'])->name('staff.soluzioni');
         });
         
-        // === API AMMINISTRATIVE (Livello 4) - VERSIONE CORRETTA ===
+        // === API AMMINISTRATIVE (Livello 4) ===
         Route::middleware(['check.level:4'])->group(function () {
 
-            // Gruppo admin con prefisso corretto
             Route::prefix('admin')->name('admin.')->group(function () {
                 
-                // === GESTIONE CENTRI ASSISTENZA VIA API ===
+                // === GESTIONE TECNICI VIA API ===
                 
                 /**
-                 * API per ottenere tecnici disponibili per assegnazione
+                 * API per ottenere TUTTI i tecnici disponibili nel sistema
                  * ROUTE: GET /api/admin/tecnici-disponibili
                  * CONTROLLER: CentroAssistenzaController@getTecniciDisponibili
+                 * USATA DA: JavaScript globale per gestione tecnici
                  */
                 Route::get('/tecnici-disponibili', [CentroAssistenzaController::class, 'getTecniciDisponibili'])
                     ->name('tecnici.disponibili');
@@ -142,321 +125,320 @@ Route::prefix('api')->name('api.')->group(function () {
                  * API per ottenere dettagli di un tecnico specifico
                  * ROUTE: GET /api/admin/tecnici/{user}
                  * CONTROLLER: CentroAssistenzaController@getDettagliTecnico
+                 * USATA DA: Modal dettagli tecnico, tooltip, ecc.
                  */
                 Route::get('/tecnici/{user}', [CentroAssistenzaController::class, 'getDettagliTecnico'])
                     ->name('tecnici.dettagli');
+                
+                // === GESTIONE CENTRI VIA API ===
+                
+                /**
+                 * API per ottenere tecnici disponibili per UN CENTRO SPECIFICO
+                 * ROUTE: GET /api/admin/centri/{centro}/tecnici-disponibili
+                 * CONTROLLER: CentroAssistenzaController@getAvailableTecnici
+                 * USATA DA: Modal assegnazione tecnico nel centro specifico
+                 */
+                Route::get('/centri/{centro}/tecnici-disponibili', [CentroAssistenzaController::class, 'getAvailableTecnici'])
+                    ->name('centri.tecnici.disponibili');
                 
                 /**
                  * API per ottenere statistiche di un centro
                  * ROUTE: GET /api/admin/centri/{centro}/statistiche
                  * CONTROLLER: CentroAssistenzaController@getStatisticheCentro
+                 * USATA DA: Dashboard centro, grafici, metriche real-time
                  */
                 Route::get('/centri/{centro}/statistiche', [CentroAssistenzaController::class, 'getStatisticheCentro'])
                     ->name('centri.statistiche');
                 
-                // === METODI ADMIN CONTROLLER CHE DEVI IMPLEMENTARE ===
+                /**
+                 * API per ottenere dettagli completi di un centro
+                 * ROUTE: GET /api/admin/centri/{centro}/dettagli
+                 * CONTROLLER: CentroAssistenzaController@getCentroDetails
+                 * USATA DA: Modal info centro, aggiornamenti dinamici
+                 */
+                Route::get('/centri/{centro}/dettagli', [CentroAssistenzaController::class, 'getCentroDetails'])
+                    ->name('centri.dettagli');
+                
+                // === STATISTICHE GENERALI ===
                 
                 /**
-                 * API per aggiornamento statistiche dashboard admin via AJAX
+                 * API per statistiche dashboard admin
+                 * ROUTE: GET /api/admin/statistiche
+                 * CONTROLLER: CentroAssistenzaController@getStatistiche
+                 * USATA DA: Dashboard admin principale
                  */
-                Route::get('/stats-update', [AdminController::class, 'statsUpdate'])
-                    ->name('stats.update');
+                Route::get('/statistiche', [CentroAssistenzaController::class, 'getStatistiche'])
+                    ->name('statistiche');
+                
+                // === API GENERALI ADMIN ===
                 
                 /**
-                 * API per controllo stato sistema via AJAX
+                 * Statistiche admin per dashboard
                  */
-                Route::get('/system-status', [AdminController::class, 'systemStatus'])
-                    ->name('system.status');
-                    
+                Route::get('/admin/stats', [AuthController::class, 'adminStats'])->name('admin.stats');
+                
                 /**
-                 * API per prodotti non assegnati a staff
+                 * Attività recenti per admin
                  */
-                Route::get('/prodotti-non-assegnati', [AdminController::class, 'prodottiNonAssegnati'])
-                    ->name('prodotti.non-assegnati');
+                Route::get('/admin/attivita', [AuthController::class, 'adminAttivita'])->name('admin.attivita');
             });
         });
     });
-});
 
-// ================================================
-// ROUTE PROTETTE PER UTENTI AUTENTICATI (WEB)
-// ================================================
+    // ===================================================
+    // ROUTE TECNICI (Livello 2+)
+    // ===================================================
 
-Route::middleware(['auth'])->group(function () {
-    
-    // Dashboard generale
-    Route::get('/dashboard', [AuthController::class, 'dashboard'])->name('dashboard');
-    
-    // ================================================
-    // LIVELLO 2+ (Tecnici e Superiori)
-    // ================================================
-    
     Route::middleware(['check.level:2'])->group(function () {
         
-        // Dashboard tecnico
+        /**
+         * Dashboard Tecnico
+         */
         Route::get('/tecnico/dashboard', [AuthController::class, 'tecnicoDashboard'])->name('tecnico.dashboard');
         
-        // Catalogo prodotti COMPLETO (con malfunzionamenti)
-        Route::get('/prodotti-completi', [ProdottoController::class, 'indexCompleto'])->name('prodotti.completo.index');
-        Route::get('/prodotti-completi/{prodotto}', [ProdottoController::class, 'showCompleto'])->name('prodotti.completo.show');
+        /**
+         * Malfunzionamenti - Accesso completo per tecnici
+         * I tecnici possono vedere tutti i malfunzionamenti e soluzioni
+         */
+        Route::prefix('malfunzionamenti')->name('malfunzionamenti.')->group(function () {
+            Route::get('/', [MalfunzionamentoController::class, 'index'])->name('index');
+            Route::get('/{malfunzionamento}', [MalfunzionamentoController::class, 'show'])->name('show');
+            Route::get('/prodotto/{prodotto}', [MalfunzionamentoController::class, 'byProdotto'])->name('by-prodotto');
+        });
         
-        // === MALFUNZIONAMENTI PER PRODOTTO SPECIFICO ===
-        
-        // Lista malfunzionamenti per un prodotto
-        Route::get('/prodotti/{prodotto}/malfunzionamenti', [MalfunzionamentoController::class, 'index'])->name('malfunzionamenti.index');
-        
-        // Dettaglio singolo malfunzionamento 
-        Route::get('/prodotti/{prodotto}/malfunzionamenti/{malfunzionamento}', [MalfunzionamentoController::class, 'show'])->name('malfunzionamenti.show');
-        
-        // Incrementa segnalazioni (per tecnici)
-        Route::post('/prodotti/{prodotto}/malfunzionamenti/{malfunzionamento}/segnala', [MalfunzionamentoController::class, 'incrementSegnalazioni'])->name('malfunzionamenti.segnala');
-        
-        // Ricerca malfunzionamenti
-        Route::get('/malfunzionamenti/search', [MalfunzionamentoController::class, 'search'])->name('malfunzionamenti.search');
+        /**
+         * Ricerca avanzata malfunzionamenti
+         */
+        Route::get('/ricerca-malfunzionamenti', [MalfunzionamentoController::class, 'ricerca'])->name('malfunzionamenti.ricerca');
     });
-    
-    // ================================================
-    // LIVELLO 3+ (Staff Aziendale e Amministratori)
-    // ================================================
+
+    // ===================================================
+    // ROUTE STAFF (Livello 3+)
+    // ===================================================
 
     Route::middleware(['check.level:3'])->group(function () {
-
-        // === STAFF ROUTES COMPLETE (Livello 3) ===
+        
+        /**
+         * Dashboard Staff
+         */
+        Route::get('/staff/dashboard', [AuthController::class, 'staffDashboard'])->name('staff.dashboard');
+        
+        /**
+         * Gestione Malfunzionamenti - CRUD per Staff
+         * Lo staff può creare, modificare ed eliminare malfunzionamenti
+         */
         Route::prefix('staff')->name('staff.')->group(function () {
             
-            // Dashboard staff
+            // Malfunzionamenti
+            Route::resource('malfunzionamenti', MalfunzionamentoController::class, [
+                'except' => ['index', 'show'] // index e show sono già pubblici
+            ]);
+            
+            // Soluzioni
+            Route::resource('soluzioni', SoluzioneController::class);
+            
+            // Dashboard staff specifica
             Route::get('/dashboard', [AuthController::class, 'staffDashboard'])->name('dashboard');
-            
-            // Dashboard/Lista generale malfunzionamenti per staff
-            Route::get('/malfunzionamenti', [MalfunzionamentoController::class, 'dashboard'])->name('malfunzionamenti.index');
-            
-            // Statistiche staff
-            Route::get('/statistiche', [StaffController::class, 'statistiche'])->name('statistiche');
-            
-            // === GESTIONE MALFUNZIONAMENTI PER PRODOTTO SPECIFICO ===
-            
-            // Crea nuovo malfunzionamento per un prodotto
-            Route::get('/prodotti/{prodotto}/malfunzionamenti/create', [MalfunzionamentoController::class, 'create'])->name('malfunzionamenti.create');
-            
-            // Salva nuovo malfunzionamento
-            Route::post('/prodotti/{prodotto}/malfunzionamenti', [MalfunzionamentoController::class, 'store'])->name('malfunzionamenti.store');
-            
-            // Modifica malfunzionamento esistente
-            Route::get('/malfunzionamenti/{malfunzionamento}/edit', [MalfunzionamentoController::class, 'edit'])->name('malfunzionamenti.edit');
-            
-            // Aggiorna malfunzionamento
-            Route::put('/prodotti/{prodotto}/malfunzionamenti/{malfunzionamento}', [MalfunzionamentoController::class, 'update'])->name('malfunzionamenti.update');
-
-            // Elimina malfunzionamento
-            Route::delete('/malfunzionamenti/{malfunzionamento}', [MalfunzionamentoController::class, 'destroy'])->name('malfunzionamenti.destroy');
-            
-            // Visualizza dettagli malfunzionamento per staff
-            Route::get('/prodotti/{prodotto}/malfunzionamenti/{malfunzionamento}', [MalfunzionamentoController::class, 'show'])->name('malfunzionamenti.show');
         });
+        
+        /**
+         * Prodotti assegnati allo staff (se implementi funzionalità opzionale)
+         */
+        Route::get('/miei-prodotti', [ProdottoController::class, 'mieiProdotti'])->name('staff.miei-prodotti');
     });
-    
-    // ================================================
-    // LIVELLO 4 (Solo Amministratori)
-    // ================================================
-    
-    Route::middleware(['check.level:4'])->group(function () {
-        
-        // Dashboard amministratore
-        Route::get('/admin/dashboard', [AuthController::class, 'adminDashboard'])->name('admin.dashboard');
-        
-        // === GESTIONE PRODOTTI (Admin) ===
-        Route::prefix('admin/prodotti')->name('admin.prodotti.')->group(function () {
-            Route::get('/', [ProdottoController::class, 'index'])->name('index');
-            Route::get('/create', [ProdottoController::class, 'create'])->name('create');
-            Route::post('/', [ProdottoController::class, 'store'])->name('store');
-            Route::get('/{prodotto}', [ProdottoController::class, 'show'])->name('show');
-            Route::get('/{prodotto}/edit', [ProdottoController::class, 'edit'])->name('edit');
-            Route::put('/{prodotto}', [ProdottoController::class, 'update'])->name('update');
-            Route::delete('/{prodotto}', [ProdottoController::class, 'destroy'])->name('destroy');
-            
-            // Azioni speciali per prodotti
-            Route::post('/{prodotto}/restore', [ProdottoController::class, 'restore'])->name('restore');
-            Route::delete('/{prodotto}/force-delete', [ProdottoController::class, 'forceDelete'])->name('force-delete');
 
-            // Azioni AJAX
-            Route::post('/{prodotto}/toggle-status', [ProdottoController::class, 'toggleStatus'])->name('toggle-status');
-            Route::post('/bulk-action', [ProdottoController::class, 'bulkAction'])->name('bulk-action');
-        });
+    // ===================================================
+    // ROUTE AMMINISTRATORI (Livello 4)
+    // ===================================================
+
+    Route::middleware(['check.level:4'])->prefix('admin')->name('admin.')->group(function () {
+        
+        /**
+         * Dashboard Amministratore
+         */
+        Route::get('/dashboard', [AuthController::class, 'adminDashboard'])->name('dashboard');
         
         // === GESTIONE UTENTI ===
-        Route::prefix('admin/users')->name('admin.users.')->group(function () {
-            Route::get('/', [UserController::class, 'index'])->name('index');
-            Route::get('/create', [UserController::class, 'create'])->name('create');
-            Route::post('/', [UserController::class, 'store'])->name('store');
-            Route::get('/{user}', [UserController::class, 'show'])->name('show');
-            Route::get('/{user}/edit', [UserController::class, 'edit'])->name('edit');
-            Route::put('/{user}', [UserController::class, 'update'])->name('update');
-            Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
-            
-            // Azioni speciali per utenti
-            Route::post('/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('toggle-status');
-            Route::post('/{user}/reset-password', [UserController::class, 'resetPassword'])->name('reset-password');
-        });
         
-        // === REGISTRAZIONE UTENTI (Admin) ===
-        Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-        Route::post('/register', [AuthController::class, 'register']);
+        /**
+         * CRUD completo utenti
+         * Solo gli admin possono gestire tutti gli utenti del sistema
+         */
+        Route::resource('users', UserController::class, [
+            'names' => [
+                'index' => 'users.index',
+                'create' => 'users.create',
+                'store' => 'users.store',
+                'show' => 'users.show',
+                'edit' => 'users.edit',
+                'update' => 'users.update',
+                'destroy' => 'users.destroy'
+            ]
+        ]);
         
-        // === GESTIONE CENTRI ASSISTENZA (Funzionalità Opzionale) ===
-        Route::prefix('admin/centri')->name('admin.centri.')->group(function () {
-            Route::get('/', [CentroAssistenzaController::class, 'adminIndex'])->name('index');
-            Route::get('/create', [CentroAssistenzaController::class, 'create'])->name('create');
-            Route::post('/', [CentroAssistenzaController::class, 'store'])->name('store');
-            Route::get('/{centro}/edit', [CentroAssistenzaController::class, 'edit'])->name('edit');
-            Route::put('/{centro}', [CentroAssistenzaController::class, 'update'])->name('update');
-            Route::delete('/{centro}', [CentroAssistenzaController::class, 'destroy'])->name('destroy');
-            Route::get('/{centro}', [CentroAssistenzaController::class, 'show'])->name('show');
-            
-            // === GESTIONE TECNICI NEI CENTRI (VIA WEB, NON API) ===
-            // IMPORTANTE: Queste sono le route che il JavaScript deve chiamare
-            Route::post('/{centro}/assegna-tecnico', [CentroAssistenzaController::class, 'assegnaTecnico'])->name('assegna-tecnico');
-            Route::post('/{centro}/rimuovi-tecnico', [CentroAssistenzaController::class, 'rimuoviTecnico'])->name('rimuovi-tecnico');
-        });
+        // === GESTIONE PRODOTTI ===
         
-        // === FUNZIONALITÀ AMMINISTRATIVE AVANZATE (AdminController) ===
-        Route::prefix('admin')->name('admin.')->group(function () {
-            
-            // === ASSEGNAZIONI PRODOTTI A STAFF ===
-            Route::get('/assegnazioni', [AdminController::class, 'assegnazioni'])->name('assegnazioni');
-            Route::post('/assegna-prodotto', [AdminController::class, 'assegnaProdotto'])->name('assegna.prodotto');
-            Route::post('/assegnazione-multipla', [AdminController::class, 'assegnazioneMultipla'])->name('assegnazione.multipla');
-            
-            // === STATISTICHE AVANZATE ===
-            Route::get('/statistiche', [AdminController::class, 'statistiche'])->name('statistiche');
-            
-            // === MANUTENZIONE SISTEMA ===
-            Route::get('/manutenzione', [AdminController::class, 'manutenzione'])->name('manutenzione');
-            Route::post('/clear-cache', [AdminController::class, 'clearCache'])->name('clear.cache');
-            Route::post('/optimize-database', [AdminController::class, 'optimizeDatabase'])->name('optimize.database');
-            
-            // === EXPORT DATI ===
-            Route::get('/export', [AdminController::class, 'export'])->name('export');
-            Route::post('/export-all', [AdminController::class, 'exportAll'])->name('export.all');
-        });
+        /**
+         * CRUD completo prodotti
+         * Solo gli admin possono gestire il catalogo prodotti
+         */
+        Route::resource('prodotti', ProdottoController::class, [
+            'names' => [
+                'index' => 'prodotti.index',
+                'create' => 'prodotti.create',
+                'store' => 'prodotti.store',
+                'show' => 'prodotti.show',
+                'edit' => 'prodotti.edit',
+                'update' => 'prodotti.update',
+                'destroy' => 'prodotti.destroy'
+            ]
+        ]);
+        
+        // === GESTIONE CENTRI DI ASSISTENZA ===
+        
+        /**
+         * CRUD completo centri di assistenza
+         * Solo gli admin possono gestire i centri
+         */
+        Route::resource('centri', CentroAssistenzaController::class, [
+            'names' => [
+                'index' => 'centri.index',
+                'create' => 'centri.create',
+                'store' => 'centri.store',
+                'show' => 'centri.show',
+                'edit' => 'centri.edit',
+                'update' => 'centri.update',
+                'destroy' => 'centri.destroy'
+            ]
+        ]);
+        
+        // === GESTIONE TECNICI NEI CENTRI ===
+        
+        /**
+         * POST: Assegna tecnico a centro
+         * ROUTE: POST /admin/centri/{centro}/assegna-tecnico
+         * CONTROLLER: CentroAssistenzaController@assegnaTecnico
+         * FORM ACTION: Modal assegnazione tecnico
+         */
+        Route::post('/centri/{centro}/assegna-tecnico', [CentroAssistenzaController::class, 'assegnaTecnico'])
+            ->name('centri.assegna-tecnico');
+        
+        /**
+         * DELETE: Rimuovi tecnico da centro
+         * ROUTE: DELETE /admin/centri/{centro}/rimuovi-tecnico
+         * CONTROLLER: CentroAssistenzaController@rimuoviTecnico
+         * FORM ACTION: Rimozione tecnico via AJAX o form
+         */
+        Route::delete('/centri/{centro}/rimuovi-tecnico', [CentroAssistenzaController::class, 'rimuoviTecnico'])
+            ->name('centri.rimuovi-tecnico');
+        
+        // === IMPORT/EXPORT CENTRI ===
+        
+        /**
+         * GET: Export centri (CSV/Excel)
+         * ROUTE: GET /admin/centri-export
+         * CONTROLLER: CentroAssistenzaController@export
+         */
+        Route::get('/centri-export', [CentroAssistenzaController::class, 'export'])
+            ->name('centri.export');
+        
+        /**
+         * POST: Import centri da file
+         * ROUTE: POST /admin/centri-import
+         * CONTROLLER: CentroAssistenzaController@import
+         */
+        Route::post('/centri-import', [CentroAssistenzaController::class, 'import'])
+            ->name('centri.import');
+        
+        // === FUNZIONALITÀ OPZIONALI ===
+        
+        /**
+         * Assegnazione prodotti a membri dello staff (funzionalità opzionale)
+         */
+        Route::get('/assegnazioni', [ProdottoController::class, 'assegnazioni'])->name('assegnazioni');
+        Route::post('/assegna-prodotti', [ProdottoController::class, 'assegnaProdotti'])->name('assegna-prodotti');
+        Route::delete('/rimuovi-assegnazione/{prodotto}/{user}', [ProdottoController::class, 'rimuoviAssegnazione'])
+            ->name('rimuovi-assegnazione');
+        
+        // === DASHBOARD E STATISTICHE ===
+        
+        /**
+         * Dashboard amministrativa avanzata
+         */
+        Route::get('/statistiche-avanzate', [AuthController::class, 'statisticheAvanzate'])->name('statistiche.avanzate');
+        
+        /**
+         * Log attività sistema
+         */
+        Route::get('/log-attivita', [AuthController::class, 'logAttivita'])->name('log.attivita');
+        
+        /**
+         * Configurazioni sistema
+         */
+        Route::get('/configurazioni', [AuthController::class, 'configurazioni'])->name('configurazioni');
     });
-}); // ← Chiusura corretta del middleware auth
-
-// ================================================
-// ROUTE DI TESTING (Solo Ambiente Locale)
-// ================================================
-
-if (app()->environment('local')) {
-    
-    Route::prefix('test')->name('test.')->group(function () {
-        
-        // Test connessione database
-        Route::get('/db', function () {
-            try {
-                \DB::connection()->getPdo();
-                return response()->json([
-                    'status' => 'OK',
-                    'message' => 'Connessione al database riuscita',
-                    'database' => config('database.connections.mysql.database')
-                ]);
-            } catch (\Exception $e) {
-                return response()->json([
-                    'status' => 'ERROR',
-                    'message' => 'Errore connessione DB: ' . $e->getMessage()
-                ], 500);
-            }
-        })->name('db');
-        
-        // Test configurazione
-        Route::get('/config', function () {
-            return response()->json([
-                'app_name' => config('app.name'),
-                'app_env' => config('app.env'),
-                'database' => config('database.default'),
-                'session_driver' => config('session.driver'),
-            ]);
-        })->name('config');
-        
-        // Test permessi storage
-        Route::get('/storage', function () {
-            $storagePath = storage_path('logs/laravel.log');
-            
-            return response()->json([
-                'storage_writable' => is_writable(storage_path()),
-                'logs_writable' => is_writable(dirname($storagePath)),
-                'log_file_exists' => file_exists($storagePath),
-            ]);
-        })->name('storage');
-        
-        // Visualizza log (per debugging)
-        Route::get('/logs', function () {
-            $logFile = storage_path('logs/laravel.log');
-            
-            if (file_exists($logFile)) {
-                $logs = file_get_contents($logFile);
-                return response($logs)->header('Content-Type', 'text/plain');
-            }
-            
-            return 'File di log non trovato';
-        })->name('logs');
-        
-        // Test route admin per verifica funzionamento
-        Route::get('/admin-routes', function () {
-            $routes = collect(Route::getRoutes())->filter(function($route) {
-                return str_contains($route->getName() ?? '', 'admin.');
-            })->map(function($route) {
-                return [
-                    'name' => $route->getName(),
-                    'uri' => $route->uri(),
-                    'methods' => $route->methods(),
-                    'action' => $route->getActionName()
-                ];
-            });
-            
-            return response()->json([
-                'admin_routes_count' => $routes->count(),
-                'routes' => $routes->values()
-            ]);
-        })->name('admin-routes');
-        
-        // Test con middleware applicato
-        Route::get('/middleware-test', function () {
-            return response()->json([
-                'success' => 'Middleware check.level:2 funziona!',
-                'user' => Auth::check() ? Auth::user()->nome_completo : 'Non autenticato'
-            ]);
-        })->middleware(['auth', 'check.level:2'])->name('middleware-test');
-        
-        // === NUOVO: Test route API admin specifiche ===
-        Route::get('/api-admin-test', function () {
-            $routes = collect(Route::getRoutes())->filter(function($route) {
-                return str_contains($route->getName() ?? '', 'api.admin.');
-            })->map(function($route) {
-                return [
-                    'name' => $route->getName(),
-                    'uri' => $route->uri(),
-                    'methods' => $route->methods()
-                ];
-            });
-            
-            return response()->json([
-                'api_admin_routes_count' => $routes->count(),
-                'routes' => $routes->values(),
-                'test_urls' => [
-                    'tecnici_disponibili' => url('/api/admin/tecnici-disponibili'),
-                    'statistiche_centro_1' => url('/api/admin/centri/1/statistiche'),
-                    'stats_update' => url('/api/admin/stats-update'),
-                    'system_status' => url('/api/admin/system-status')
-                ]
-            ]);
-        })->name('api-admin-test');
-    });
-}
-
-// ================================================
-// ROUTE DI FALLBACK
-// ================================================
-
-// Gestione 404 personalizzata
-Route::fallback(function () {
-    return view('errors.404');
 });
+
+// ===================================================
+// ROUTE FALLBACK E GESTIONE ERRORI
+// ===================================================
+
+/**
+ * Route fallback per pagine non trovate
+ * Deve essere l'ultima route definita
+ */
+Route::fallback(function () {
+    return response()->view('errors.404', [], 404);
+});
+
+/*
+|--------------------------------------------------------------------------
+| RIEPILOGO ROUTE CENTRI ASSISTENZA
+|--------------------------------------------------------------------------
+|
+| ROUTE PUBBLICHE:
+| GET  /centri                              -> centri.index (pubblico)
+| GET  /centri/{centro}                     -> centri.show (pubblico)
+|
+| ROUTE ADMIN:
+| GET    /admin/centri                      -> admin.centri.index
+| GET    /admin/centri/create               -> admin.centri.create
+| POST   /admin/centri                      -> admin.centri.store
+| GET    /admin/centri/{centro}             -> admin.centri.show
+| GET    /admin/centri/{centro}/edit        -> admin.centri.edit
+| PUT    /admin/centri/{centro}             -> admin.centri.update
+| DELETE /admin/centri/{centro}             -> admin.centri.destroy
+|
+| GESTIONE TECNICI:
+| POST   /admin/centri/{centro}/assegna-tecnico    -> admin.centri.assegna-tecnico
+| DELETE /admin/centri/{centro}/rimuovi-tecnico    -> admin.centri.rimuovi-tecnico
+|
+| API ENDPOINTS:
+| GET /api/admin/tecnici-disponibili                           -> api.admin.tecnici.disponibili
+| GET /api/admin/tecnici/{user}                                -> api.admin.tecnici.dettagli
+| GET /api/admin/centri/{centro}/tecnici-disponibili          -> api.admin.centri.tecnici.disponibili
+| GET /api/admin/centri/{centro}/statistiche                  -> api.admin.centri.statistiche
+| GET /api/admin/centri/{centro}/dettagli                     -> api.admin.centri.dettagli
+| GET /api/admin/statistiche                                  -> api.admin.statistiche
+|
+| IMPORT/EXPORT:
+| GET  /admin/centri-export                 -> admin.centri.export
+| POST /admin/centri-import                 -> admin.centri.import
+|
+|--------------------------------------------------------------------------
+| COMANDI UTILI:
+|--------------------------------------------------------------------------
+|
+| Visualizza tutte le route:
+| php artisan route:list
+|
+| Visualizza solo route centri:
+| php artisan route:list | grep -E "(centri|tecnici)"
+|
+| Pulisci cache route:
+| php artisan route:clear
+|
+| Cache delle route (produzione):
+| php artisan route:cache
+|
+*/
