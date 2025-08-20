@@ -34,67 +34,57 @@ class AdminController extends Controller
     // GESTIONE ASSEGNAZIONI PRODOTTI A STAFF
     // ================================================
 
-    /**
-     * Mostra la pagina per assegnare prodotti ai membri dello staff
-     */
-    public function assegnazioni(Request $request)
-    {
-        // Carica tutti i membri dello staff (livello 3)
-        $staffMembers = User::where('livello_accesso', '3')
-            ->orderBy('nome')
-            ->orderBy('cognome')
-            ->get();
+   /**
+ * Mostra la pagina principale per gestire le assegnazioni prodotti-staff
+ * Route: GET /admin/assegnazioni  
+ * Name: admin.assegnazioni
+ */
+public function assegnazioni(Request $request)
+{
+    // Carica tutti i membri dello staff (livello 3)
+    $staffMembers = User::where('livello_accesso', '3')
+        ->orderBy('nome')
+        ->orderBy('cognome')
+        ->get();
 
-        // Query prodotti con possibilità di filtri
-        $query = Prodotto::with('staffAssegnato');
+    // Query prodotti con possibilità di filtri
+    $query = Prodotto::with('staffAssegnato');
 
-        // Filtro per prodotti non assegnati
-        if ($request->boolean('non_assegnati')) {
-            $query->whereNull('staff_assegnato_id');
-        }
-
-        // Filtro per staff specifico
-        if ($request->filled('staff_id')) {
-            $query->where('staff_assegnato_id', $request->input('staff_id'));
-        }
-
-        // Filtro per categoria
-        if ($request->filled('categoria')) {
-            $query->where('categoria', $request->input('categoria'));
-        }
-
-        // Ricerca per nome/modello
-        if ($request->filled('search')) {
-            $searchTerm = $request->input('search');
-            $query->where(function($q) use ($searchTerm) {
-                $q->where('nome', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('modello', 'LIKE', "%{$searchTerm}%");
-            });
-        }
-
-        $prodotti = $query->paginate(20);
-
-        // Statistiche assegnazioni - CORREZIONE QUI
-        $stats = [
-            'totale_prodotti' => Prodotto::count(),
-            'prodotti_assegnati' => Prodotto::whereNotNull('staff_assegnato_id')->count(),
-            'prodotti_non_assegnati' => Prodotto::whereNull('staff_assegnato_id')->count(),
-            'staff_attivi' => $staffMembers->count(),
-        ];
-
-        // Categorie disponibili per filtro
-        $categorie = Prodotto::getCategorie();
-
-        return view('admin.assegnazioni', compact(
-            'prodotti', 'staffMembers', 'stats', 'categorie'
-        ));
+    // Filtro per prodotti non assegnati
+    if ($request->boolean('non_assegnati')) {
+        $query->whereNull('staff_assegnato_id');
     }
 
-    /**
-     * Assegna un prodotto a un membro dello staff
-     */
-    public function assegnaProdotto(Request $request)
-    {
+    // Filtro per staff specifico
+    if ($request->filled('staff_id')) {
+        $query->where('staff_assegnato_id', $request->input('staff_id'));
+    }
+
+    // Paginazione risultati
+    $prodotti = $query->orderBy('nome')
+        ->paginate(15)
+        ->withQueryString();
+
+    // Statistiche per il dashboard
+    $statistiche = [
+        'totale_prodotti' => Prodotto::count(),
+        'prodotti_assegnati' => Prodotto::whereNotNull('staff_assegnato_id')->count(),
+        'prodotti_non_assegnati' => Prodotto::whereNull('staff_assegnato_id')->count(),
+        'totale_staff' => User::where('livello_accesso', '3')->count(),
+    ];
+
+    return view('admin.assegnazioni.index', compact(
+        'staffMembers',
+        'prodotti', 
+        'statistiche'
+    ));
+}
+
+/**
+ * Assegna un prodotto a un membro dello staff
+ */
+public function assegnaProdotto(Request $request)
+{
         $request->validate([
             'prodotto_id' => 'required|exists:prodotti,id',
             'staff_id' => 'nullable|exists:users,id',
