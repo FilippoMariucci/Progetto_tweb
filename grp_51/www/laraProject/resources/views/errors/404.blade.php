@@ -63,7 +63,7 @@
                             </a>
                             
                             @if(auth()->user()->canViewMalfunzionamenti())
-                                <a href="{{ route('prodotti.completo.index') }}" class="btn btn-outline-info">
+                               <a href="{{ route('malfunzionamenti.index') }}" class="btn btn-outline-info">
                                     <i class="bi bi-tools me-1"></i>Area Tecnica
                                 </a>
                             @endif
