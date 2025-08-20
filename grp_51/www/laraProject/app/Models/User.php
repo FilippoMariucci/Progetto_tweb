@@ -17,19 +17,34 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    /**
+   /**
      * Campi che possono essere assegnati in massa
-     * Protezione contro mass assignment attacks
      */
     protected $fillable = [
-        'username',
-        'password',
         'nome',
         'cognome',
+        'username',
+        'email',
+        'password',
         'livello_accesso',
         'data_nascita',
         'specializzazione',
         'centro_assistenza_id',
+        'assigned_at',  // AGGIUNTO: timestamp assegnazione centro
+    ];
+
+     /**
+     * Cast automatici per i tipi di dato
+     */
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+        'data_nascita' => 'date',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
+        'assigned_at' => 'datetime',  // AGGIUNTO: cast per assigned_at
+        'last_login_at' => 'datetime',
     ];
 
     /**

@@ -94,94 +94,111 @@
                 </div>
                 
                 <div class="card-body">
-                    @if($centro->tecnici->isNotEmpty())
-                        {{-- Lista tecnici con azioni --}}
-                        <div class="row">
-                            @foreach($centro->tecnici as $tecnico)
-                                <div class="col-md-6 mb-3">
-                                    <div class="card border-success">
-                                        <div class="card-body">
-                                            <div class="d-flex justify-content-between align-items-start">
-                                                <div>
-                                                    <h6 class="card-title mb-1">
-                                                        <i class="bi bi-person me-1 text-success"></i>
-                                                        {{ $tecnico->nome_completo }}
-                                                    </h6>
-                                                    
-                                                    @if($tecnico->specializzazione)
-                                                        <p class="card-text mb-1">
-                                                            <small class="text-muted">
-                                                                <i class="bi bi-tools me-1"></i>
-                                                                {{ $tecnico->specializzazione }}
-                                                            </small>
-                                                        </p>
-                                                    @endif
-                                                    
-                                                    @if($tecnico->data_nascita)
-                                                        <p class="card-text mb-1">
-                                                            <small class="text-muted">
-                                                                <i class="bi bi-calendar me-1"></i>
-                                                                {{ $tecnico->eta }} anni
-                                                            </small>
-                                                        </p>
-                                                    @endif
-                                                    
-                                                    <p class="card-text mb-0">
-                                                        <small class="text-muted">
-                                                            <i class="bi bi-clock me-1"></i>
-                                                            Assegnato {{ $tecnico->created_at->diffForHumans() }}
-                                                        </small>
-                                                    </p>
-                                                </div>
-                                                
-                                                {{-- Azioni tecnico --}}
-                                                <div class="dropdown">
-                                                    <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="dropdown">
-                                                        <i class="bi bi-three-dots-vertical"></i>
-                                                    </button>
-                                                    <ul class="dropdown-menu">
-                                                        <li>
-                                                            <a class="dropdown-item" href="{{ route('admin.users.show', $tecnico) }}">
-                                                                <i class="bi bi-eye me-1"></i>
-                                                                Visualizza Dettagli
-                                                            </a>
-                                                        </li>
-                                                        <li>
-                                                            <a class="dropdown-item" href="{{ route('admin.users.edit', $tecnico) }}">
-                                                                <i class="bi bi-pencil me-1"></i>
-                                                                Modifica Tecnico
-                                                            </a>
-                                                        </li>
-                                                        <li><hr class="dropdown-divider"></li>
-                                                        <li>
-                                                            <button type="button" 
-                                                                    class="dropdown-item text-warning btn-rimuovi-tecnico"
-                                                                    data-tecnico-id="{{ $tecnico->id }}"
-                                                                    data-tecnico-nome="{{ $tecnico->nome_completo }}">
-                                                                <i class="bi bi-person-dash me-1"></i>
-                                                                Rimuovi da Centro
-                                                            </button>
-                                                        </li>
-                                                    </ul>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            @endforeach
+                    {-- 
+    VERSIONE FINALE della sezione tecnici con assigned_at
+    Sostituisci nella vista admin/centri/show.blade.php
+--}}
+
+@if($centro->tecnici->isNotEmpty())
+    {{-- Lista tecnici con azioni --}}
+    <div class="row">
+        @foreach($centro->tecnici as $tecnico)
+            <div class="col-md-6 mb-3">
+                <div class="card border-success">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="card-title mb-1">
+                                    <i class="bi bi-person me-1 text-success"></i>
+                                    {{ $tecnico->nome_completo }}
+                                    
+                                    {{-- Badge se assegnato di recente --}}
+                                    @if($tecnico->assigned_at && $tecnico->assigned_at->diffInDays(now()) <= 7)
+                                        <span class="badge bg-success ms-1">Nuovo</span>
+                                    @endif
+                                </h6>
+                                
+                                @if($tecnico->specializzazione)
+                                    <p class="card-text mb-1">
+                                        <small class="text-muted">
+                                            <i class="bi bi-tools me-1"></i>
+                                            {{ $tecnico->specializzazione }}
+                                        </small>
+                                    </p>
+                                @endif
+                                
+                                @if($tecnico->data_nascita)
+                                    <p class="card-text mb-1">
+                                        <small class="text-muted">
+                                            <i class="bi bi-calendar me-1"></i>
+                                            {{ $tecnico->eta }} anni
+                                        </small>
+                                    </p>
+                                @endif
+                                
+                                {{-- Informazione assegnazione --}}
+                                <p class="card-text mb-0">
+                                    <small class="text-muted">
+                                        <i class="bi bi-clock me-1"></i>
+                                        @if($tecnico->assigned_at)
+                                            Assegnato {{ $tecnico->assigned_at->diffForHumans() }}
+                                        @elseif($tecnico->created_at)
+                                            Nel sistema dal {{ $tecnico->created_at->format('d/m/Y') }}
+                                        @else
+                                            Data assegnazione non disponibile
+                                        @endif
+                                    </small>
+                                </p>
+                            </div>
+                            
+                            {{-- Azioni tecnico --}}
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="dropdown">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item" href="{{ route('admin.users.show', $tecnico) }}">
+                                            <i class="bi bi-eye me-1"></i>
+                                            Visualizza Dettagli
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ route('admin.users.edit', $tecnico) }}">
+                                            <i class="bi bi-pencil me-1"></i>
+                                            Modifica Tecnico
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <button type="button" 
+                                                class="dropdown-item text-warning btn-rimuovi-tecnico"
+                                                data-tecnico-id="{{ $tecnico->id }}"
+                                                data-tecnico-nome="{{ $tecnico->nome_completo }}">
+                                            <i class="bi bi-person-dash me-1"></i>
+                                            Rimuovi da Centro
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
-                    @else
-                        {{-- Nessun tecnico assegnato --}}
-                        <div class="text-center py-5">
-                            <i class="bi bi-people display-1 text-muted"></i>
-                            <h5 class="text-muted mt-3">Nessun Tecnico Assegnato</h5>
-                            <p class="text-muted">Questo centro non ha ancora tecnici assegnati.</p>
-                            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalAssegnaTecnico">
-                                <i class="bi bi-person-plus me-1"></i>
-                                Assegna Primo Tecnico
-                            </button>
-                        </div>
-                    @endif
+                    </div>
+                </div>
+            </div>
+        @endforeach
+    </div>
+@else
+    {{-- Nessun tecnico assegnato --}}
+    <div class="text-center py-5">
+        <i class="bi bi-people display-1 text-muted"></i>
+        <h5 class="text-muted mt-3">Nessun Tecnico Assegnato</h5>
+        <p class="text-muted">Questo centro non ha ancora tecnici assegnati.</p>
+        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalAssegnaTecnico">
+            <i class="bi bi-person-plus me-1"></i>
+            Assegna Primo Tecnico
+        </button>
+    </div>
+@endif
                 </div>
             </div>
             
