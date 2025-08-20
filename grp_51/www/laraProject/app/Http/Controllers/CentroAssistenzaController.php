@@ -886,101 +886,114 @@ public function rimuoviTecnico(Request $request, CentroAssistenza $centro)
         }
     }
 
-    /**
-     * API: Lista tecnici disponibili per assegnazione a UN CENTRO SPECIFICO
-     * Restituisce tecnici non assegnati + tecnici assegnati ad altri centri
-     * ROUTE: GET /api/admin/centri/{centro}/tecnici-disponibili
-     * 
-     * @param Request $request
-     * @param CentroAssistenza $centro
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function getAvailableTecnici(Request $request, CentroAssistenza $centro)
-    {
-        // Verifica autorizzazione admin
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            return response()->json([
-                'success' => false, 
-                'message' => 'Non autorizzato'
-            ], 403);
-        }
+    **
+ * API: Lista tecnici disponibili per assegnazione a UN CENTRO SPECIFICO
+ * Restituisce tecnici non assegnati + tecnici assegnati ad altri centri
+ * ROUTE: GET /api/admin/centri/{centro}/tecnici-disponibili
+ * 
+ * @param Request $request
+ * @param CentroAssistenza $centro
+ * @return \Illuminate\Http\JsonResponse
+ */
+public function getAvailableTecnici(Request $request, CentroAssistenza $centro)
+{
+    // Log per debug
+    Log::info('API getAvailableTecnici chiamata', [
+        'centro_id' => $centro->id,
+        'user_id' => Auth::id(),
+        'user_level' => Auth::user()->livello_accesso ?? 'non_autenticato'
+    ]);
 
-        try {
-            // === QUERY TECNICI DISPONIBILI PER QUESTO CENTRO ===
-            // Include TUTTI i tecnici (livello_accesso = 2) eccetto:
-            // 1. Quelli già assegnati a QUESTO centro
-            // 2. L'admin stesso (per sicurezza)
-            $query = User::where('livello_accesso', 2) // Solo tecnici
-                ->where('id', '!=', Auth::id()) // Escludi l'admin
-                ->select('id', 'nome', 'cognome', 'specializzazione', 'centro_assistenza_id')
-                ->with(['centroAssistenza:id,nome']) // Include info centro attuale
-                ->orderBy('cognome')
-                ->orderBy('nome');
-
-            // Escludiamo solo i tecnici GIÀ ASSEGNATI A QUESTO SPECIFICO CENTRO
-            // (non ha senso assegnare un tecnico al centro dove già lavora)
-            // MA includiamo tecnici assegnati ad altri centri (per permettere riassegnazioni)
-            $query->where(function($q) use ($centro) {
-                $q->where('centro_assistenza_id', '!=', $centro->id)
-                  ->orWhereNull('centro_assistenza_id'); // Include anche i non assegnati
-            });
-
-            // === FILTRO DI RICERCA (opzionale) ===
-            if ($request->filled('search')) {
-                $searchTerm = trim($request->input('search'));
-                $query->where(function($q) use ($searchTerm) {
-                    $q->where('nome', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('cognome', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('specializzazione', 'LIKE', "%{$searchTerm}%");
-                });
-            }
-
-            $tecnici = $query->get();
-
-            // === FORMATTAZIONE DATI PER LA RISPOSTA ===
-            $tecniciFormatted = $tecnici->map(function($tecnico) {
-                return [
-                    'id' => $tecnico->id,
-                    'nome' => $tecnico->nome,
-                    'cognome' => $tecnico->cognome,
-                    'nome_completo' => "{$tecnico->nome} {$tecnico->cognome}",
-                    'specializzazione' => $tecnico->specializzazione ?? 'Non specificata',
-                    // Info centro attuale (importante per mostrare all'admin cosa sta facendo)
-                    'centro_attuale' => $tecnico->centroAssistenza ? [
-                        'id' => $tecnico->centroAssistenza->id,
-                        'nome' => $tecnico->centroAssistenza->nome,
-                        'status' => 'assigned' // Indica che è già assegnato
-                    ] : [
-                        'status' => 'unassigned' // Non assegnato a nessun centro
-                    ]
-                ];
-            });
-
-            return response()->json([
-                'success' => true,
-                'tecnici' => $tecniciFormatted,
-                'total' => $tecniciFormatted->count(),
-                'centro' => [
-                    'id' => $centro->id,
-                    'nome' => $centro->nome
-                ],
-                'message' => 'Lista tecnici disponibili caricata con successo'
-            ]);
-
-        } catch (\Exception $e) {
-            // Log dell'errore per debugging
-            Log::error('Errore caricamento tecnici disponibili per centro', [
-                'centro_id' => $centro->id,
-                'error' => $e->getMessage(),
-                'admin_id' => Auth::id()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Errore nel caricamento dei tecnici disponibili'
-            ], 500);
-        }
+    // Verifica autorizzazione admin
+    if (!Auth::check() || !Auth::user()->isAdmin()) {
+        Log::warning('Accesso negato API tecnici', [
+            'centro_id' => $centro->id,
+            'user_id' => Auth::id(),
+            'user_level' => Auth::user()->livello_accesso ?? 'non_autenticato'
+        ]);
+        
+        return response()->json([
+            'success' => false, 
+            'message' => 'Non autorizzato - Solo gli amministratori possono accedere a questa API'
+        ], 403);
     }
+
+    try {
+        // === QUERY TECNICI DISPONIBILI PER QUESTO CENTRO ===
+        $query = User::where('livello_accesso', 2) // Solo tecnici
+            ->select('id', 'nome', 'cognome', 'specializzazione', 'centro_assistenza_id')
+            ->with(['centroAssistenza:id,nome']) // Include info centro attuale
+            ->orderBy('cognome')
+            ->orderBy('nome');
+
+        // Escludiamo solo i tecnici GIÀ ASSEGNATI A QUESTO SPECIFICO CENTRO
+        $query->where(function($q) use ($centro) {
+            $q->where('centro_assistenza_id', '!=', $centro->id)
+              ->orWhereNull('centro_assistenza_id');
+        });
+
+        // === FILTRO DI RICERCA (opzionale) ===
+        if ($request->filled('search')) {
+            $searchTerm = trim($request->input('search'));
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('nome', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('cognome', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('specializzazione', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+
+        $tecnici = $query->get();
+
+        Log::info('Tecnici trovati', [
+            'centro_id' => $centro->id,
+            'count' => $tecnici->count()
+        ]);
+
+        // === FORMATTAZIONE DATI PER LA RISPOSTA ===
+        $tecniciFormatted = $tecnici->map(function($tecnico) {
+            return [
+                'id' => $tecnico->id,
+                'nome' => $tecnico->nome,
+                'cognome' => $tecnico->cognome,
+                'nome_completo' => "{$tecnico->nome} {$tecnico->cognome}",
+                'specializzazione' => $tecnico->specializzazione ?? 'Non specificata',
+                // Info centro attuale
+                'centro_attuale' => $tecnico->centroAssistenza ? [
+                    'id' => $tecnico->centroAssistenza->id,
+                    'nome' => $tecnico->centroAssistenza->nome,
+                    'status' => 'assigned'
+                ] : [
+                    'status' => 'unassigned'
+                ]
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'tecnici' => $tecniciFormatted,
+            'total' => $tecniciFormatted->count(),
+            'centro' => [
+                'id' => $centro->id,
+                'nome' => $centro->nome
+            ],
+            'message' => 'Lista tecnici disponibili caricata con successo'
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Errore API tecnici disponibili', [
+            'centro_id' => $centro->id,
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+            'admin_id' => Auth::id()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Errore nel caricamento dei tecnici disponibili',
+            'error' => $e->getMessage() // Solo per debug, rimuovi in produzione
+        ], 500);
+    }
+}
 
     /**
      * API: Dettagli di un tecnico specifico
