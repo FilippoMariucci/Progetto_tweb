@@ -886,7 +886,7 @@ public function rimuoviTecnico(Request $request, CentroAssistenza $centro)
         }
     }
 
-    **
+   /**
  * API: Lista tecnici disponibili per assegnazione a UN CENTRO SPECIFICO
  * Restituisce tecnici non assegnati + tecnici assegnati ad altri centri
  * ROUTE: GET /api/admin/centri/{centro}/tecnici-disponibili
