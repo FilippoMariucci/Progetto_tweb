@@ -409,7 +409,7 @@ Route::middleware(['auth'])->group(function () {
             Route::prefix('assegnazioni')->name('assegnazioni.')->group(function () {
                 
                 // Dashboard assegnazioni prodotti-staff
-                Route::get('/', [AdminController::class, 'ssegnazioni'])->name('index');
+                Route::get('/', [AdminController::class, 'assegnazioni'])->name('index');
                 
                 // Assegnazione singolo prodotto a staff
                 Route::post('/assegna-prodotto', [AdminController::class, 'assegnaProdotto'])->name('prodotto');

@@ -102,7 +102,7 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    <form method="GET" action="{{ route('admin.assegnazioni') }}" id="filterForm">
+                    <form method="GET" action="{{ route('admin.assegnazioni.index') }}" id="filterForm">
                         
                         <!-- Ricerca -->
                         <div class="mb-3">
@@ -169,7 +169,7 @@
                             <button type="submit" class="btn btn-primary">
                                 <i class="bi bi-search me-1"></i>Applica Filtri
                             </button>
-                            <a href="{{ route('admin.assegnazioni') }}" class="btn btn-outline-secondary">
+                            <a href="{{ route('admin.assegnazioni.index') }}" class="btn btn-outline-secondary">
                                 <i class="bi bi-x-circle me-1"></i>Reset
                             </a>
                         </div>
@@ -197,7 +197,7 @@
                                     {{ $staff->prodottiAssegnati()->count() }}
                                 </span>
                                 <div>
-                                    <a href="{{ route('admin.assegnazioni', ['staff_id' => $staff->id]) }}" 
+                                    <a href="{{ route('admin.assegnazioni.index', ['staff_id' => $staff->id]) }}" 
                                        class="btn btn-outline-primary btn-sm">
                                         <i class="bi bi-eye"></i>
                                     </a>
@@ -325,7 +325,7 @@
                                                     
                                                     <!-- Rimuovi assegnazione se assegnato -->
                                                     @if($prodotto->staffAssegnato)
-                                                        <form action="{{ route('admin.assegna.prodotto') }}" 
+                                                        <form action="{{ route('admin.assegnazioni.prodotto') }}" 
                                                               method="POST" 
                                                               style="display: inline;">
                                                             @csrf
@@ -381,7 +381,7 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ route('admin.assegna.prodotto') }}" method="POST">
+            <form action="{{ route('admin.assegnazioni.prodotto') }}" method="POST">
                 @csrf
                 <div class="modal-body">
                     <input type="hidden" id="assign-product-id" name="prodotto_id">
@@ -431,7 +431,7 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ route('admin.assegnazione.multipla') }}" method="POST" id="bulkAssignForm">
+            <form action="{{ route('admin.assegnazioni.multipla') }}" method="POST" id="bulkAssignForm">
                 @csrf
                 <div class="modal-body">
                     <div class="alert alert-info">
