@@ -35,9 +35,8 @@ class AdminController extends Controller
     // ================================================
 
    /**
- * Mostra la pagina principale per gestire le assegnazioni prodotti-staff
- * Route: GET /admin/assegnazioni  
- * Name: admin.assegnazioni
+ * Metodo assegnazioni CORRETTO - AdminController
+ * Fix per il problema della variabile $stats non definita
  */
 public function assegnazioni(Request $request)
 {
@@ -48,37 +47,81 @@ public function assegnazioni(Request $request)
         ->get();
 
     // Query prodotti con possibilità di filtri
-    $query = Prodotto::with('staffAssegnato');
+    $query = Prodotto::with(['staffAssegnato', 'malfunzionamenti']);
 
-    // Filtro per prodotti non assegnati
-    if ($request->boolean('non_assegnati')) {
-        $query->whereNull('staff_assegnato_id');
+    // === APPLICAZIONE FILTRI ===
+    
+    // Filtro per ricerca per nome/modello
+    if ($request->filled('search')) {
+        $searchTerm = $request->input('search');
+        $query->where(function($q) use ($searchTerm) {
+            $q->where('nome', 'LIKE', "%{$searchTerm}%")
+              ->orWhere('modello', 'LIKE', "%{$searchTerm}%");
+        });
     }
 
     // Filtro per staff specifico
     if ($request->filled('staff_id')) {
-        $query->where('staff_assegnato_id', $request->input('staff_id'));
+        if ($request->input('staff_id') === 'null') {
+            // Prodotti non assegnati
+            $query->whereNull('staff_assegnato_id');
+        } else {
+            $query->where('staff_assegnato_id', $request->input('staff_id'));
+        }
     }
 
-    // Paginazione risultati
+    // Filtro per categoria
+    if ($request->filled('categoria')) {
+        $query->where('categoria', $request->input('categoria'));
+    }
+
+    // Filtro solo non assegnati
+    if ($request->boolean('non_assegnati')) {
+        $query->whereNull('staff_assegnato_id');
+    }
+
+    // Ordinamento e paginazione
     $prodotti = $query->orderBy('nome')
         ->paginate(15)
         ->withQueryString();
 
-    // Statistiche per il dashboard
-    $statistiche = [
+    // === STATISTICHE CORRETTE ===
+    $stats = [
         'totale_prodotti' => Prodotto::count(),
         'prodotti_assegnati' => Prodotto::whereNotNull('staff_assegnato_id')->count(),
         'prodotti_non_assegnati' => Prodotto::whereNull('staff_assegnato_id')->count(),
-        'totale_staff' => User::where('livello_accesso', '3')->count(),
+        'staff_attivi' => User::where('livello_accesso', '3')->count(),
     ];
+
+    // === CATEGORIE PER I FILTRI ===
+    $categorie = [
+        'elettrodomestici' => 'Elettrodomestici',
+        'climatizzazione' => 'Climatizzazione',
+        'cucina' => 'Cucina',
+        'lavanderia' => 'Lavanderia',
+        'riscaldamento' => 'Riscaldamento',
+        'altro' => 'Altro'
+    ];
+
+    // Log per debug
+    Log::info('Caricamento pagina assegnazioni', [
+        'total_prodotti' => $stats['totale_prodotti'],
+        'staff_members' => $staffMembers->count(),
+        'filtri_applicati' => $request->except('_token'),
+        'admin_id' => Auth::id()
+    ]);
 
     return view('admin.assegnazioni.index', compact(
         'staffMembers',
         'prodotti', 
-        'statistiche'
+        'stats',        // ← QUESTA È LA VARIABILE CORRETTA
+        'categorie'     // ← AGGIUNTA PER I FILTRI
     ));
 }
+
+
+
+
 
 /**
  * Assegna un prodotto a un membro dello staff
