@@ -260,15 +260,17 @@
         <span class="text-muted">(opzionale)</span>
     </label>
     <select class="form-select @error('centro_assistenza_id') is-invalid @enderror"
-            id="centro_assistenza_id"
-            name="centro_assistenza_id">
-        <option value="">Nessun centro assegnato</option>
-        @foreach($centri as $centro)
-            <option value="{{ $centro->id }}" {{ old('centro_assistenza_id') == $centro->id ? 'selected' : '' }}>
-                {{ $centro->nome }} - {{ $centro->citta }} ({{ $centro->provincia }})
-            </option>
-        @endforeach
-    </select>
+        id="centro_assistenza_id"
+        name="centro_assistenza_id">
+    <option value="">-- Nessun centro assegnato --</option>
+    @foreach($centri as $centro)
+        <option value="{{ $centro->id }}" 
+                {{ old('centro_assistenza_id') == $centro->id ? 'selected' : '' }}>
+            {{ $centro->nome }} - {{ $centro->citta }} ({{ $centro->provincia }})
+        </option>
+    @endforeach
+</select>
+
     <div class="form-text">
         <i class="bi bi-info-circle me-1"></i>
         Centro di assistenza di appartenenza del tecnico. Può essere assegnato successivamente dall'amministratore.

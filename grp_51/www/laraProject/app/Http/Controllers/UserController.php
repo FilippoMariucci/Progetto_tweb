@@ -88,14 +88,10 @@ class UserController extends Controller
     }
 
    // ========================================
-   // FIX per UserController.php - Metodo store()
-   // Rimuovi la validazione required_if per centro_assistenza_id
-   // ========================================
+// DEBUG COMPLETO - UserController.php
+// Aggiungi questo codice nel metodo store() per capire cosa sta succedendo
+// ========================================
 
-/**
- * Salva un nuovo utente nel database
- * Centro di assistenza ora OPZIONALE per tutti i livelli
- */
 public function store(Request $request)
 {
     // Verifica autorizzazione admin
@@ -103,14 +99,22 @@ public function store(Request $request)
         abort(403, 'Non autorizzato');
     }
 
-    // === VALIDAZIONE CORRETTA - Centro assistenza OPZIONALE ===
+    // === DEBUG: Vediamo cosa arriva dal form ===
+    Log::info('DEBUG: Dati ricevuti dal form', [
+        'centro_assistenza_id' => $request->centro_assistenza_id,
+        'centro_assistenza_id_type' => gettype($request->centro_assistenza_id),
+        'centro_assistenza_id_empty' => empty($request->centro_assistenza_id),
+        'centro_assistenza_id_null' => is_null($request->centro_assistenza_id),
+        'all_data' => $request->all()
+    ]);
+
+    // === VALIDAZIONE CORRETTA E DEFINITIVA ===
     $validator = Validator::make($request->all(), [
         'username' => [
             'required',
             'string',
             'max:255',
-            'unique:users,username',
-            'regex:/^[a-zA-Z0-9_-]+$/' // Solo caratteri alfanumerici, underscore e trattini
+            'unique:users,username'
         ],
         'password' => 'required|string|min:8|confirmed',
         'nome' => 'required|string|max:255',
@@ -119,15 +123,17 @@ public function store(Request $request)
         'data_nascita' => 'nullable|date|before:today',
         'specializzazione' => 'nullable|string|max:255',
         
-        // === CENTRO ASSISTENZA SEMPRE OPZIONALE ===
-        // Rimuovere completamente il required_if
-        'centro_assistenza_id' => 'nullable|exists:centri_assistenza,id',
+        // === VALIDAZIONE CENTRO ASSISTENZA COMPLETAMENTE OPZIONALE ===
+        'centro_assistenza_id' => [
+            'nullable',
+            'sometimes', // Solo se presente nel form
+            'exists:centri_assistenza,id'
+        ],
         
     ], [
         // Messaggi di errore personalizzati
         'username.required' => 'Il campo username è obbligatorio',
         'username.unique' => 'Questo username è già in uso',
-        'username.regex' => 'L\'username può contenere solo lettere, numeri, underscore e trattini',
         'password.required' => 'La password è obbligatoria',
         'password.min' => 'La password deve essere di almeno 8 caratteri',
         'password.confirmed' => 'La conferma password non corrisponde',
@@ -140,8 +146,13 @@ public function store(Request $request)
         'centro_assistenza_id.exists' => 'Il centro di assistenza selezionato non esiste',
     ]);
 
-    // Controlla se la validazione fallisce
+    // DEBUG: Vediamo se ci sono errori di validazione
     if ($validator->fails()) {
+        Log::error('DEBUG: Errori di validazione', [
+            'errors' => $validator->errors()->toArray(),
+            'centro_errors' => $validator->errors()->get('centro_assistenza_id')
+        ]);
+        
         return redirect()->back()
             ->withErrors($validator)
             ->withInput($request->except('password', 'password_confirmation'));
@@ -150,8 +161,22 @@ public function store(Request $request)
     try {
         DB::beginTransaction();
 
-        // === CREAZIONE UTENTE CON CENTRO OPZIONALE ===
-        $userData = [
+        // === GESTIONE CORRETTA DEL CENTRO ASSISTENZA ===
+        $centroAssistenzaId = null;
+        
+        // Solo se il campo è presente E non è vuoto
+        if ($request->has('centro_assistenza_id') && !empty($request->centro_assistenza_id)) {
+            $centroAssistenzaId = $request->centro_assistenza_id;
+        }
+
+        // DEBUG: Vediamo il valore finale
+        Log::info('DEBUG: Valore finale centro_assistenza_id', [
+            'valore_finale' => $centroAssistenzaId,
+            'tipo' => gettype($centroAssistenzaId)
+        ]);
+
+        // Creazione utente
+        $user = User::create([
             'username' => trim($request->username),
             'password' => Hash::make($request->password),
             'nome' => trim($request->nome),
@@ -159,45 +184,41 @@ public function store(Request $request)
             'livello_accesso' => $request->livello_accesso,
             'data_nascita' => $request->data_nascita ?: null,
             'specializzazione' => $request->specializzazione ? trim($request->specializzazione) : null,
-            // Centro assistenza: null se non selezionato
-            'centro_assistenza_id' => $request->centro_assistenza_id ?: null,
-        ];
-
-        $user = User::create($userData);
+            'centro_assistenza_id' => $centroAssistenzaId, // Può essere null
+        ]);
 
         DB::commit();
 
-        // Log della creazione utente
-        Log::info('Nuovo utente creato dall\'admin', [
-            'new_user_id' => $user->id,
-            'new_username' => $user->username,
-            'new_user_level' => $user->livello_accesso,
+        // Log successo
+        Log::info('Utente creato con successo', [
+            'user_id' => $user->id,
+            'username' => $user->username,
+            'livello' => $user->livello_accesso,
             'centro_assegnato' => $user->centro_assistenza_id ? 'Sì' : 'No',
-            'created_by_admin_id' => Auth::id(),
+            'created_by' => Auth::id()
         ]);
 
-        // Messaggio di successo differenziato
-        $successMessage = "Utente '{$user->username}' creato con successo!";
-        
+        // Messaggio di successo
+        $message = "Utente '{$user->username}' creato con successo!";
         if ($user->isTecnico() && !$user->centro_assistenza_id) {
-            $successMessage .= " Potrai assegnare il centro di assistenza successivamente.";
+            $message .= " Il centro di assistenza potrà essere assegnato successivamente.";
         }
 
         return redirect()->route('admin.users.index')
-            ->with('success', $successMessage);
+            ->with('success', $message);
 
     } catch (\Exception $e) {
         DB::rollBack();
         
-        Log::error('Errore nella creazione utente', [
+        Log::error('Errore creazione utente', [
             'error' => $e->getMessage(),
-            'admin_id' => Auth::id(),
-            'form_data' => $request->except('password', 'password_confirmation')
+            'trace' => $e->getTraceAsString(),
+            'admin_id' => Auth::id()
         ]);
 
         return redirect()->back()
             ->withInput($request->except('password', 'password_confirmation'))
-            ->with('error', 'Errore nella creazione dell\'utente. Riprova.');
+            ->with('error', 'Errore nella creazione dell\'utente: ' . $e->getMessage());
     }
 }
 
