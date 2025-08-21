@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use App\Models\User;
@@ -87,95 +90,49 @@ class UserController extends Controller
         return view('admin.users.create', compact('centri'));
     }
 
-   // ========================================
-// DEBUG COMPLETO - UserController.php
-// Aggiungi questo codice nel metodo store() per capire cosa sta succedendo
-// ========================================
-
+  /**
+ * Metodo store SEMPLIFICATO per UserController
+ * Risolve il problema del mancato redirect
+ */
 public function store(Request $request)
 {
-    // Verifica autorizzazione admin
+    // Verifica autorizzazione
     if (!Auth::check() || !Auth::user()->isAdmin()) {
         abort(403, 'Non autorizzato');
     }
 
-    // === DEBUG: Vediamo cosa arriva dal form ===
-    Log::info('DEBUG: Dati ricevuti dal form', [
-        'centro_assistenza_id' => $request->centro_assistenza_id,
-        'centro_assistenza_id_type' => gettype($request->centro_assistenza_id),
-        'centro_assistenza_id_empty' => empty($request->centro_assistenza_id),
-        'centro_assistenza_id_null' => is_null($request->centro_assistenza_id),
-        'all_data' => $request->all()
-    ]);
-
-    // === VALIDAZIONE CORRETTA E DEFINITIVA ===
-    $validator = Validator::make($request->all(), [
-        'username' => [
-            'required',
-            'string',
-            'max:255',
-            'unique:users,username'
-        ],
+    // === VALIDAZIONE ===
+    $request->validate([
+        'username' => 'required|string|min:3|max:255|unique:users,username',
         'password' => 'required|string|min:8|confirmed',
-        'nome' => 'required|string|max:255',
-        'cognome' => 'required|string|max:255',
+        'nome' => 'required|string|min:2|max:255',
+        'cognome' => 'required|string|min:2|max:255',
         'livello_accesso' => 'required|in:2,3,4',
-        'data_nascita' => 'nullable|date|before:today',
-        'specializzazione' => 'nullable|string|max:255',
         
-        // === VALIDAZIONE CENTRO ASSISTENZA COMPLETAMENTE OPZIONALE ===
-        'centro_assistenza_id' => [
-            'nullable',
-            'sometimes', // Solo se presente nel form
-            'exists:centri_assistenza,id'
-        ],
+        // Campi tecnico condizionali
+        'data_nascita' => 'required_if:livello_accesso,2|nullable|date|before:today',
+        'specializzazione' => 'required_if:livello_accesso,2|nullable|string|max:255',
+        
+        // Centro SEMPRE opzionale
+        'centro_assistenza_id' => 'nullable|exists:centri_assistenza,id',
         
     ], [
-        // Messaggi di errore personalizzati
-        'username.required' => 'Il campo username è obbligatorio',
-        'username.unique' => 'Questo username è già in uso',
-        'password.required' => 'La password è obbligatoria',
-        'password.min' => 'La password deve essere di almeno 8 caratteri',
-        'password.confirmed' => 'La conferma password non corrisponde',
-        'nome.required' => 'Il nome è obbligatorio',
-        'cognome.required' => 'Il cognome è obbligatorio',
-        'livello_accesso.required' => 'Il livello di accesso è obbligatorio',
-        'livello_accesso.in' => 'Livello di accesso non valido',
-        'data_nascita.date' => 'Formato data non valido',
-        'data_nascita.before' => 'La data di nascita deve essere nel passato',
-        'centro_assistenza_id.exists' => 'Il centro di assistenza selezionato non esiste',
+        'username.required' => 'Username obbligatorio',
+        'username.min' => 'Username troppo corto',
+        'username.unique' => 'Username già esistente',
+        'password.required' => 'Password obbligatoria',
+        'password.min' => 'Password troppo corta (minimo 8 caratteri)',
+        'password.confirmed' => 'Le password non coincidono',
+        'nome.required' => 'Nome obbligatorio',
+        'cognome.required' => 'Cognome obbligatorio',
+        'livello_accesso.required' => 'Livello di accesso obbligatorio',
+        'data_nascita.required_if' => 'Data nascita obbligatoria per i tecnici',
+        'specializzazione.required_if' => 'Specializzazione obbligatoria per i tecnici',
     ]);
 
-    // DEBUG: Vediamo se ci sono errori di validazione
-    if ($validator->fails()) {
-        Log::error('DEBUG: Errori di validazione', [
-            'errors' => $validator->errors()->toArray(),
-            'centro_errors' => $validator->errors()->get('centro_assistenza_id')
-        ]);
-        
-        return redirect()->back()
-            ->withErrors($validator)
-            ->withInput($request->except('password', 'password_confirmation'));
-    }
-
     try {
-        DB::beginTransaction();
-
-        // === GESTIONE CORRETTA DEL CENTRO ASSISTENZA ===
-        $centroAssistenzaId = null;
+        // === CREAZIONE UTENTE ===
         
-        // Solo se il campo è presente E non è vuoto
-        if ($request->has('centro_assistenza_id') && !empty($request->centro_assistenza_id)) {
-            $centroAssistenzaId = $request->centro_assistenza_id;
-        }
-
-        // DEBUG: Vediamo il valore finale
-        Log::info('DEBUG: Valore finale centro_assistenza_id', [
-            'valore_finale' => $centroAssistenzaId,
-            'tipo' => gettype($centroAssistenzaId)
-        ]);
-
-        // Creazione utente
         $user = User::create([
             'username' => trim($request->username),
             'password' => Hash::make($request->password),
@@ -184,41 +141,49 @@ public function store(Request $request)
             'livello_accesso' => $request->livello_accesso,
             'data_nascita' => $request->data_nascita ?: null,
             'specializzazione' => $request->specializzazione ? trim($request->specializzazione) : null,
-            'centro_assistenza_id' => $centroAssistenzaId, // Può essere null
+            // Centro opzionale
+            'centro_assistenza_id' => $request->filled('centro_assistenza_id') ? $request->centro_assistenza_id : null,
         ]);
 
-        DB::commit();
-
         // Log successo
-        Log::info('Utente creato con successo', [
+        Log::info('Utente creato', [
             'user_id' => $user->id,
             'username' => $user->username,
             'livello' => $user->livello_accesso,
-            'centro_assegnato' => $user->centro_assistenza_id ? 'Sì' : 'No',
+            'centro_id' => $user->centro_assistenza_id,
             'created_by' => Auth::id()
         ]);
 
-        // Messaggio di successo
-        $message = "Utente '{$user->username}' creato con successo!";
-        if ($user->isTecnico() && !$user->centro_assistenza_id) {
-            $message .= " Il centro di assistenza potrà essere assegnato successivamente.";
+        // === MESSAGGIO DI SUCCESSO ===
+        $livelli = ['2' => 'Tecnico', '3' => 'Staff', '4' => 'Amministratore'];
+        $livelloNome = $livelli[$user->livello_accesso] ?? 'Utente';
+        
+        $message = "✅ {$livelloNome} '{$user->username}' ({$user->nome} {$user->cognome}) creato con successo!";
+        
+        // Informazioni aggiuntive per tecnici
+        if ($user->livello_accesso == '2') {
+            if ($user->centro_assistenza_id) {
+                $centro = CentroAssistenza::find($user->centro_assistenza_id);
+                $message .= " Assegnato al centro '{$centro->nome}'.";
+            } else {
+                $message .= " Centro di assistenza non assegnato.";
+            }
         }
 
-        return redirect()->route('admin.users.index')
-            ->with('success', $message);
+        // === REDIRECT DIRETTO ===
+        return redirect()->route('admin.users.index')->with('success', $message);
 
     } catch (\Exception $e) {
-        DB::rollBack();
         
         Log::error('Errore creazione utente', [
             'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString(),
             'admin_id' => Auth::id()
         ]);
 
-        return redirect()->back()
+        // Torna al form con errore
+        return back()
             ->withInput($request->except('password', 'password_confirmation'))
-            ->with('error', 'Errore nella creazione dell\'utente: ' . $e->getMessage());
+            ->with('error', 'Errore durante la creazione dell\'utente: ' . $e->getMessage());
     }
 }
 
@@ -342,6 +307,7 @@ public function store(Request $request)
         }
     }
 
+   
     /**
      * Elimina un utente (soft delete)
      */
@@ -476,6 +442,24 @@ public function store(Request $request)
             ], 500);
         }
     }
+
+    /**
+ * Metodo helper per ottenere statistiche post-creazione
+ * Utile per aggiornare dashboard o notifiche
+ */
+private function getPostCreationStats(): array
+{
+    return [
+        'total_users' => User::count(),
+        'admin_count' => User::where('livello_accesso', '4')->count(),
+        'staff_count' => User::where('livello_accesso', '3')->count(),
+        'tecnici_count' => User::where('livello_accesso', '2')->count(),
+        'tecnici_without_center' => User::where('livello_accesso', '2')
+            ->whereNull('centro_assistenza_id')
+            ->count(),
+        'centers_available' => CentroAssistenza::count()
+    ];
+}
 
     /**
      * Export degli utenti per API

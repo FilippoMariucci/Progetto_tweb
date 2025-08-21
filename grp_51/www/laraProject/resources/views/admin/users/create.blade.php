@@ -202,7 +202,7 @@
                                 <div class="col-12">
                                     <h6 class="text-info mb-3">
                                         <i class="bi bi-tools me-2"></i>Informazioni Tecnico
-                                        <small class="text-muted">(obbligatorie per tecnici)</small>
+                                        <small class="text-muted">(per utenti tecnici)</small>
                                     </h6>
                                 </div>
                             </div>
@@ -234,59 +234,45 @@
                                            name="specializzazione" 
                                            value="{{ old('specializzazione') }}"
                                            placeholder="es: Elettrodomestici, Climatizzatori"
-                                           maxlength="255"
-                                           list="specializzazioni">
-                                    <datalist id="specializzazioni">
-                                        <option value="Elettrodomestici">
-                                        <option value="Lavatrici e Lavastoviglie">
-                                        <option value="Frigoriferi e Freezer">
-                                        <option value="Forni e Microonde">
-                                        <option value="Climatizzatori">
-                                        <option value="Caldaie e Scaldabagni">
-                                        <option value="Piccoli Elettrodomestici">
-                                        <option value="Aspirapolvere">
-                                        <option value="Impianti Elettrici">
-                                    </datalist>
+                                           maxlength="255">
                                     @error('specializzazione')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
                             </div>
                             
-                            <!-- Centro Assistenza - VERSIONE OPZIONALE -->
-<div class="mb-3">
-    <label for="centro_assistenza_id" class="form-label fw-semibold">
-        <i class="bi bi-geo-alt me-1"></i>Centro di Assistenza 
-        <span class="text-muted">(opzionale)</span>
-    </label>
-    <select class="form-select @error('centro_assistenza_id') is-invalid @enderror"
-        id="centro_assistenza_id"
-        name="centro_assistenza_id">
-    <option value="">-- Nessun centro assegnato --</option>
-    @foreach($centri as $centro)
-        <option value="{{ $centro->id }}" 
-                {{ old('centro_assistenza_id') == $centro->id ? 'selected' : '' }}>
-            {{ $centro->nome }} - {{ $centro->citta }} ({{ $centro->provincia }})
-        </option>
-    @endforeach
-</select>
+                            <!-- Centro Assistenza - OPZIONALE -->
+                            <div class="mb-3">
+                                <label for="centro_assistenza_id" class="form-label fw-semibold">
+                                    <i class="bi bi-geo-alt me-1"></i>Centro di Assistenza 
+                                    <span class="badge bg-secondary ms-2">Opzionale</span>
+                                </label>
+                                
+                                <select class="form-select @error('centro_assistenza_id') is-invalid @enderror"
+                                        id="centro_assistenza_id"
+                                        name="centro_assistenza_id">
+                                    
+                                    <option value="">-- Nessun centro assegnato --</option>
+                                    
+                                    @forelse($centri as $centro)
+                                        <option value="{{ $centro->id }}" 
+                                                {{ old('centro_assistenza_id') == $centro->id ? 'selected' : '' }}>
+                                            🏢 {{ $centro->nome }} - {{ $centro->citta }} ({{ $centro->provincia }})
+                                        </option>
+                                    @empty
+                                        <option value="" disabled>Nessun centro di assistenza disponibile</option>
+                                    @endforelse
+                                </select>
 
-    <div class="form-text">
-        <i class="bi bi-info-circle me-1"></i>
-        Centro di assistenza di appartenenza del tecnico. Può essere assegnato successivamente dall'amministratore.
-    </div>
-    @error('centro_assistenza_id')
-        <div class="invalid-feedback">{{ $message }}</div>
-    @enderror
-</div>
-                        </div>
-                        
-                        <!-- === RIEPILOGO === -->
-                        <div id="riepilogo-utente" class="alert alert-light border" style="display: none;">
-                            <h6 class="alert-heading">
-                                <i class="bi bi-check-circle text-success me-2"></i>Riepilogo Nuovo Utente
-                            </h6>
-                            <div id="riepilogo-content"></div>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    <strong>Centro opzionale:</strong> Può essere assegnato ora o successivamente.
+                                </div>
+
+                                @error('centro_assistenza_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
                         </div>
                         
                         <!-- === PULSANTI AZIONE === -->
@@ -329,7 +315,7 @@
                         <ul class="small text-muted mb-0">
                             <li>Visualizza prodotti completi</li>
                             <li>Accede a malfunzionamenti e soluzioni</li>
-                            <li>Può segnalare problemi</li>
+                            <li>Centro assistenza opzionale</li>
                         </ul>
                     </div>
                     
@@ -341,7 +327,6 @@
                         <ul class="small text-muted mb-0">
                             <li>Tutte le funzioni Tecnico</li>
                             <li>Crea e modifica soluzioni</li>
-                            <li>Gestisce prodotti assegnati</li>
                         </ul>
                     </div>
                     
@@ -353,33 +338,7 @@
                         <ul class="small text-muted mb-0">
                             <li>Controllo completo sistema</li>
                             <li>Gestisce utenti e prodotti</li>
-                            <li>Configura centri assistenza</li>
                         </ul>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Statistiche Correnti -->
-            <div class="card card-custom mb-4">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i class="bi bi-graph-up text-success me-2"></i>Utenti Attuali
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="row text-center">
-                        <div class="col-4">
-                            <h5 class="mb-1 text-info">{{ \App\Models\User::where('livello_accesso', '2')->count() }}</h5>
-                            <small class="text-muted">Tecnici</small>
-                        </div>
-                        <div class="col-4">
-                            <h5 class="mb-1 text-warning">{{ \App\Models\User::where('livello_accesso', '3')->count() }}</h5>
-                            <small class="text-muted">Staff</small>
-                        </div>
-                        <div class="col-4">
-                            <h5 class="mb-1 text-danger">{{ \App\Models\User::where('livello_accesso', '4')->count() }}</h5>
-                            <small class="text-muted">Admin</small>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -394,64 +353,18 @@
                 <div class="card-body">
                     <div class="small">
                         <div class="mb-3">
-                            <strong>Username:</strong>
-                            <ul class="mt-1 mb-0">
-                                <li>Usa formato nome.cognome</li>
-                                <li>Solo lettere, numeri e punti</li>
-                                <li>Deve essere univoco</li>
-                            </ul>
+                            <strong>Username:</strong> Usa formato nome.cognome
                         </div>
-                        
                         <div class="mb-3">
-                            <strong>Password sicura:</strong>
-                            <ul class="mt-1 mb-0">
-                                <li>Almeno 8 caratteri</li>
-                                <li>Combinazione lettere/numeri</li>
-                                <li>Usa il generatore automatico</li>
-                            </ul>
+                            <strong>Password:</strong> Usa il generatore automatico
                         </div>
-                        
                         <div class="mb-0">
-                            <strong>Tecnici:</strong>
-                            <ul class="mt-1 mb-0">
-                                <li>Centro obbligatorio</li>
-                                <li>Specializzazione chiara</li>
-                                <li>Data nascita per statistiche</li>
-                            </ul>
+                            <strong>Tecnici:</strong> Centro assistenza opzionale
                         </div>
                     </div>
                 </div>
             </div>
             
-            <!-- Centri Disponibili -->
-            @if($centri->count() > 0)
-                <div class="card card-custom">
-                    <div class="card-header">
-                        <h6 class="mb-0">
-                            <i class="bi bi-geo-alt text-info me-2"></i>Centri Disponibili
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="small">
-                            @foreach($centri->take(5) as $centro)
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <div>
-                                        <strong>{{ $centro->nome }}</strong>
-                                        <div class="text-muted">{{ $centro->citta }}</div>
-                                    </div>
-                                    <span class="badge bg-secondary">{{ $centro->tecnici()->count() }}</span>
-                                </div>
-                            @endforeach
-                            
-                            @if($centri->count() > 5)
-                                <div class="text-center mt-2">
-                                    <small class="text-muted">... e altri {{ $centri->count() - 5 }} centri</small>
-                                </div>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-            @endif
         </div>
     </div>
 </div>
@@ -467,9 +380,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div id="previewContent">
-                    <!-- Contenuto popolato via JavaScript -->
-                </div>
+                <div id="previewContent"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Modifica</button>
@@ -485,127 +396,130 @@
 
 @push('styles')
 <style>
+/* === STILI PER IL FORM DI CREAZIONE UTENTE === */
+
+/* Card personalizzate */
 .card-custom {
     border: none;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     transition: all 0.3s ease;
+    border-radius: 10px;
 }
 
+.card-custom:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Form labels */
 .form-label.fw-semibold {
     color: #495057;
     font-weight: 600;
+    font-size: 0.95rem;
 }
 
+.form-label i {
+    color: #6c757d;
+}
+
+/* Bordi colorati */
 .border-start.border-4 {
     border-width: 4px !important;
 }
 
+/* Badge */
 .badge {
     font-size: 0.75rem;
+    font-weight: 500;
 }
 
-/* Password strength indicator */
-.password-strength {
-    height: 4px;
-    background: #e9ecef;
-    border-radius: 2px;
-    margin-top: 5px;
-    overflow: hidden;
+.badge.bg-secondary {
+    background-color: #6c757d !important;
 }
 
-.password-strength-bar {
-    height: 100%;
-    transition: width 0.3s ease, background-color 0.3s ease;
+/* Form controls */
+.form-control:focus,
+.form-select:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
 }
 
-.strength-weak { background-color: #dc3545; }
-.strength-medium { background-color: #ffc107; }
-.strength-strong { background-color: #28a745; }
+/* Input groups */
+.input-group .btn {
+    border-color: #ced4da;
+}
 
-/* Preview styling */
-#previewContent .preview-section {
-    margin-bottom: 1.5rem;
-    padding: 1rem;
-    border-left: 3px solid #28a745;
+.input-group .btn:hover {
     background-color: #f8f9fa;
+    border-color: #86b7fe;
 }
 
-#previewContent .preview-title {
-    font-weight: bold;
-    color: #28a745;
-    margin-bottom: 0.5rem;
+/* Alert personalizzati */
+.alert {
+    border-radius: 8px;
+    border: none;
 }
 
-/* Focused field styling */
-.focused { 
-    transform: scale(1.02); 
-    transition: transform 0.2s ease; 
-}
-
-/* Animation styles */
-.password-strength { 
-    animation: slideIn 0.3s ease; 
-}
-
-@keyframes slideIn { 
-    from { opacity: 0; transform: translateY(-10px); } 
-    to { opacity: 1; transform: translateY(0); } 
-}
-
-.alert { 
-    animation: fadeIn 0.5s ease; 
-}
-
-@keyframes fadeIn { 
-    from { opacity: 0; } 
-    to { opacity: 1; } 
+/* Responsive */
+@media (max-width: 768px) {
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .d-flex.justify-content-between > div {
+        width: 100%;
+        text-align: center;
+    }
+    
+    .card-custom {
+        margin-bottom: 1rem;
+    }
 }
 </style>
 @endpush
 
 @push('scripts')
 <script>
+// JavaScript PULITO per il form di creazione utente
 $(document).ready(function() {
+    
+    console.log('🚀 Form creazione utente caricato');
+    
+    var formSubmitted = false;
     
     // === GESTIONE CAMPI CONDIZIONALI ===
     
-    /**
-     * Gestisce la visualizzazione dei campi specifici per i tecnici
-     * Quando si seleziona "Tecnico" (livello 2), mostra i campi aggiuntivi
-     */
     $('#livello_accesso').on('change', function() {
-        const livello = $(this).val();
-        const datiTecnico = $('#dati-tecnico');
+        var livello = $(this).val();
+        var datiTecnico = $('#dati-tecnico');
         
         if (livello === '2') {
-            // Mostra i campi con animazione slideDown
+            // Mostra campi tecnico
             datiTecnico.slideDown();
             
-            // Rende obbligatori i campi specifici per i tecnici
-            $('#data_nascita, #specializzazione, #centro_assistenza_id').attr('required', true);
-                
-        } else {
-            // Nasconde i campi per altri livelli di accesso
-            datiTecnico.slideUp();
+            // Solo data_nascita e specializzazione obbligatori
+            $('#data_nascita, #specializzazione').attr('required', true);
             
-            // Rimuove l'obbligo dai campi tecnico
+            // Centro SEMPRE opzionale
+            $('#centro_assistenza_id').attr('required', false);
+            
+            console.log('✅ Campi tecnico mostrati');
+            
+        } else {
+            // Nascondi campi
+            datiTecnico.slideUp();
             $('#data_nascita, #specializzazione, #centro_assistenza_id').attr('required', false);
-        }
-        
-        // Aggiorna il riepilogo se visibile
-        if ($('#riepilogo-utente').is(':visible')) {
-            updatePreview();
+            
+            console.log('📴 Campi tecnico nascosti');
         }
     });
     
     // === GESTIONE PASSWORD ===
     
-    /**
-     * Toggle per mostrare/nascondere la password
-     */
+    // Toggle visibilità password
     $('#togglePassword').on('click', function() {
-        const passwordField = $('#password');
-        const icon = $(this).find('i');
+        var passwordField = $('#password');
+        var icon = $(this).find('i');
         
         if (passwordField.attr('type') === 'password') {
             passwordField.attr('type', 'text');
@@ -616,462 +530,216 @@ $(document).ready(function() {
         }
     });
     
-    /**
-     * Generatore di password sicure
-     */
+    // Generatore password
     $('#generatePassword').on('click', function() {
-        const lowercase = 'abcdefghijklmnopqrstuvwxyz';
-        const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        const numbers = '0123456789';
-        const symbols = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+        var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()';
+        var password = '';
         
-        const allChars = lowercase + uppercase + numbers + symbols;
-        let password = '';
-        
-        // Assicura che ci sia almeno un carattere di ogni tipo
-        password += lowercase[Math.floor(Math.random() * lowercase.length)];
-        password += uppercase[Math.floor(Math.random() * uppercase.length)];
-        password += numbers[Math.floor(Math.random() * numbers.length)];
-        password += symbols[Math.floor(Math.random() * symbols.length)];
-        
-        // Completa con caratteri casuali fino a 12 caratteri totali
-        for (let i = 4; i < 12; i++) {
-            password += allChars[Math.floor(Math.random() * allChars.length)];
+        for (var i = 0; i < 12; i++) {
+            password += chars.charAt(Math.floor(Math.random() * chars.length));
         }
         
-        // Mescola i caratteri
-        password = password.split('').sort(() => Math.random() - 0.5).join('');
-        
-        // Imposta la password nei campi
         $('#password, #password_confirmation').val(password);
         
-        // Mostra la password temporaneamente
+        // Mostra temporaneamente
         $('#password').attr('type', 'text');
         $('#togglePassword').find('i').removeClass('bi-eye').addClass('bi-eye-slash');
         
-        // Feedback visivo
-        $(this).removeClass('btn-outline-info').addClass('btn-success');
-        $(this).html('<i class="bi bi-check me-1"></i>Password Generata!');
+        // Feedback
+        var btn = $(this);
+        btn.removeClass('btn-outline-info').addClass('btn-success').text('Generata!');
         
-        setTimeout(() => {
-            $(this).removeClass('btn-success').addClass('btn-outline-info');
-            $(this).html('<i class="bi bi-magic me-1"></i>Genera Password Sicura');
-        }, 2000);
-        
-        updatePasswordStrength(password);
+        setTimeout(function() {
+            btn.removeClass('btn-success').addClass('btn-outline-info');
+            btn.html('<i class="bi bi-magic me-1"></i>Genera Password Sicura');
+        }, 1500);
     });
     
-    /**
-     * Validazione password in tempo reale
-     */
-    $('#password').on('input', function() {
-        const password = $(this).val();
-        updatePasswordStrength(password);
+    // Verifica corrispondenza password
+    $('#password_confirmation').on('input', function() {
+        var password = $('#password').val();
+        var confirmation = $(this).val();
         
-        if ($('#password_confirmation').val() === '') {
-            checkPasswordMatch();
+        if (confirmation && password !== confirmation) {
+            $(this).addClass('is-invalid');
+        } else {
+            $(this).removeClass('is-invalid');
         }
     });
     
-    $('#password_confirmation').on('input', checkPasswordMatch);
+    // === AUTO-COMPLETE USERNAME ===
     
-    /**
-     * Aggiorna l'indicatore di forza password
-     */
-    function updatePasswordStrength(password) {
-        $('.password-strength').remove();
+    $('#nome, #cognome').on('input', function() {
+        var nome = $('#nome').val().toLowerCase().trim();
+        var cognome = $('#cognome').val().toLowerCase().trim();
         
-        if (password.length === 0) return;
+        if (nome && cognome && !$('#username').val()) {
+            $('#username').val(nome + '.' + cognome);
+        }
+    });
+    
+    // === VALIDAZIONE FORM ===
+    
+    $('#createUserForm').on('submit', function(e) {
         
-        let score = 0;
-        
-        if (password.length >= 8) score += 25;
-        if (password.length >= 12) score += 25;
-        if (/[a-z]/.test(password)) score += 12.5;
-        if (/[A-Z]/.test(password)) score += 12.5;
-        if (/[0-9]/.test(password)) score += 12.5;
-        if (/[^A-Za-z0-9]/.test(password)) score += 12.5;
-        
-        let strengthClass, strengthText;
-        if (score < 50) {
-            strengthClass = 'strength-weak';
-            strengthText = 'Debole';
-        } else if (score < 75) {
-            strengthClass = 'strength-medium';
-            strengthText = 'Media';
-        } else {
-            strengthClass = 'strength-strong';
-            strengthText = 'Forte';
+        // Evita doppi submit
+        if (formSubmitted) {
+            e.preventDefault();
+            return false;
         }
         
-        const strengthIndicator = `
-            <div class="password-strength">
-                <div class="password-strength-bar ${strengthClass}" style="width: ${score}%"></div>
-            </div>
-            <small class="text-muted">Forza password: <span class="${strengthClass.replace('strength-', 'text-')}">${strengthText}</span></small>
-        `;
+        console.log('📤 Invio form...');
         
-        $('#password').after(strengthIndicator);
-    }
-    
-    /**
-     * Controlla corrispondenza password
-     */
-    function checkPasswordMatch() {
-        const password = $('#password').val();
-        const confirmation = $('#password_confirmation').val();
+        // Rimuovi messaggi di errore precedenti
+        $('.alert-danger').remove();
         
-        if (confirmation.length === 0) return;
+        // Controlli minimi
+        var hasErrors = false;
+        var errors = [];
         
-        if (password === confirmation) {
-            $('#password_confirmation').removeClass('is-invalid').addClass('is-valid');
-            $('.password-match-feedback').remove();
-        } else {
-            $('#password_confirmation').removeClass('is-valid').addClass('is-invalid');
-            if (!$('.password-match-feedback').length) {
-                $('#password_confirmation').after('<div class="invalid-feedback password-match-feedback">Le password non coincidono</div>');
+        // Username
+        if (!$('#username').val().trim()) {
+            hasErrors = true;
+            errors.push('Username obbligatorio');
+        }
+        
+        // Password
+        var password = $('#password').val();
+        var passwordConfirm = $('#password_confirmation').val();
+        
+        if (!password) {
+            hasErrors = true;
+            errors.push('Password obbligatoria');
+        } else if (password.length < 8) {
+            hasErrors = true;
+            errors.push('Password troppo corta (minimo 8 caratteri)');
+        } else if (password !== passwordConfirm) {
+            hasErrors = true;
+            errors.push('Le password non coincidono');
+        }
+        
+        // Nome e cognome
+        if (!$('#nome').val().trim()) {
+            hasErrors = true;
+            errors.push('Nome obbligatorio');
+        }
+        
+        if (!$('#cognome').val().trim()) {
+            hasErrors = true;
+            errors.push('Cognome obbligatorio');
+        }
+        
+        // Livello
+        if (!$('#livello_accesso').val()) {
+            hasErrors = true;
+            errors.push('Seleziona livello di accesso');
+        }
+        
+        // Per tecnici
+        if ($('#livello_accesso').val() === '2') {
+            if (!$('#data_nascita').val()) {
+                hasErrors = true;
+                errors.push('Data nascita obbligatoria per tecnici');
             }
+            if (!$('#specializzazione').val().trim()) {
+                hasErrors = true;
+                errors.push('Specializzazione obbligatoria per tecnici');
+            }
+            // Centro NON è obbligatorio
         }
-    }
+        
+        // Se ci sono errori
+        if (hasErrors) {
+            e.preventDefault();
+            
+            // Crea lista errori
+            var errorList = '';
+            for (var i = 0; i < errors.length; i++) {
+                errorList += '<li>' + errors[i] + '</li>';
+            }
+            
+            // Mostra errori
+            var alertHtml = '<div class="alert alert-danger alert-dismissible fade show">' +
+                '<strong>Correggi questi errori:</strong>' +
+                '<ul class="mb-0 mt-2">' + errorList + '</ul>' +
+                '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+                '</div>';
+            
+            $('#createUserForm').prepend(alertHtml);
+            
+            // Scroll in alto
+            $('html, body').animate({ scrollTop: 0 }, 300);
+            
+            console.log('❌ Errori trovati:', errors);
+            return false;
+        }
+        
+        // Form valido - procedi
+        formSubmitted = true;
+        
+        // Disabilita pulsante
+        var submitBtn = $('#createBtn');
+        submitBtn.prop('disabled', true);
+        submitBtn.html('<i class="spinner-border spinner-border-sm me-1"></i>Creazione...');
+        
+        // Messaggio di caricamento
+        var loadingHtml = '<div class="alert alert-info">' +
+            '<i class="bi bi-hourglass-split me-2"></i>' +
+            '<strong>Creazione in corso...</strong> Non chiudere la pagina.' +
+            '</div>';
+        
+        $('#createUserForm').prepend(loadingHtml);
+        
+        console.log('✅ Form inviato correttamente');
+        
+        // Lascia che il form si invii normalmente
+        return true;
+    });
     
-    // === GESTIONE ANTEPRIMA ===
+    // === ANTEPRIMA ===
     
-    /**
-     * Mostra l'anteprima del nuovo utente in un modal
-     */
     $('#previewBtn').on('click', function() {
-        updatePreview();
+        var username = $('#username').val() || 'Non specificato';
+        var nome = $('#nome').val() || '';
+        var cognome = $('#cognome').val() || '';
+        var livello = $('#livello_accesso option:selected').text() || 'Non selezionato';
+        
+        var previewHtml = '<div class="mb-3">' +
+            '<strong>Username:</strong> ' + username + '<br>' +
+            '<strong>Nome:</strong> ' + nome + ' ' + cognome + '<br>' +
+            '<strong>Livello:</strong> ' + livello;
+        
+        if ($('#livello_accesso').val() === '2') {
+            var dataNascita = $('#data_nascita').val() || 'Non specificata';
+            var specializzazione = $('#specializzazione').val() || 'Non specificata';
+            var centro = $('#centro_assistenza_id option:selected').text() || 'Nessun centro assegnato';
+            
+            previewHtml += '<br><strong>Data Nascita:</strong> ' + dataNascita +
+                '<br><strong>Specializzazione:</strong> ' + specializzazione +
+                '<br><strong>Centro:</strong> ' + centro;
+        }
+        
+        previewHtml += '</div>';
+        
+        $('#previewContent').html(previewHtml);
         $('#previewModal').modal('show');
     });
     
-    /**
-     * Aggiorna il contenuto dell'anteprima
-     */
-    function updatePreview() {
-        const formData = {
-            username: $('#username').val(),
-            nome: $('#nome').val(),
-            cognome: $('#cognome').val(),
-            livello_accesso: $('#livello_accesso').val(),
-            data_nascita: $('#data_nascita').val(),
-            specializzazione: $('#specializzazione').val(),
-            centro_assistenza: $('#centro_assistenza_id option:selected').text()
-        };
-        
-        // Mappa dei livelli di accesso
-        const livelli = {
-            '2': '🔵 Tecnico',
-            '3': '🟡 Staff Aziendale', 
-            '4': '🔴 Amministratore'
-        };
-        
-        let previewHtml = `
-            <div class="preview-section">
-                <div class="preview-title">👤 Informazioni Account</div>
-                <div><strong>Username:</strong> ${formData.username || 'Non specificato'}</div>
-                <div><strong>Nome Completo:</strong> ${formData.nome} ${formData.cognome}</div>
-                <div><strong>Livello Accesso:</strong> ${livelli[formData.livello_accesso] || 'Non selezionato'}</div>
-            </div>
-        `;
-        
-        // Sezione tecnico solo se livello 2
-        if (formData.livello_accesso === '2') {
-            previewHtml += `
-                <div class="preview-section">
-                    <div class="preview-title">🔧 Informazioni Tecnico</div>
-                    <div><strong>Data Nascita:</strong> ${formData.data_nascita ? new Date(formData.data_nascita).toLocaleDateString('it-IT') : 'Non specificata'}</div>
-                    <div><strong>Specializzazione:</strong> ${formData.specializzazione || 'Non specificata'}</div>
-                    <div><strong>Centro Assistenza:</strong> ${formData.centro_assistenza !== 'Seleziona centro di assistenza' ? formData.centro_assistenza : 'Non selezionato'}</div>
-                </div>
-            `;
-        }
-        
-        // Aggiunge sezione permessi
-        let permessi = [];
-        switch(formData.livello_accesso) {
-            case '2':
-                permessi = ['Visualizza prodotti completi', 'Accede a malfunzionamenti e soluzioni', 'Può segnalare problemi'];
-                break;
-            case '3':
-                permessi = ['Tutte le funzioni Tecnico', 'Crea e modifica soluzioni', 'Gestisce prodotti assegnati'];
-                break;
-            case '4':
-                permessi = ['Controllo completo sistema', 'Gestisce utenti e prodotti', 'Configura centri assistenza'];
-                break;
-        }
-        
-        if (permessi.length > 0) {
-            previewHtml += `
-                <div class="preview-section">
-                    <div class="preview-title">🛡️ Permessi Utente</div>
-                    <ul class="mb-0">
-                        ${permessi.map(p => `<li>${p}</li>`).join('')}
-                    </ul>
-                </div>
-            `;
-        }
-        
-        $('#previewContent').html(previewHtml);
-        
-        // Mostra anche il riepilogo inline
-        $('#riepilogo-content').html(previewHtml);
-        $('#riepilogo-utente').slideDown();
-    }
-    
-    /**
-     * Conferma creazione dal modal di anteprima
-     */
     $('#createFromPreview').on('click', function() {
         $('#previewModal').modal('hide');
         $('#createUserForm').submit();
     });
     
-    // === VALIDAZIONE FORM ===
+    // === INIZIALIZZAZIONE ===
     
-    /**
-     * Validazione in tempo reale del form
-     */
-    $('#createUserForm input, #createUserForm select').on('blur change', function() {
-        validateField($(this));
-    });
+    // Nascondi campi tecnico inizialmente
+    $('#dati-tecnico').hide();
     
-    /**
-     * Valida un singolo campo
-     */
-    function validateField($field) {
-        const value = $field.val().trim();
-        const fieldName = $field.attr('name');
-        let isValid = true;
-        let errorMessage = '';
-        
-        // Validazioni specifiche per campo
-        switch(fieldName) {
-            case 'username':
-                if (value.length < 3) {
-                    isValid = false;
-                    errorMessage = 'Username deve essere almeno 3 caratteri';
-                } else if (!/^[a-zA-Z0-9._-]+$/.test(value)) {
-                    isValid = false;
-                    errorMessage = 'Username può contenere solo lettere, numeri, punti, underscore e trattini';
-                }
-                break;
-                
-            case 'password':
-                if (value.length < 8) {
-                    isValid = false;
-                    errorMessage = 'Password deve essere almeno 8 caratteri';
-                }
-                break;
-                
-            case 'nome':
-            case 'cognome':
-                if (value.length < 2) {
-                    isValid = false;
-                    errorMessage = 'Deve essere almeno 2 caratteri';
-                }
-                break;
-                
-            case 'data_nascita':
-                if ($('#livello_accesso').val() === '2' && !value) {
-                    isValid = false;
-                    errorMessage = 'Data nascita obbligatoria per i tecnici';
-                } else if (value && new Date(value) >= new Date()) {
-                    isValid = false;
-                    errorMessage = 'Data nascita deve essere nel passato';
-                }
-                break;
-        }
-        
-        // Applica la validazione visiva
-        if (isValid) {
-            $field.removeClass('is-invalid').addClass('is-valid');
-            $field.siblings('.invalid-feedback.custom-validation').remove();
-        } else {
-            $field.removeClass('is-valid').addClass('is-invalid');
-            
-            // Aggiunge messaggio di errore se non esiste
-            if (!$field.siblings('.invalid-feedback.custom-validation').length) {
-                $field.after(`<div class="invalid-feedback custom-validation">${errorMessage}</div>`);
-            } else {
-                $field.siblings('.invalid-feedback.custom-validation').text(errorMessage);
-            }
-        }
-        
-        return isValid;
-    }
+    // Focus iniziale
+    $('#username').focus();
     
-    /**
-     * Validazione completa del form prima dell'invio
-     */
-    $('#createUserForm').on('submit', function(e) {
-        let isFormValid = true;
-        
-        // Valida tutti i campi obbligatori
-        $(this).find('input[required], select[required]').each(function() {
-            if (!validateField($(this))) {
-                isFormValid = false;
-            }
-        });
-        
-        // Controlla corrispondenza password
-        if ($('#password').val() !== $('#password_confirmation').val()) {
-            isFormValid = false;
-            $('#password_confirmation').addClass('is-invalid');
-        }
-        
-        // Previene l'invio se ci sono errori
-        if (!isFormValid) {
-            e.preventDefault();
-            
-            // Mostra alert di errore
-            const alertHtml = `
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    <strong>Errori nel form:</strong> Correggi i campi evidenziati prima di continuare.
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            `;
-            
-            $('#createUserForm').prepend(alertHtml);
-            
-            // Scroll al primo errore
-            const firstError = $('.is-invalid').first();
-            if (firstError.length) {
-                $('html, body').animate({
-                    scrollTop: firstError.offset().top - 100
-                }, 500);
-            }
-        }
-    });
+    console.log('✅ Form inizializzato - Centro assistenza opzionale');
     
-    // === MIGLIORAMENTI UX ===
-    
-    /**
-     * Auto-complete intelligente per username basato su nome e cognome
-     */
-    $('#nome, #cognome').on('input', function() {
-        const nome = $('#nome').val().toLowerCase().trim();
-        const cognome = $('#cognome').val().toLowerCase().trim();
-        
-        if (nome.length > 0 && cognome.length > 0) {
-            // Suggerisce username formato nome.cognome
-            const suggestedUsername = nome + '.' + cognome;
-            
-            // Solo se il campo username è vuoto
-            if ($('#username').val().trim() === '') {
-                $('#username').val(suggestedUsername);
-                $('#username').trigger('blur'); // Triggera la validazione
-            }
-        }
-    });
-    
-    /**
-     * Tooltip informativi
-     */
-    $('[data-bs-toggle="tooltip"]').tooltip();
-    
-    /**
-     * Conferma prima di abbandonare la pagina se ci sono modifiche
-     */
-    let formChanged = false;
-    $('#createUserForm input, #createUserForm select, #createUserForm textarea').on('input change', function() {
-        formChanged = true;
-    });
-    
-    $(window).on('beforeunload', function(e) {
-        if (formChanged) {
-            e.preventDefault();
-            e.returnValue = 'Hai modifiche non salvate. Vuoi davvero uscire?';
-            return e.returnValue;
-        }
-    });
-    
-    // Rimuove l'avviso quando il form viene inviato
-    $('#createUserForm').on('submit', function() {
-        formChanged = false;
-    });
-    
-    /**
-     * Animazioni e feedback visivi migliorati
-     */
-    $('.form-control, .form-select').on('focus', function() {
-        $(this).closest('.mb-3').addClass('focused');
-    }).on('blur', function() {
-        $(this).closest('.mb-3').removeClass('focused');
-    });
-    
-    /**
-     * Contatore caratteri per campi con limite
-     */
-    $('#specializzazione').on('input', function() {
-        const maxLength = 255;
-        const currentLength = $(this).val().length;
-        const remaining = maxLength - currentLength;
-        
-        // Rimuove contatori esistenti
-        $(this).siblings('.char-counter').remove();
-        
-        // Aggiunge contatore
-        if (currentLength > 0) {
-            const counterClass = remaining < 50 ? 'text-warning' : remaining < 20 ? 'text-danger' : 'text-muted';
-            $(this).after(`<small class="char-counter ${counterClass}">${remaining} caratteri rimanenti</small>`);
-        }
-    });
-    
-    // Inizializza componenti all'avvio
-    initializeComponents();
-    
-    /**
-     * Inizializza componenti e impostazioni iniziali
-     */
-    function initializeComponents() {
-        // Nasconde la sezione tecnico inizialmente
-        $('#dati-tecnico').hide();
-        
-        // Nasconde il riepilogo inizialmente
-        $('#riepilogo-utente').hide();
-        
-        // Focus sul primo campo
-        $('#username').focus();
-        
-        console.log('✅ Sistema creazione utente inizializzato correttamente');
-    }
 });
-
-// === FUNZIONI GLOBALI DI UTILITÀ ===
-
-/**
- * Funzione per validare email (se necessaria in futuro)
- */
-function isValidEmail(email) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-}
-
-/**
- * Funzione per formattare numeri di telefono italiani
- */
-function formatPhoneNumber(phone) {
-    const cleaned = phone.replace(/\D/g, '');
-    if (cleaned.length === 10) {
-        return cleaned.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3');
-    }
-    return phone;
-}
-
-/**
- * Debounce per ottimizzare le chiamate AJAX
- */
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
 </script>
 @endpush

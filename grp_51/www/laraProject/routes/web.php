@@ -384,7 +384,7 @@ Route::middleware(['auth'])->group(function () {
                 Route::post('/', [CentroAssistenzaController::class, 'store'])->name('store');
                 
                 // Visualizzazione centro (vista admin)
-                Route::get('/{centro}', [CentroAssistenzaController::class, 'adminShow'])->name('show');
+                Route::get('/{centro}', [CentroAssistenzaController::class, 'show'])->name('show');
                 
                 // Modifica centro esistente
                 Route::get('/{centro}/edit', [CentroAssistenzaController::class, 'edit'])->name('edit');
