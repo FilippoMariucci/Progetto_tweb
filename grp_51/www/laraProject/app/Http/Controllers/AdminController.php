@@ -200,7 +200,7 @@ public function assegnaProdotto(Request $request)
     /**
      * Pagina statistiche avanzate per amministratori
      */
-    public function statistiche(Request $request)
+    public function statisticheGenerali(Request $request)
     {
         // Periodo di analisi (default ultimo mese)
         $periodo = $request->input('periodo', 30);

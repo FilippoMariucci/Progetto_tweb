@@ -362,6 +362,212 @@ class ProdottoController extends Controller
         return view('admin.prodotti.show', compact('prodotto'));
     }
 
+    // ================================================
+// AGGIUNGI QUESTO METODO AL TUO ProdottoController.php
+// ================================================
+
+/**
+ * Visualizzazione prodotto per amministratori (vista admin completa)
+ * ROUTE: GET /admin/prodotti/{prodotto}
+ * NAME: admin.prodotti.show
+ * 
+ * DIFFERENZA dal metodo show():
+ * - Vista specifica per admin con tutte le informazioni
+ * - Include statistiche avanzate
+ * - Mostra cronologia modifiche
+ * - Controlli amministrativi aggiuntivi
+ */
+public function adminShow(Prodotto $prodotto)
+{
+    // Verifica autorizzazione amministratore
+    if (!Auth::check() || !Auth::user()->canManageProdotti()) {
+        abort(403, 'Accesso riservato agli amministratori');
+    }
+
+    // Carica tutte le relazioni necessarie per la vista admin
+    $prodotto->load([
+        // Malfunzionamenti con informazioni complete
+        'malfunzionamenti' => function($query) {
+            $query->orderByRaw("FIELD(gravita, 'critica', 'alta', 'media', 'bassa')")
+                  ->orderBy('numero_segnalazioni', 'desc')
+                  ->orderBy('created_at', 'desc');
+        },
+        
+        // Staff che ha creato/modificato i malfunzionamenti
+        'malfunzionamenti.creatoBy:id,nome,cognome,livello_accesso',
+        'malfunzionamenti.modificatoBy:id,nome,cognome,livello_accesso',
+        
+        // Staff attualmente assegnato al prodotto (CORRETTO - senza email)
+        'staffAssegnato:id,nome,cognome,livello_accesso,created_at',
+    ]);
+
+    // === STATISTICHE AVANZATE PER L'ADMIN ===
+    $statistiche = [
+        // Conteggi malfunzionamenti per gravità
+        'malfunzionamenti_totali' => $prodotto->malfunzionamenti->count(),
+        'malfunzionamenti_critici' => $prodotto->malfunzionamenti->where('gravita', 'critica')->count(),
+        'malfunzionamenti_alti' => $prodotto->malfunzionamenti->where('gravita', 'alta')->count(),
+        'malfunzionamenti_medi' => $prodotto->malfunzionamenti->where('gravita', 'media')->count(),
+        'malfunzionamenti_bassi' => $prodotto->malfunzionamenti->where('gravita', 'bassa')->count(),
+        
+        // Segnalazioni totali
+        'segnalazioni_totali' => $prodotto->malfunzionamenti->sum('numero_segnalazioni'),
+        
+        // Malfunzionamento più segnalato
+        'piu_segnalato' => $prodotto->malfunzionamenti->sortByDesc('numero_segnalazioni')->first(),
+        
+        // Date importanti
+        'primo_malfunzionamento' => $prodotto->malfunzionamenti->min('created_at'),
+        'ultimo_aggiornamento' => $prodotto->malfunzionamenti->max('updated_at'),
+        
+        // Staff attività
+        'staff_contributor' => $prodotto->malfunzionamenti->pluck('creato_by')->unique()->count(),
+    ];
+
+    // === PRODOTTI CORRELATI (stessa categoria o staff) ===
+    $prodottiCorrelati = Prodotto::where('id', '!=', $prodotto->id)
+        ->where(function($query) use ($prodotto) {
+            $query->where('categoria', $prodotto->categoria)
+                  ->orWhere('staff_assegnato_id', $prodotto->staff_assegnato_id);
+        })
+        ->where('attivo', true)
+        ->withCount('malfunzionamenti')
+        ->orderBy('malfunzionamenti_count', 'desc')
+        ->limit(5)
+        ->get();
+
+    // === STAFF DISPONIBILI PER RIASSEGNAZIONE (CORRETTO - senza email) ===
+    $staffDisponibili = User::where('livello_accesso', '3')
+        ->where('id', '!=', $prodotto->staff_assegnato_id) // Esclude lo staff attuale
+        ->select('id', 'nome', 'cognome') // ← RIMOSSO 'email'
+        ->orderBy('nome')
+        ->orderBy('cognome')
+        ->get();
+
+    // === METRICHE PERFORMANCE ===
+    $metriche = [
+        'giorni_dal_lancio' => $prodotto->created_at->diffInDays(now()),
+        'media_segnalazioni_per_malfunzionamento' => $statistiche['malfunzionamenti_totali'] > 0 
+            ? round($statistiche['segnalazioni_totali'] / $statistiche['malfunzionamenti_totali'], 2) 
+            : 0,
+        'frequenza_problemi' => $this->calcolaFrequenzaProblemi($prodotto),
+        'livello_criticita' => $this->determinaLivelloCriticita($statistiche),
+    ];
+
+    // Log dell'accesso admin per audit
+    Log::info('Admin visualizza prodotto completo', [
+        'prodotto_id' => $prodotto->id,
+        'modello' => $prodotto->modello,
+        'admin_id' => Auth::id(),
+        'admin_name' => Auth::user()->nome_completo,
+        'timestamp' => now()
+    ]);
+
+    // Restituisce la vista admin specifica
+    return view('admin.prodotti.show', compact(
+        'prodotto',
+        'statistiche', 
+        'prodottiCorrelati',
+        'staffDisponibili',
+        'metriche'
+    ));
+}
+/**
+ * Metodo helper per calcolare la frequenza dei problemi
+ */
+private function calcolaFrequenzaProblemi(Prodotto $prodotto): string
+{
+    $giorni = $prodotto->created_at->diffInDays(now());
+    $problemi = $prodotto->malfunzionamenti->count();
+    
+    if ($giorni == 0 || $problemi == 0) {
+        return 'N/A';
+    }
+    
+    $frequenza = $problemi / max($giorni, 1);
+    
+    if ($frequenza > 1) {
+        return 'Molto Alta';
+    } elseif ($frequenza > 0.5) {
+        return 'Alta';
+    } elseif ($frequenza > 0.1) {
+        return 'Media';
+    } else {
+        return 'Bassa';
+    }
+}
+
+/**
+ * Metodo helper per determinare il livello di criticità generale
+ */
+private function determinaLivelloCriticita(array $statistiche): array
+{
+    $critici = $statistiche['malfunzionamenti_critici'];
+    $totali = $statistiche['malfunzionamenti_totali'];
+    
+    if ($totali == 0) {
+        return ['livello' => 'ok', 'colore' => 'success', 'descrizione' => 'Nessun problema segnalato'];
+    }
+    
+    $percentualeCritici = ($critici / $totali) * 100;
+    
+    if ($percentualeCritici > 30) {
+        return ['livello' => 'critico', 'colore' => 'danger', 'descrizione' => 'Molti problemi critici'];
+    } elseif ($percentualeCritici > 10) {
+        return ['livello' => 'alto', 'colore' => 'warning', 'descrizione' => 'Alcuni problemi critici'];
+    } elseif ($totali > 10) {
+        return ['livello' => 'medio', 'colore' => 'info', 'descrizione' => 'Molti problemi non critici'];
+    } else {
+        return ['livello' => 'basso', 'colore' => 'secondary', 'descrizione' => 'Pochi problemi'];
+    }
+}
+
+/**
+ * Metodo per ottenere la cronologia delle modifiche (da implementare)
+ */
+private function getCronologiaModifiche(Prodotto $prodotto): \Illuminate\Support\Collection
+{
+    // Placeholder per future implementazioni di audit trail
+    // Potresti usare un package come spatie/laravel-activitylog
+    
+    return collect([
+        [
+            'azione' => 'Creazione prodotto',
+            'data' => $prodotto->created_at,
+            'utente' => 'Sistema', // O chi ha creato se hai il campo
+            'dettagli' => 'Prodotto aggiunto al catalogo'
+        ],
+        [
+            'azione' => 'Ultimo aggiornamento',
+            'data' => $prodotto->updated_at,
+            'utente' => $prodotto->staffAssegnato ? $prodotto->staffAssegnato->nome_completo : 'Sistema',
+            'dettagli' => 'Informazioni prodotto modificate'
+        ]
+    ]);
+}
+
+// ================================================
+// AGGIUNGI ANCHE QUESTO METODO SE NON LO HAI GIÀ
+// ================================================
+
+/**
+ * Lista prodotti per amministratori (nome corretto)
+ * ROUTE: GET /admin/prodotti
+ * NAME: admin.prodotti.index
+ */
+public function adminIndex(Request $request)
+{
+    // Verifica autorizzazione
+    if (!Auth::check() || !Auth::user()->canManageProdotti()) {
+        abort(403, 'Accesso riservato agli amministratori');
+    }
+
+    // Se hai già il metodo index(), puoi semplicemente chiamarlo
+    return $this->index($request);
+    
+    // OPPURE implementa una logica specifica per admin se necessario
+}
+
     /**
      * Form creazione nuovo prodotto
      */

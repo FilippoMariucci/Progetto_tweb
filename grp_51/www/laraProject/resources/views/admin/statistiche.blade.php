@@ -28,15 +28,15 @@
                 <div>
                     {{-- Pulsanti azioni --}}
                     <div class="btn-group me-2">
-                        <a href="{{ route('admin.statistiche', ['periodo' => 7]) }}" 
+                        <a href="{{ route('admin.statistiche.index', ['periodo' => 7]) }}" 
                            class="btn btn-outline-info {{ ($periodo ?? 30) == 7 ? 'active' : '' }}">
                             7 giorni
                         </a>
-                        <a href="{{ route('admin.statistiche', ['periodo' => 30]) }}" 
+                        <a href="{{ route('admin.statistiche.index', ['periodo' => 30]) }}" 
                            class="btn btn-outline-info {{ ($periodo ?? 30) == 30 ? 'active' : '' }}">
                             30 giorni
                         </a>
-                        <a href="{{ route('admin.statistiche', ['periodo' => 90]) }}" 
+                        <a href="{{ route('admin.statistiche.index', ['periodo' => 90]) }}" 
                            class="btn btn-outline-info {{ ($periodo ?? 30) == 90 ? 'active' : '' }}">
                             90 giorni
                         </a>
@@ -752,7 +752,7 @@ function refreshAllStats() {
     
     // Usa la route corretta del tuo AdminController
     $.ajax({
-        url: '{{ route("admin.stats.update") }}',
+        url: '{{ route("api.admin.stats.update") }}',
         method: 'GET',
         success: function(response) {
             if (response.success) {
