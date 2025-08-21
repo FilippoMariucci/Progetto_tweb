@@ -192,7 +192,7 @@
                         <a href="{{ route('admin.users.create') }}" class="btn btn-danger btn-sm">
                             <i class="bi bi-person-plus me-1"></i>Nuovo Utente
                         </a>
-                        <a href="{{ route('register') }}" class="btn btn-outline-primary btn-sm">
+                        <a href="{{ route('admin.register') }}" class="btn btn-outline-primary btn-sm">
                             <i class="bi bi-person-add me-1"></i>Registrazione Guidata
                         </a>
                         <hr class="my-2">
