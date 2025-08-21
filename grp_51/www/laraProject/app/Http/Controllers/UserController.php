@@ -87,75 +87,119 @@ class UserController extends Controller
         return view('admin.users.create', compact('centri'));
     }
 
-    /**
-     * Salva un nuovo utente nel database
-     */
-    public function store(Request $request)
-    {
-        // Validazione completa dei dati
-        $validated = $request->validate([
-            'username' => 'required|string|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
-            'nome' => 'required|string|max:255',
-            'cognome' => 'required|string|max:255',
-            'livello_accesso' => 'required|in:2,3,4',
+   // ========================================
+   // FIX per UserController.php - Metodo store()
+   // Rimuovi la validazione required_if per centro_assistenza_id
+   // ========================================
 
-            // Campi condizionali per i tecnici (livello 2)
-            'data_nascita' => 'required_if:livello_accesso,2|nullable|date|before:today',
-            'specializzazione' => 'required_if:livello_accesso,2|nullable|string|max:255',
-            'centro_assistenza_id' => 'required_if:livello_accesso,2|nullable|exists:centri_assistenza,id',
-        ], [
-            // Messaggi di errore personalizzati
-            'username.required' => 'Il campo username è obbligatorio',
-            'username.unique' => 'Questo username è già in uso',
-            'password.min' => 'La password deve essere di almeno 8 caratteri',
-            'password.confirmed' => 'La conferma password non corrisponde',
-            'livello_accesso.in' => 'Livello di accesso non valido',
-            'data_nascita.required_if' => 'La data di nascita è obbligatoria per i tecnici',
-            'data_nascita.before' => 'La data di nascita deve essere nel passato',
-            'specializzazione.required_if' => 'La specializzazione è obbligatoria per i tecnici',
-            'centro_assistenza_id.required_if' => 'Il centro di assistenza è obbligatorio per i tecnici',
-            'centro_assistenza_id.exists' => 'Il centro di assistenza selezionato non esiste',
+/**
+ * Salva un nuovo utente nel database
+ * Centro di assistenza ora OPZIONALE per tutti i livelli
+ */
+public function store(Request $request)
+{
+    // Verifica autorizzazione admin
+    if (!Auth::check() || !Auth::user()->isAdmin()) {
+        abort(403, 'Non autorizzato');
+    }
+
+    // === VALIDAZIONE CORRETTA - Centro assistenza OPZIONALE ===
+    $validator = Validator::make($request->all(), [
+        'username' => [
+            'required',
+            'string',
+            'max:255',
+            'unique:users,username',
+            'regex:/^[a-zA-Z0-9_-]+$/' // Solo caratteri alfanumerici, underscore e trattini
+        ],
+        'password' => 'required|string|min:8|confirmed',
+        'nome' => 'required|string|max:255',
+        'cognome' => 'required|string|max:255',
+        'livello_accesso' => 'required|in:2,3,4',
+        'data_nascita' => 'nullable|date|before:today',
+        'specializzazione' => 'nullable|string|max:255',
+        
+        // === CENTRO ASSISTENZA SEMPRE OPZIONALE ===
+        // Rimuovere completamente il required_if
+        'centro_assistenza_id' => 'nullable|exists:centri_assistenza,id',
+        
+    ], [
+        // Messaggi di errore personalizzati
+        'username.required' => 'Il campo username è obbligatorio',
+        'username.unique' => 'Questo username è già in uso',
+        'username.regex' => 'L\'username può contenere solo lettere, numeri, underscore e trattini',
+        'password.required' => 'La password è obbligatoria',
+        'password.min' => 'La password deve essere di almeno 8 caratteri',
+        'password.confirmed' => 'La conferma password non corrisponde',
+        'nome.required' => 'Il nome è obbligatorio',
+        'cognome.required' => 'Il cognome è obbligatorio',
+        'livello_accesso.required' => 'Il livello di accesso è obbligatorio',
+        'livello_accesso.in' => 'Livello di accesso non valido',
+        'data_nascita.date' => 'Formato data non valido',
+        'data_nascita.before' => 'La data di nascita deve essere nel passato',
+        'centro_assistenza_id.exists' => 'Il centro di assistenza selezionato non esiste',
+    ]);
+
+    // Controlla se la validazione fallisce
+    if ($validator->fails()) {
+        return redirect()->back()
+            ->withErrors($validator)
+            ->withInput($request->except('password', 'password_confirmation'));
+    }
+
+    try {
+        DB::beginTransaction();
+
+        // === CREAZIONE UTENTE CON CENTRO OPZIONALE ===
+        $userData = [
+            'username' => trim($request->username),
+            'password' => Hash::make($request->password),
+            'nome' => trim($request->nome),
+            'cognome' => trim($request->cognome),
+            'livello_accesso' => $request->livello_accesso,
+            'data_nascita' => $request->data_nascita ?: null,
+            'specializzazione' => $request->specializzazione ? trim($request->specializzazione) : null,
+            // Centro assistenza: null se non selezionato
+            'centro_assistenza_id' => $request->centro_assistenza_id ?: null,
+        ];
+
+        $user = User::create($userData);
+
+        DB::commit();
+
+        // Log della creazione utente
+        Log::info('Nuovo utente creato dall\'admin', [
+            'new_user_id' => $user->id,
+            'new_username' => $user->username,
+            'new_user_level' => $user->livello_accesso,
+            'centro_assegnato' => $user->centro_assistenza_id ? 'Sì' : 'No',
+            'created_by_admin_id' => Auth::id(),
         ]);
 
-        try {
-            // Creazione del nuovo utente
-            $user = User::create([
-                'username' => $validated['username'],
-                'password' => Hash::make($validated['password']), // Hash della password
-                'nome' => $validated['nome'],
-                'cognome' => $validated['cognome'],
-                'livello_accesso' => $validated['livello_accesso'],
-                'data_nascita' => $validated['data_nascita'] ?? null,
-                'specializzazione' => $validated['specializzazione'] ?? null,
-                'centro_assistenza_id' => $validated['centro_assistenza_id'] ?? null,
-            ]);
-
-            // Log della creazione utente per audit
-            Log::info('Nuovo utente creato dall\'admin', [
-                'new_user_id' => $user->id,
-                'new_username' => $user->username,
-                'new_user_level' => $user->livello_accesso,
-                'created_by_admin_id' => Auth::id(),
-                'created_by_admin_username' => Auth::user()->username,
-            ]);
-
-            return redirect()->route('admin.users.index')
-                ->with('success', "Utente '{$user->username}' creato con successo!");
-
-        } catch (\Exception $e) {
-            // Log dell'errore
-            Log::error('Errore nella creazione utente', [
-                'error' => $e->getMessage(),
-                'admin_id' => Auth::id(),
-                'form_data' => $request->except('password', 'password_confirmation') // Esclude password dai log
-            ]);
-
-            return back()
-                ->withInput($request->except('password', 'password_confirmation'))
-                ->withErrors(['general' => 'Errore nella creazione dell\'utente. Riprova.']);
+        // Messaggio di successo differenziato
+        $successMessage = "Utente '{$user->username}' creato con successo!";
+        
+        if ($user->isTecnico() && !$user->centro_assistenza_id) {
+            $successMessage .= " Potrai assegnare il centro di assistenza successivamente.";
         }
+
+        return redirect()->route('admin.users.index')
+            ->with('success', $successMessage);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        
+        Log::error('Errore nella creazione utente', [
+            'error' => $e->getMessage(),
+            'admin_id' => Auth::id(),
+            'form_data' => $request->except('password', 'password_confirmation')
+        ]);
+
+        return redirect()->back()
+            ->withInput($request->except('password', 'password_confirmation'))
+            ->with('error', 'Errore nella creazione dell\'utente. Riprova.');
     }
+}
 
     /**
      * Mostra i dettagli di un utente specifico

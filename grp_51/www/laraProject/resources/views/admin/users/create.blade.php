@@ -253,26 +253,30 @@
                                 </div>
                             </div>
                             
-                            <!-- Centro Assistenza -->
-                            <div class="mb-3">
-                                <label for="centro_assistenza_id" class="form-label fw-semibold">
-                                    <i class="bi bi-geo-alt me-1"></i>Centro di Assistenza *
-                                </label>
-                                <select class="form-select @error('centro_assistenza_id') is-invalid @enderror" 
-                                        id="centro_assistenza_id" 
-                                        name="centro_assistenza_id">
-                                    <option value="">Seleziona centro di assistenza</option>
-                                    @foreach($centri as $centro)
-                                        <option value="{{ $centro->id }}" {{ old('centro_assistenza_id') == $centro->id ? 'selected' : '' }}>
-                                            {{ $centro->nome }} - {{ $centro->citta }} ({{ $centro->provincia }})
-                                        </option>
-                                    @endforeach
-                                </select>
-                                <div class="form-text">Centro di assistenza di appartenenza del tecnico</div>
-                                @error('centro_assistenza_id')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
+                            <!-- Centro Assistenza - VERSIONE OPZIONALE -->
+<div class="mb-3">
+    <label for="centro_assistenza_id" class="form-label fw-semibold">
+        <i class="bi bi-geo-alt me-1"></i>Centro di Assistenza 
+        <span class="text-muted">(opzionale)</span>
+    </label>
+    <select class="form-select @error('centro_assistenza_id') is-invalid @enderror"
+            id="centro_assistenza_id"
+            name="centro_assistenza_id">
+        <option value="">Nessun centro assegnato</option>
+        @foreach($centri as $centro)
+            <option value="{{ $centro->id }}" {{ old('centro_assistenza_id') == $centro->id ? 'selected' : '' }}>
+                {{ $centro->nome }} - {{ $centro->citta }} ({{ $centro->provincia }})
+            </option>
+        @endforeach
+    </select>
+    <div class="form-text">
+        <i class="bi bi-info-circle me-1"></i>
+        Centro di assistenza di appartenenza del tecnico. Può essere assegnato successivamente dall'amministratore.
+    </div>
+    @error('centro_assistenza_id')
+        <div class="invalid-feedback">{{ $message }}</div>
+    @enderror
+</div>
                         </div>
                         
                         <!-- === RIEPILOGO === -->
