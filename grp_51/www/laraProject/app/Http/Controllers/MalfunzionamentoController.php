@@ -414,28 +414,36 @@ public function apiByProdotto(Request $request, Prodotto $prodotto)
             ];
         });
         
-        return response()->json([
+       return response()->json([
             'success' => true,
             'data' => $data,
             'prodotto' => [
                 'id' => $prodotto->id,
                 'nome' => $prodotto->nome,
-                'modello' => $prodotto->modello
+                'modello' => $prodotto->modello,
+                'categoria' => $prodotto->categoria
+            ],
+            'filters' => [
+                'gravita' => $request->input('gravita'),
+                'difficolta' => $request->input('difficolta'),
+                'order' => $order
             ]
         ]);
-        
+
     } catch (\Exception $e) {
-        \Log::error('Errore API malfunzionamenti prodotto', [
+        \Log::error('Errore API malfunzionamenti per prodotto', [
+            'error' => $e->getMessage(),
             'prodotto_id' => $prodotto->id,
-            'error' => $e->getMessage()
+            'request' => $request->all()
         ]);
-        
+
         return response()->json([
             'success' => false,
-            'message' => 'Errore nel caricamento dei malfunzionamenti'
+            'message' => 'Errore durante il recupero dei malfunzionamenti del prodotto'
         ], 500);
     }
 }
+
 
 /**
  * API per segnalare un malfunzionamento (AJAX)

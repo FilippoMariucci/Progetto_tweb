@@ -77,7 +77,7 @@
                         
                         {{-- Assegnazione prodotti --}}
                         <div class="col-md-6 col-lg-4">
-                            <a href="{{ route('admin.assegnazioni') }}" class="btn btn-warning btn-lg w-100 h-100">
+                            <a href="{{ route('admin.assegnazioni.index') }}" class="btn btn-warning btn-lg w-100 h-100">
                                 <i class="bi bi-person-gear display-6 d-block mb-2"></i>
                                 <span class="fw-semibold">Assegna Prodotti</span>
                             </a>
@@ -85,7 +85,7 @@
                         
                         {{-- Statistiche avanzate --}}
                         <div class="col-md-6 col-lg-4">
-                            <a href="{{ route('admin.statistiche') }}" class="btn btn-success btn-lg w-100 h-100">
+                            <a href="{{ route('admin.statistiche.index') }}" class="btn btn-success btn-lg w-100 h-100">
                                 <i class="bi bi-graph-up display-6 d-block mb-2"></i>
                                 <span class="fw-semibold">Statistiche</span>
                             </a>
@@ -93,7 +93,7 @@
                         
                         {{-- Backup/Manutenzione --}}
                         <div class="col-md-6 col-lg-4">
-                            <a href="{{ route('admin.manutenzione') }}" class="btn btn-secondary btn-lg w-100 h-100">
+                            <a href="{{ route('admin.manutenzione.index') }}" class="btn btn-secondary btn-lg w-100 h-100">
                                 <i class="bi bi-tools display-6 d-block mb-2"></i>
                                 <span class="fw-semibold">Manutenzione</span>
                             </a>
@@ -272,7 +272,7 @@
                                                 @if(!$prodotto->attivo)
                                                     <span class="badge bg-secondary mb-1">Disattivo</span><br>
                                                 @endif
-                                                <a href="{{ route('admin.assegnazioni') }}?prodotto={{ $prodotto->id }}" 
+                                                <a href="{{ route('admin.assegnazioni.index') }}?prodotto={{ $prodotto->id }}" 
                                                    class="btn btn-outline-warning btn-sm">
                                                     <i class="bi bi-person-plus"></i> Assegna
                                                 </a>
@@ -285,7 +285,7 @@
                             {{-- Link per gestire tutti i prodotti non assegnati --}}
                             @if($stats['prodotti_non_assegnati_count'] > 5)
                                 <div class="text-center mt-3">
-                                    <a href="{{ route('admin.assegnazioni') }}?non_assegnati=1" 
+                                    <a href="{{ route('admin.assegnazioni.index') }}?non_assegnati=1" 
                                        class="btn btn-outline-warning">
                                         <i class="bi bi-list me-1"></i>
                                         Vedi tutti i {{ $stats['prodotti_non_assegnati_count'] }} prodotti
@@ -293,7 +293,7 @@
                                 </div>
                             @else
                                 <div class="text-center mt-3">
-                                    <a href="{{ route('admin.assegnazioni') }}" 
+                                    <a href="{{ route('admin.assegnazioni.index') }}" 
                                        class="btn btn-outline-primary">
                                         <i class="bi bi-gear me-1"></i>
                                         Gestisci Assegnazioni
@@ -308,7 +308,7 @@
                             <i class="bi bi-check-circle display-1 text-success"></i>
                             <h5 class="text-success mt-2 mb-1">Perfetto!</h5>
                             <p class="text-success mb-3">Tutti i prodotti sono assegnati</p>
-                            <a href="{{ route('admin.assegnazioni') }}" class="btn btn-outline-success">
+                            <a href="{{ route('admin.assegnazioni.index') }}" class="btn btn-outline-success">
                                 <i class="bi bi-eye me-1"></i>Visualizza Assegnazioni
                             </a>
                         </div>
@@ -416,10 +416,10 @@
                             <i class="bi bi-geo-alt-fill me-1"></i>Nuovo Centro
                         </a>
                         <hr class="my-2">
-                        <a href="{{ route('admin.export') }}" class="btn btn-success btn-sm">
+                        <a href="{{ route('admin.export.index') }}" class="btn btn-success btn-sm">
                             <i class="bi bi-download me-1"></i>Esporta Dati
                         </a>
-                        <a href="{{ route('admin.manutenzione') }}" class="btn btn-warning btn-sm">
+                        <a href="{{ route('admin.manutenzione.index') }}" class="btn btn-warning btn-sm">
                             <i class="bi bi-gear me-1"></i>Manutenzione
                         </a>
                     </div>

@@ -993,7 +993,7 @@ public function getAvailableTecnici(Request $request, CentroAssistenza $centro)
             'error' => $e->getMessage() // Solo per debug, rimuovi in produzione
         ], 500);
     }
-}
+} 
 
     /**
      * API: Dettagli di un tecnico specifico

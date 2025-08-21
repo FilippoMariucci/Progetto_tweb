@@ -62,11 +62,7 @@
                                 <i class="bi bi-speedometer2 me-1"></i>Dashboard
                             </a>
                             
-                            @if(auth()->user()->canViewMalfunzionamenti())
-                               <a href="{{ route('malfunzionamenti.index') }}" class="btn btn-outline-info">
-                                    <i class="bi bi-tools me-1"></i>Area Tecnica
-                                </a>
-                            @endif
+                            
                             
                             @if(auth()->user()->isAdmin())
                                 <a href="{{ route('admin.dashboard') }}" class="btn btn-outline-warning">

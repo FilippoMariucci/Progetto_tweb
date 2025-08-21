@@ -252,7 +252,7 @@ Route::middleware(['auth'])->group(function () {
             // === GESTIONE MALFUNZIONAMENTI (CRUD completo) ===
             
             // Dashboard generale malfunzionamenti per staff
-            Route::get('/malfunzionamenti', [MalfunzionamentoController::class, 'dashboardStaff'])->name('malfunzionamenti.dashboard');
+            Route::get('/malfunzionamenti', [MalfunzionamentoController::class, 'dashboard']) ->name('malfunzionamenti.index'); // <- attenzione al suffisso "index"
             
             // Creazione nuovo malfunzionamento per prodotto specifico
             Route::get('/prodotti/{prodotto}/malfunzionamenti/create', [MalfunzionamentoController::class, 'create'])->name('malfunzionamenti.create');
@@ -270,7 +270,7 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('/malfunzionamenti/{malfunzionamento}', [MalfunzionamentoController::class, 'destroy'])->name('malfunzionamenti.destroy');
             
             // Visualizzazione dettagliata per staff (con opzioni di modifica)
-            Route::get('/malfunzionamenti/{malfunzionamento}', [MalfunzionamentoController::class, 'showStaff'])->name('malfunzionamenti.show');
+            Route::get('/prodotti/{prodotto}/malfunzionamenti/{malfunzionamento}', [MalfunzionamentoController::class, 'show'])->name('malfunzionamenti.show');
             
             // === GESTIONE PRODOTTI ASSEGNATI (Funzionalità Opzionale) ===
             
@@ -294,6 +294,9 @@ Route::middleware(['auth'])->group(function () {
             // === DASHBOARD AMMINISTRATORE ===
             Route::get('/dashboard', [AuthController::class, 'adminDashboard'])->name('dashboard');
             
+            // *** AGGIUNGI QUESTA RIGA ***
+        Route::get('/assegnazioni', [AdminController::class, 'assegnazioni'])->name('assegnazioni');
+            
             // === GESTIONE PRODOTTI (CRUD completo per admin) ===
             Route::prefix('prodotti')->name('prodotti.')->group(function () {
                 
@@ -314,8 +317,7 @@ Route::middleware(['auth'])->group(function () {
                 // Eliminazione prodotto (soft delete)
                 Route::delete('/{prodotto}', [ProdottoController::class, 'destroy'])->name('destroy');
 
-                // *** AGGIUNGI QUESTA RIGA ***
-        Route::get('/assegnazioni', [AdminController::class, 'assegnazioni'])->name('assegnazioni');
+                
                 
                 // === AZIONI SPECIALI SUI PRODOTTI ===
                 
