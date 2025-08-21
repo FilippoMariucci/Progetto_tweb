@@ -155,8 +155,11 @@ Route::prefix('api')->name('api.')->group(function () {
                 
                 // === GESTIONE CENTRI ASSISTENZA VIA API ===
                 
-                // Tecnici disponibili per assegnazione a centri
-                Route::get('/tecnici-disponibili', [CentroAssistenzaController::class, 'apiTecniciDisponibili'])->name('tecnici.disponibili');
+               // Tutti i tecnici del sistema
+                Route::get('/tecnici-disponibili', [CentroAssistenzaController::class, 'getTecniciDisponibili'])->name('tecnici.disponibili');
+
+                // QUESTA ERA LA ROUTE MANCANTE!
+                Route::get('/centri/{centro}/tecnici-disponibili', [CentroAssistenzaController::class, 'getAvailableTecnici'])->name('centri.tecnici.disponibili');
                 
                 // Dettagli tecnico specifico
                 Route::get('/tecnici/{user}', [CentroAssistenzaController::class, 'apiDettagliTecnico'])->name('tecnici.dettagli');
