@@ -84,13 +84,7 @@
                     </form>
                     @endif
 
-                    {{-- Vista pubblica del prodotto --}}
-                    <a href="{{ route('prodotti.show', $prodotto) }}" 
-                       class="btn btn-outline-primary" 
-                       target="_blank"
-                       title="Visualizza come lo vedono gli utenti pubblici">
-                        <i class="bi bi-eye me-1"></i>Vista Pubblica
-                    </a>
+                
                 </div>
             </div>
         </div>

@@ -363,6 +363,7 @@ public function apiSearch(Request $request)
     }
 }
 
+
 /**
  * API per malfunzionamenti di un prodotto specifico (AJAX)
  */

@@ -48,16 +48,11 @@
                     </p>
                 </div>
 
-                {{-- Pulsanti di azione --}}
+                {{-- Pulsanti di azione (solo Torna al Dettaglio per admin) --}}
                 <div class="btn-group" role="group">
                     <a href="{{ route('admin.prodotti.show', $prodotto) }}" 
                        class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-left me-1"></i>Torna al Dettaglio
-                    </a>
-                    <a href="{{ route('prodotti.show', $prodotto) }}" 
-                       class="btn btn-outline-primary" 
-                       target="_blank">
-                        <i class="bi bi-eye me-1"></i>Vista Pubblica
                     </a>
                 </div>
             </div>
@@ -431,7 +426,7 @@
                 </div>
             </div>
 
-            {{-- Card azioni rapide --}}
+            {{-- Card azioni rapide (senza Vista Pubblica né Gestione Malfunzionamenti per Admin) --}}
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light">
                     <h6 class="card-title mb-0">
@@ -441,19 +436,8 @@
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
-                        <a href="{{ route('prodotti.show', $prodotto) }}" 
-                           class="btn btn-outline-primary btn-sm" 
-                           target="_blank">
-                            <i class="bi bi-eye me-1"></i>Vista Pubblica
-                        </a>
-                        
-                        @if($prodotto->malfunzionamenti && $prodotto->malfunzionamenti->count() > 0)
-                        <a href="{{ route('malfunzionamenti.index', $prodotto) }}" 
-                           class="btn btn-outline-warning btn-sm">
-                            <i class="bi bi-bug me-1"></i>
-                            Gestisci Malfunzionamenti ({{ $prodotto->malfunzionamenti->count() }})
-                        </a>
-                        @endif
+                        {{-- Admin non ha bisogno di vista pubblica secondo le specifiche --}}
+                        {{-- Il catalogo pubblico è accessibile a tutti (Livello 1) --}}
                         
                         @if($prodotto->attivo)
                         <form action="{{ route('admin.prodotti.toggle-status', $prodotto) }}" 
