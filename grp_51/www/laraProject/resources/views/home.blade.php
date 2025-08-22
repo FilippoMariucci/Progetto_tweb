@@ -1,3 +1,16 @@
+{{-- 
+    Homepage Sistema Assistenza Tecnica
+    File: resources/views/home.blade.php
+    
+    Pagina principale del sistema con:
+    - Hero section con statistiche principali
+    - Ricerca rapida prodotti
+    - Informazioni azienda
+    - Categorie prodotti
+    - Accesso per operatori
+    - Centri assistenza
+    - Call to action
+--}}
 @extends('layouts.app')
 
 @section('title', 'Home - Sistema Assistenza Tecnica')
@@ -5,20 +18,20 @@
 @section('content')
 <div class="container-fluid">
     
-    <!-- === HERO SECTION === -->
-    <section class="hero-section py-5 mb-5" style="background: linear-gradient(135deg, #2563eb, #0891b2); color: white;">
+    {{-- === HERO SECTION === --}}
+    <section class="hero-section py-5 mb-5">
         <div class="container">
             <div class="row align-items-center">
                 <div class="col-lg-6">
                     <h1 class="display-4 fw-bold mb-4">
                         Assistenza Tecnica
-                        <span class="text-warning">Online</span>
+                        <span class="text-warning">Professionale</span>
                     </h1>
                     <p class="lead mb-4">
                         Sistema completo per la gestione dell'assistenza tecnica sui nostri elettrodomestici. 
                         Accedi a soluzioni rapide per i malfunzionamenti più comuni e trova il centro assistenza più vicino.
                     </p>
-                    <div class="d-flex flex-wrap gap-3">
+                    <div class="d-flex flex-wrap gap-3 mb-4">
                         <a href="{{ route('prodotti.index') }}" class="btn btn-warning btn-lg">
                             <i class="bi bi-box me-2"></i>Esplora Catalogo
                         </a>
@@ -28,19 +41,31 @@
                     </div>
                 </div>
                 <div class="col-lg-6 text-center">
-                    <i class="bi bi-tools display-1 text-warning mb-3"></i>
-                    <div class="row text-center">
-                        <div class="col-4">
-                            <h3 class="h1 fw-bold">{{ $stats['prodotti_totali'] ?? '150+' }}</h3>
-                            <p class="mb-0">Prodotti</p>
+                    <i class="bi bi-tools display-1 text-warning mb-4"></i>
+                    <div class="row text-center stats-hero">
+                        <div class="col-3">
+                            <div class="stat-item">
+                                <h3 class="h1 fw-bold text-light">{{ $stats['prodotti_totali'] ?? '150+' }}</h3>
+                                <p class="mb-0 small">Prodotti</p>
+                            </div>
                         </div>
-                        <div class="col-4">
-                            <h3 class="h1 fw-bold">{{ $stats['centri_totali'] ?? '25+' }}</h3>
-                            <p class="mb-0">Centri</p>
+                        <div class="col-3">
+                            <div class="stat-item">
+                                <h3 class="h1 fw-bold text-light">{{ $stats['centri_totali'] ?? '25+' }}</h3>
+                                <p class="mb-0 small">Centri</p>
+                            </div>
                         </div>
-                        <div class="col-4">
-                            <h3 class="h1 fw-bold">{{ $stats['soluzioni_totali'] ?? '500+' }}</h3>
-                            <p class="mb-0">Soluzioni</p>
+                        <div class="col-3">
+                            <div class="stat-item">
+                                <h3 class="h1 fw-bold text-light">{{ $stats['soluzioni_totali'] ?? '500+' }}</h3>
+                                <p class="mb-0 small">Soluzioni</p>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="stat-item">
+                                <h3 class="h1 fw-bold text-light">{{ $stats['tecnici_totali'] ?? '50+' }}</h3>
+                                <p class="mb-0 small">Tecnici</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -50,28 +75,33 @@
 
     <div class="container">
         
-        <!-- === RICERCA RAPIDA === -->
+        {{-- === RICERCA RAPIDA === --}}
         <section class="mb-5">
-            <div class="card card-custom">
+            <div class="card card-custom shadow-sm">
                 <div class="card-body p-4">
                     <h2 class="h3 mb-4 text-center">
                         <i class="bi bi-search text-primary me-2"></i>
                         Ricerca Rapida Prodotti
                     </h2>
-                    <form action="{{ route('prodotti.index') }}" method="GET" class="row g-3">
+                    <form action="{{ route('prodotti.index') }}" method="GET" class="row g-3" id="search-form">
                         <div class="col-md-6">
-                            <input type="text" 
-                                   class="form-control form-control-lg" 
-                                   name="search" 
-                                   placeholder="Cerca prodotto (es: lavatrice, lav*)"
-                                   value="{{ request('search') }}"
-                                   id="search-input">
+                            <div class="position-relative">
+                                <input type="text" 
+                                       class="form-control form-control-lg pe-5" 
+                                       name="search" 
+                                       placeholder="Cerca prodotto (es: lavatrice, lav*)"
+                                       value="{{ request('search') }}"
+                                       id="search-input"
+                                       autocomplete="off">
+                                <i class="bi bi-search position-absolute top-50 end-0 translate-middle-y me-3 text-muted"></i>
+                            </div>
                             <div class="form-text">
+                                <i class="bi bi-lightbulb me-1"></i>
                                 Usa * alla fine per ricerche parziali (es: "lav*" per lavatrici, lavastoviglie, ecc.)
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <select name="categoria" class="form-select form-select-lg">
+                            <select name="categoria" class="form-select form-select-lg" id="categoria-select">
                                 <option value="">Tutte le categorie</option>
                                 @if(isset($categorie_stats) && count($categorie_stats) > 0)
                                     @foreach($categorie_stats as $key => $info)
@@ -89,82 +119,107 @@
                         </div>
                     </form>
                     
-                    <!-- Risultati ricerca AJAX -->
-                    <div id="search-results" class="mt-3" style="display: none;"></div>
+                    {{-- Risultati ricerca AJAX --}}
+                    <div id="search-results" class="mt-3" style="display: none;">
+                        <div class="search-results-container">
+                            {{-- I risultati verranno inseriti qui dal JavaScript --}}
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <!-- === INFORMAZIONI AZIENDA === -->
+        {{-- === INFORMAZIONI AZIENDA === --}}
         <section class="mb-5">
-            <div class="row">
+            <div class="row g-4">
                 <div class="col-lg-8">
-                    <div class="card card-custom h-100">
+                    <div class="card card-custom h-100 shadow-sm">
                         <div class="card-body">
                             <h2 class="h3 mb-4">
                                 <i class="bi bi-building text-primary me-2"></i>
                                 La Nostra Azienda
                             </h2>
                             <p class="lead">
-                                <strong>TechSupport Pro</strong> è leader nel settore degli elettrodomestici da oltre {{ $stats['anni_esperienza'] ?? 30 }} anni, 
+                                <strong>TechSupport Pro</strong> è leader nel settore degli elettrodomestici da oltre 
+                                <strong>{{ $stats['anni_esperienza'] ?? 30 }} anni</strong>, 
                                 con una rete capillare di centri assistenza su tutto il territorio nazionale.
                             </p>
+                            
                             <div class="row mb-4">
                                 <div class="col-md-6">
-                                    <h5><i class="bi bi-geo-alt text-primary me-2"></i>Sede Principale</h5>
-                                    <p class="mb-1">Via dell'Industria, 123</p>
-                                    <p class="mb-1">60121 Ancona (AN)</p>
-                                    <p class="mb-3">Italia</p>
+                                    <div class="info-item">
+                                        <h5 class="mb-3">
+                                            <i class="bi bi-geo-alt text-primary me-2"></i>
+                                            Sede Principale
+                                        </h5>
+                                        <p class="mb-1">Via dell'Industria, 123</p>
+                                        <p class="mb-1">60121 Ancona (AN)</p>
+                                        <p class="mb-3">Italia</p>
+                                    </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <h5><i class="bi bi-telephone text-primary me-2"></i>Contatti</h5>
-                                    <p class="mb-1">
-                                        <strong>Tel:</strong> +39 071 123 4567
-                                    </p>
-                                    <p class="mb-1">
-                                        <strong>Email:</strong> info@techsupportpro.it
-                                    </p>
-                                    <p class="mb-3">
-                                        <strong>Assistenza:</strong> assistenza@techsupportpro.it
-                                    </p>
+                                    <div class="info-item">
+                                        <h5 class="mb-3">
+                                            <i class="bi bi-telephone text-primary me-2"></i>
+                                            Contatti
+                                        </h5>
+                                        <p class="mb-1">
+                                            <strong>Tel:</strong> 
+                                            <a href="tel:+390711234567" class="text-decoration-none">+39 071 123 4567</a>
+                                        </p>
+                                        <p class="mb-1">
+                                            <strong>Email:</strong> 
+                                            <a href="mailto:info@techsupportpro.it" class="text-decoration-none">info@techsupportpro.it</a>
+                                        </p>
+                                        <p class="mb-3">
+                                            <strong>Assistenza:</strong> 
+                                            <a href="mailto:assistenza@techsupportpro.it" class="text-decoration-none">assistenza@techsupportpro.it</a>
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
+                            
                             <a href="{{ route('azienda') }}" class="btn btn-outline-primary">
                                 <i class="bi bi-arrow-right me-1"></i>Scopri di più
                             </a>
                         </div>
                     </div>
                 </div>
+                
                 <div class="col-lg-4">
-                    <div class="card card-custom h-100">
+                    <div class="card card-custom h-100 shadow-sm">
                         <div class="card-body text-center">
                             <h3 class="h4 mb-4">
                                 <i class="bi bi-award text-warning me-2"></i>
-                                Certificazioni
+                                Certificazioni e Qualità
                             </h3>
                             <div class="row g-3">
                                 <div class="col-6">
-                                    <div class="p-3 bg-light rounded">
-                                        <i class="bi bi-shield-check display-6 text-success"></i>
+                                    <div class="certification-item p-3 bg-light rounded">
+                                        <i class="bi bi-shield-check display-6 text-success mb-2"></i>
                                         <p class="mt-2 mb-0 small fw-bold">ISO 9001</p>
+                                        <small class="text-muted">Qualità</small>
                                     </div>
                                 </div>
                                 <div class="col-6">
-                                    <div class="p-3 bg-light rounded">
-                                        <i class="bi bi-leaf display-6 text-success"></i>
+                                    <div class="certification-item p-3 bg-light rounded">
+                                        <i class="bi bi-leaf display-6 text-success mb-2"></i>
                                         <p class="mt-2 mb-0 small fw-bold">Eco-Friendly</p>
+                                        <small class="text-muted">Ambiente</small>
                                     </div>
                                 </div>
                                 <div class="col-6">
-                                    <div class="p-3 bg-light rounded">
-                                        <i class="bi bi-star-fill display-6 text-warning"></i>
+                                    <div class="certification-item p-3 bg-light rounded">
+                                        <i class="bi bi-star-fill display-6 text-warning mb-2"></i>
                                         <p class="mt-2 mb-0 small fw-bold">5 Stelle</p>
+                                        <small class="text-muted">Valutazione</small>
                                     </div>
                                 </div>
                                 <div class="col-6">
-                                    <div class="p-3 bg-light rounded">
-                                        <i class="bi bi-headset display-6 text-info"></i>
-                                        <p class="mt-2 mb-0 small fw-bold">24/7 Support</p>
+                                    <div class="certification-item p-3 bg-light rounded">
+                                        <i class="bi bi-headset display-6 text-info mb-2"></i>
+                                        <p class="mt-2 mb-0 small fw-bold">24/7</p>
+                                        <small class="text-muted">Supporto</small>
                                     </div>
                                 </div>
                             </div>
@@ -174,7 +229,7 @@
             </div>
         </section>
 
-        <!-- === CATEGORIE PRODOTTI === -->
+        {{-- === CATEGORIE PRODOTTI === --}}
         @if(isset($categorie_stats) && count($categorie_stats) > 0)
         <section class="mb-5">
             <h2 class="h3 mb-4 text-center">
@@ -184,6 +239,7 @@
             <div class="row g-4">
                 @foreach($categorie_stats as $key => $info)
                     @php
+                        // Mappatura icone per categorie
                         $icons = [
                             'lavatrice' => 'bi-water',
                             'lavastoviglie' => 'bi-droplet',
@@ -194,10 +250,16 @@
                             'microonde' => 'bi-lightning',
                             'aspirapolvere' => 'bi-fan',
                             'ferro_stiro' => 'bi-iron',
-                            'piccoli_elettrodomestici' => 'bi-gear'
+                            'piccoli_elettrodomestici' => 'bi-gear',
+                            'elettrodomestici' => 'bi-house',
+                            'climatizzazione' => 'bi-thermometer-half',
+                            'cucina' => 'bi-cup-hot',
+                            'lavanderia' => 'bi-water',
+                            'riscaldamento' => 'bi-fire',
+                            'altro' => 'bi-tools'
                         ];
                         $icon = $icons[$key] ?? 'bi-gear';
-                        $label = $info['label'] ?? ucfirst($key);
+                        $label = $info['label'] ?? ucfirst(str_replace('_', ' ', $key));
                         $count = $info['count'] ?? 0;
                     @endphp
                     @if($count > 0)
@@ -207,7 +269,12 @@
                                     <div class="card-body">
                                         <i class="bi {{ $icon }} display-4 text-primary mb-3"></i>
                                         <h5 class="card-title">{{ $label }}</h5>
-                                        <p class="text-muted mb-0">{{ $count }} prodotti disponibili</p>
+                                        <p class="text-muted mb-0">
+                                            <strong>{{ $count }}</strong> prodotti disponibili
+                                        </p>
+                                        <div class="mt-3">
+                                            <span class="badge bg-primary">Visualizza</span>
+                                        </div>
                                     </div>
                                 </div>
                             </a>
@@ -218,88 +285,154 @@
         </section>
         @endif
 
-        <!-- === ACCESSO PER LIVELLI === -->
+        {{-- === ACCESSO PER LIVELLI === --}}
         <section class="mb-5">
             <h2 class="h3 mb-4 text-center">
                 <i class="bi bi-people text-primary me-2"></i>
                 Accesso per Operatori
             </h2>
             <div class="row g-4">
-                <!-- Tecnici -->
+                {{-- Tecnici --}}
                 <div class="col-md-4">
-                    <div class="card card-custom h-100">
+                    <div class="card card-custom h-100 shadow-sm">
                         <div class="card-body text-center">
                             <i class="bi bi-person-gear display-4 text-info mb-3"></i>
-                            <h5 class="card-title">Tecnici</h5>
+                            <h5 class="card-title">Tecnici Specializzati</h5>
                             <p class="card-text">
-                                Accesso completo a malfunzionamenti e soluzioni tecniche per tutti i prodotti.
+                                Accesso completo a malfunzionamenti e soluzioni tecniche per tutti i prodotti del catalogo.
                             </p>
                             <ul class="list-unstyled text-start mb-4">
-                                <li><i class="bi bi-check text-success me-2"></i>Visualizza malfunzionamenti</li>
-                                <li><i class="bi bi-check text-success me-2"></i>Accesso alle soluzioni</li>
-                                <li><i class="bi bi-check text-success me-2"></i>Segnala problemi</li>
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                    Visualizza tutti i malfunzionamenti
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                    Accesso alle soluzioni tecniche
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                    Segnala nuovi problemi
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                    Storico interventi personali
+                                </li>
                             </ul>
                             @guest
-                                <a href="{{ route('login') }}" class="btn btn-info">Accedi come Tecnico</a>
+                                <a href="{{ route('login') }}" class="btn btn-info">
+                                    <i class="bi bi-box-arrow-in-right me-1"></i>
+                                    Accedi come Tecnico
+                                </a>
                             @else
-                                @if(Auth::user()->isTecnico())
-                                    <a href="{{ route('tecnico.dashboard') }}" class="btn btn-info">Dashboard Tecnico</a>
+                                @if(Auth::user()->livello_accesso >= 2)
+                                    <a href="{{ route('tecnico.dashboard') }}" class="btn btn-info">
+                                        <i class="bi bi-speedometer2 me-1"></i>
+                                        Dashboard Tecnico
+                                    </a>
                                 @else
-                                    <a href="{{ route('login') }}" class="btn btn-outline-info">Accedi come Tecnico</a>
+                                    <a href="{{ route('login') }}" class="btn btn-outline-info">
+                                        <i class="bi bi-box-arrow-in-right me-1"></i>
+                                        Accedi come Tecnico
+                                    </a>
                                 @endif
                             @endguest
                         </div>
                     </div>
                 </div>
 
-                <!-- Staff -->
+                {{-- Staff --}}
                 <div class="col-md-4">
-                    <div class="card card-custom h-100">
+                    <div class="card card-custom h-100 shadow-sm">
                         <div class="card-body text-center">
                             <i class="bi bi-person-badge display-4 text-warning mb-3"></i>
                             <h5 class="card-title">Staff Aziendale</h5>
                             <p class="card-text">
-                                Gestione completa di malfunzionamenti e soluzioni per i prodotti assegnati.
+                                Gestione completa di malfunzionamenti e soluzioni per i prodotti assegnati al proprio reparto.
                             </p>
                             <ul class="list-unstyled text-start mb-4">
-                                <li><i class="bi bi-check text-success me-2"></i>Tutto del livello Tecnico</li>
-                                <li><i class="bi bi-check text-success me-2"></i>Crea nuovi malfunzionamenti</li>
-                                <li><i class="bi bi-check text-success me-2"></i>Modifica soluzioni</li>
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                    Tutte le funzioni del Tecnico
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                    Crea nuovi malfunzionamenti
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                    Modifica e aggiorna soluzioni
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                    Statistiche e report attività
+                                </li>
                             </ul>
                             @guest
-                                <a href="{{ route('login') }}" class="btn btn-warning">Accedi come Staff</a>
+                                <a href="{{ route('login') }}" class="btn btn-warning">
+                                    <i class="bi bi-box-arrow-in-right me-1"></i>
+                                    Accedi come Staff
+                                </a>
                             @else
-                                @if(Auth::user()->isStaff())
-                                    <a href="{{ route('staff.dashboard') }}" class="btn btn-warning">Dashboard Staff</a>
+                                @if(Auth::user()->livello_accesso >= 3)
+                                    <a href="{{ route('staff.dashboard') }}" class="btn btn-warning">
+                                        <i class="bi bi-speedometer2 me-1"></i>
+                                        Dashboard Staff
+                                    </a>
                                 @else
-                                    <a href="{{ route('login') }}" class="btn btn-outline-warning">Accedi come Staff</a>
+                                    <a href="{{ route('login') }}" class="btn btn-outline-warning">
+                                        <i class="bi bi-box-arrow-in-right me-1"></i>
+                                        Accedi come Staff
+                                    </a>
                                 @endif
                             @endguest
                         </div>
                     </div>
                 </div>
 
-                <!-- Amministratori -->
+                {{-- Amministratori --}}
                 <div class="col-md-4">
-                    <div class="card card-custom h-100">
+                    <div class="card card-custom h-100 shadow-sm">
                         <div class="card-body text-center">
                             <i class="bi bi-person-fill-gear display-4 text-danger mb-3"></i>
                             <h5 class="card-title">Amministratori</h5>
                             <p class="card-text">
-                                Controllo completo del sistema: utenti, prodotti e configurazioni.
+                                Controllo completo del sistema: gestione utenti, prodotti, centri assistenza e configurazioni avanzate.
                             </p>
                             <ul class="list-unstyled text-start mb-4">
-                                <li><i class="bi bi-check text-success me-2"></i>Tutto dei livelli precedenti</li>
-                                <li><i class="bi bi-check text-success me-2"></i>Gestione utenti</li>
-                                <li><i class="bi bi-check text-success me-2"></i>Gestione prodotti</li>
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                    Tutte le funzioni precedenti
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                    Gestione completa utenti
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                    Amministrazione prodotti
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                    Statistiche e manutenzione
+                                </li>
                             </ul>
                             @guest
-                                <a href="{{ route('login') }}" class="btn btn-danger">Accedi come Admin</a>
+                                <a href="{{ route('login') }}" class="btn btn-danger">
+                                    <i class="bi bi-box-arrow-in-right me-1"></i>
+                                    Accedi come Admin
+                                </a>
                             @else
-                                @if(Auth::user()->isAdmin())
-                                    <a href="{{ route('admin.dashboard') }}" class="btn btn-danger">Dashboard Admin</a>
+                                @if(Auth::user()->livello_accesso >= 4)
+                                    <a href="{{ route('admin.dashboard') }}" class="btn btn-danger">
+                                        <i class="bi bi-speedometer2 me-1"></i>
+                                        Dashboard Admin
+                                    </a>
                                 @else
-                                    <a href="{{ route('login') }}" class="btn btn-outline-danger">Accedi come Admin</a>
+                                    <a href="{{ route('login') }}" class="btn btn-outline-danger">
+                                        <i class="bi bi-box-arrow-in-right me-1"></i>
+                                        Accedi come Admin
+                                    </a>
                                 @endif
                             @endguest
                         </div>
@@ -308,9 +441,9 @@
             </div>
         </section>
 
-        <!-- === CENTRI ASSISTENZA === -->
+        {{-- === CENTRI ASSISTENZA === --}}
         <section class="mb-5">
-            <div class="row">
+            <div class="row g-4">
                 <div class="col-lg-6">
                     <h2 class="h3 mb-4">
                         <i class="bi bi-geo-alt text-primary me-2"></i>
@@ -320,15 +453,16 @@
                         I nostri centri di assistenza sono distribuiti su tutto il territorio nazionale 
                         per garantire un servizio rapido e professionale.
                     </p>
-                    <div class="row g-3 mb-4">
+                    
+                    <div class="centri-list mb-4">
                         @if(isset($centri_principali) && count($centri_principali) > 0)
                             @foreach($centri_principali as $centro)
-                                <div class="col-12">
-                                    <div class="card border-start border-primary border-3">
+                                <div class="centro-item mb-3">
+                                    <div class="card border-start border-primary border-3 shadow-sm">
                                         <div class="card-body py-3">
-                                            <h6 class="card-title mb-1">{{ $centro->nome }}</h6>
+                                            <h6 class="card-title mb-1 fw-bold">{{ $centro->nome }}</h6>
                                             <p class="card-text small text-muted mb-1">
-                                                <i class="bi bi-geo-alt me-1"></i>
+                                                <i class="bi bi-geo-alt me-1 text-primary"></i>
                                                 {{ $centro->indirizzo ?? 'Indirizzo non disponibile' }}, 
                                                 {{ $centro->citta }} 
                                                 @if($centro->provincia)
@@ -337,7 +471,10 @@
                                             </p>
                                             @if($centro->telefono)
                                                 <p class="card-text small text-muted mb-0">
-                                                    <i class="bi bi-telephone me-1"></i>{{ $centro->telefono }}
+                                                    <i class="bi bi-telephone me-1 text-primary"></i>
+                                                    <a href="tel:{{ $centro->telefono }}" class="text-decoration-none">
+                                                        {{ $centro->telefono }}
+                                                    </a>
                                                 </p>
                                             @endif
                                         </div>
@@ -345,20 +482,20 @@
                                 </div>
                             @endforeach
                         @else
-                            <div class="col-12">
-                                <div class="alert alert-info">
-                                    <i class="bi bi-info-circle me-2"></i>
-                                    Informazioni sui centri assistenza in aggiornamento.
-                                </div>
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Informazioni sui centri assistenza in aggiornamento.
                             </div>
                         @endif
                     </div>
+                    
                     <a href="{{ route('centri.index') }}" class="btn btn-primary">
                         <i class="bi bi-geo-alt me-2"></i>Vedi Tutti i Centri
                     </a>
                 </div>
+                
                 <div class="col-lg-6">
-                    <div class="card card-custom">
+                    <div class="card card-custom shadow-sm">
                         <div class="card-body">
                             <h4 class="card-title mb-4">
                                 <i class="bi bi-clock text-primary me-2"></i>
@@ -366,22 +503,51 @@
                             </h4>
                             <div class="row">
                                 <div class="col-6">
-                                    <h6>Assistenza Telefonica</h6>
-                                    <p class="mb-1">Lun-Ven: 8:00-18:00</p>
-                                    <p class="mb-3">Sab: 8:00-13:00</p>
+                                    <div class="service-time mb-4">
+                                        <h6 class="fw-bold text-primary">Assistenza Telefonica</h6>
+                                        <p class="mb-1">
+                                            <i class="bi bi-calendar3 me-1"></i>
+                                            Lun-Ven: 8:00-18:00
+                                        </p>
+                                        <p class="mb-3">
+                                            <i class="bi bi-calendar3 me-1"></i>
+                                            Sab: 8:00-13:00
+                                        </p>
+                                    </div>
                                     
-                                    <h6>Interventi Domicilio</h6>
-                                    <p class="mb-1">Lun-Ven: 9:00-17:00</p>
-                                    <p class="mb-0">Sab: Su appuntamento</p>
+                                    <div class="service-time">
+                                        <h6 class="fw-bold text-primary">Interventi a Domicilio</h6>
+                                        <p class="mb-1">
+                                            <i class="bi bi-calendar3 me-1"></i>
+                                            Lun-Ven: 9:00-17:00
+                                        </p>
+                                        <p class="mb-0">
+                                            <i class="bi bi-calendar3 me-1"></i>
+                                            Sab: Su appuntamento
+                                        </p>
+                                    </div>
                                 </div>
                                 <div class="col-6">
-                                    <h6>Centri Assistenza</h6>
-                                    <p class="mb-1">Lun-Ven: 8:30-17:30</p>
-                                    <p class="mb-3">Sab: 8:30-12:30</p>
+                                    <div class="service-time mb-4">
+                                        <h6 class="fw-bold text-primary">Centri Assistenza</h6>
+                                        <p class="mb-1">
+                                            <i class="bi bi-calendar3 me-1"></i>
+                                            Lun-Ven: 8:30-17:30
+                                        </p>
+                                        <p class="mb-3">
+                                            <i class="bi bi-calendar3 me-1"></i>
+                                            Sab: 8:30-12:30
+                                        </p>
+                                    </div>
                                     
-                                    <h6>Supporto Online</h6>
-                                    <p class="mb-1">24/7 attraverso</p>
-                                    <p class="mb-0">questo portale</p>
+                                    <div class="service-time">
+                                        <h6 class="fw-bold text-primary">Supporto Online</h6>
+                                        <p class="mb-1">
+                                            <i class="bi bi-clock me-1"></i>
+                                            24/7 attraverso
+                                        </p>
+                                        <p class="mb-0">questo portale</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -390,35 +556,43 @@
             </div>
         </section>
 
-        <!-- === STATISTICHE === -->
+        {{-- === STATISTICHE === --}}
         @if(isset($stats) && count($stats) > 0)
         <section class="mb-5">
-            <div class="card card-custom bg-primary text-white">
-                <div class="card-body">
+            <div class="card card-custom bg-primary text-white shadow-lg">
+                <div class="card-body py-5">
                     <h2 class="h3 mb-4 text-center">
                         <i class="bi bi-graph-up me-2"></i>
                         Statistiche del Sistema
                     </h2>
                     <div class="row text-center">
-                        <div class="col-md-3">
-                            <i class="bi bi-box display-4 mb-2"></i>
-                            <h3 class="h2 fw-bold">{{ $stats['prodotti_totali'] ?? 0 }}</h3>
-                            <p class="mb-0">Prodotti Attivi</p>
+                        <div class="col-md-3 mb-3">
+                            <div class="stat-item">
+                                <i class="bi bi-box display-4 mb-3"></i>
+                                <h3 class="h2 fw-bold">{{ $stats['prodotti_totali'] ?? 0 }}</h3>
+                                <p class="mb-0">Prodotti Attivi</p>
+                            </div>
                         </div>
-                        <div class="col-md-3">
-                            <i class="bi bi-exclamation-triangle display-4 mb-2"></i>
-                            <h3 class="h2 fw-bold">{{ $stats['soluzioni_totali'] ?? 0 }}</h3>
-                            <p class="mb-0">Soluzioni Disponibili</p>
+                        <div class="col-md-3 mb-3">
+                            <div class="stat-item">
+                                <i class="bi bi-tools display-4 mb-3"></i>
+                                <h3 class="h2 fw-bold">{{ $stats['soluzioni_totali'] ?? 0 }}</h3>
+                                <p class="mb-0">Soluzioni Disponibili</p>
+                            </div>
                         </div>
-                        <div class="col-md-3">
-                            <i class="bi bi-geo-alt display-4 mb-2"></i>
-                            <h3 class="h2 fw-bold">{{ $stats['centri_totali'] ?? 0 }}</h3>
-                            <p class="mb-0">Centri Assistenza</p>
+                        <div class="col-md-3 mb-3">
+                            <div class="stat-item">
+                                <i class="bi bi-geo-alt display-4 mb-3"></i>
+                                <h3 class="h2 fw-bold">{{ $stats['centri_totali'] ?? 0 }}</h3>
+                                <p class="mb-0">Centri Assistenza</p>
+                            </div>
                         </div>
-                        <div class="col-md-3">
-                            <i class="bi bi-people display-4 mb-2"></i>
-                            <h3 class="h2 fw-bold">{{ $stats['tecnici_totali'] ?? 0 }}</h3>
-                            <p class="mb-0">Tecnici Specializzati</p>
+                        <div class="col-md-3 mb-3">
+                            <div class="stat-item">
+                                <i class="bi bi-people display-4 mb-3"></i>
+                                <h3 class="h2 fw-bold">{{ $stats['tecnici_totali'] ?? 0 }}</h3>
+                                <p class="mb-0">Tecnici Specializzati</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -426,12 +600,12 @@
         </section>
         @endif
 
-        <!-- === CALL TO ACTION === -->
+        {{-- === CALL TO ACTION === --}}
         <section class="mb-5">
-            <div class="card card-custom bg-light">
+            <div class="card card-custom bg-light shadow-sm">
                 <div class="card-body text-center py-5">
                     <h2 class="h3 mb-4">Hai bisogno di assistenza?</h2>
-                    <p class="lead mb-4">
+                    <p class="lead mb-4 text-muted">
                         Il nostro team di esperti è sempre pronto ad aiutarti a risolvere 
                         qualsiasi problema con i tuoi elettrodomestici.
                     </p>
@@ -444,9 +618,55 @@
                         </a>
                         @guest
                             <a href="{{ route('login') }}" class="btn btn-outline-secondary btn-lg">
-                                <i class="bi bi-person me-2"></i>Accedi
+                                <i class="bi bi-person me-2"></i>Accedi al Sistema
+                            </a>
+                        @else
+                            <a href="{{ route('dashboard') }}" class="btn btn-success btn-lg">
+                                <i class="bi bi-speedometer2 me-2"></i>Vai alla Dashboard
                             </a>
                         @endguest
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {{-- === FOOTER INFORMATIVO === --}}
+        <section class="mb-5">
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="card card-custom h-100 border-0 bg-transparent">
+                        <div class="card-body text-center">
+                            <i class="bi bi-shield-check display-4 text-success mb-3"></i>
+                            <h5 class="card-title">Garanzia Estesa</h5>
+                            <p class="card-text text-muted">
+                                Tutti i nostri interventi sono coperti da garanzia estesa 
+                                per garantire la massima tranquillità.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card card-custom h-100 border-0 bg-transparent">
+                        <div class="card-body text-center">
+                            <i class="bi bi-lightning-charge display-4 text-warning mb-3"></i>
+                            <h5 class="card-title">Intervento Rapido</h5>
+                            <p class="card-text text-muted">
+                                Tempi di intervento ridotti grazie alla nostra rete 
+                                capillare di tecnici specializzati.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card card-custom h-100 border-0 bg-transparent">
+                        <div class="card-body text-center">
+                            <i class="bi bi-heart display-4 text-danger mb-3"></i>
+                            <h5 class="card-title">Soddisfazione Cliente</h5>
+                            <p class="card-text text-muted">
+                                La soddisfazione dei nostri clienti è la nostra priorità 
+                                assoluta, con oltre il 95% di feedback positivi.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -456,122 +676,236 @@
 </div>
 @endsection
 
+{{-- JavaScript per funzionalità dinamiche --}}
 @push('scripts')
 <script>
+/**
+ * JavaScript per Homepage - Sistema Assistenza Tecnica
+ * Gestisce ricerca dinamica, animazioni e interazioni
+ */
+
 $(document).ready(function() {
+    console.log('🏠 Homepage inizializzata');
+    
     // === RICERCA DINAMICA PRODOTTI ===
     let searchTimeout;
+    let isSearching = false;
     
     $('#search-input').on('input', function() {
         const query = $(this).val().trim();
         
+        // Cancella il timeout precedente
         clearTimeout(searchTimeout);
         
         if (query.length >= 2) {
+            // Debounce di 300ms per evitare troppe chiamate
             searchTimeout = setTimeout(() => {
                 searchProdotti(query);
-            }, 300); // Debounce di 300ms
+            }, 300);
         } else {
-            $('#search-results').hide().empty();
+            hideSearchResults();
         }
     });
     
+    /**
+     * Effettua la ricerca prodotti via AJAX
+     * @param {string} query - Termine di ricerca
+     */
     function searchProdotti(query) {
+        if (isSearching) return;
+        
+        isSearching = true;
+        
         // Mostra loading
+        showSearchLoading();
+        
+        // Effettua la chiamata AJAX
+        $.ajax({
+            url: '{{ route("api.prodotti.search") }}',
+            method: 'GET',
+            data: { 
+                q: query, 
+                type: 'public',
+                limit: 8 
+            },
+            timeout: 5000,
+            success: function(response) {
+                console.log('✅ Ricerca completata:', response);
+                displaySearchResults(response, query);
+            },
+            error: function(xhr, status, error) {
+                console.error('❌ Errore ricerca:', error);
+                displaySearchError(query);
+            },
+            complete: function() {
+                isSearching = false;
+            }
+        });
+    }
+    
+    /**
+     * Mostra lo stato di loading durante la ricerca
+     */
+    function showSearchLoading() {
         $('#search-results').html(`
-            <div class="text-center py-3">
-                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                Ricerca in corso...
+            <div class="text-center py-4">
+                <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                    <span class="visually-hidden">Caricamento...</span>
+                </div>
+                <span class="text-muted">Ricerca in corso...</span>
             </div>
         `).show();
-        
-        // Usa la route corretta per la ricerca
-        const searchUrl = '{{ route("api.prodotti.search") }}';
-        
-        $.get(searchUrl, { q: query, type: 'public' })
-            .done(function(response) {
-                if (response.success && response.data.length > 0) {
-                    let html = '<div class="row g-3">';
-                    
-                    response.data.forEach(function(prodotto) {
-                        const fotoUrl = prodotto.foto_url || '/images/no-image.png';
-                        
-                        html += `
-                            <div class="col-md-6">
-                                <div class="card border-0 shadow-sm">
-                                    <div class="card-body">
-                                        <div class="d-flex">
-                                            <img src="${fotoUrl}" 
-                                                 class="me-3 rounded" 
-                                                 style="width: 60px; height: 60px; object-fit: cover;"
-                                                 alt="${prodotto.nome}"
-                                                 onerror="this.src='/images/no-image.png'">
-                                            <div class="flex-grow-1">
-                                                <h6 class="card-title mb-1">
-                                                    <a href="${prodotto.url}" class="text-decoration-none">
-                                                        ${prodotto.nome}
-                                                    </a>
-                                                </h6>
-                                                <p class="card-text small text-muted mb-1">
-                                                    Modello: ${prodotto.modello}
-                                                </p>
-                                                <span class="badge bg-secondary">${prodotto.categoria}</span>
-                                            </div>
-                                        </div>
+    }
+    
+    /**
+     * Visualizza i risultati della ricerca
+     * @param {Object} response - Risposta dell'API
+     * @param {string} query - Query di ricerca
+     */
+    function displaySearchResults(response, query) {
+        if (response.success && response.data && response.data.length > 0) {
+            let html = '<div class="row g-3">';
+            
+            response.data.forEach(function(prodotto) {
+                const fotoUrl = prodotto.foto_url || '/images/no-image.png';
+                const prodottoUrl = prodotto.url || `{{ route('prodotti.index') }}`;
+                
+                html += `
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm h-100 search-result-item">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <img src="${fotoUrl}" 
+                                         class="me-3 rounded" 
+                                         style="width: 60px; height: 60px; object-fit: cover;"
+                                         alt="${prodotto.nome}"
+                                         onerror="this.src='/images/no-image.png'">
+                                    <div class="flex-grow-1">
+                                        <h6 class="card-title mb-1">
+                                            <a href="${prodottoUrl}" class="text-decoration-none text-dark">
+                                                ${prodotto.nome}
+                                            </a>
+                                        </h6>
+                                        <p class="card-text small text-muted mb-1">
+                                            <i class="bi bi-tag me-1"></i>
+                                            ${prodotto.modello || 'N/A'}
+                                        </p>
+                                        <span class="badge bg-secondary">${prodotto.categoria || 'Generale'}</span>
+                                        ${prodotto.prezzo ? `<span class="badge bg-success ms-1">€${prodotto.prezzo}</span>` : ''}
                                     </div>
                                 </div>
                             </div>
-                        `;
-                    });
-                    
-                    html += '</div>';
-                    
-                    if (response.data.length === 10) {
-                        html += `
-                            <div class="text-center mt-3">
-                                <a href="{{ route('prodotti.index') }}?search=${encodeURIComponent(query)}" 
-                                   class="btn btn-outline-primary">
-                                    Vedi tutti i risultati
-                                </a>
-                            </div>
-                        `;
-                    }
-                    
-                    $('#search-results').html(html);
-                } else {
-                    $('#search-results').html(`
-                        <div class="text-center py-3 text-muted">
-                            <i class="bi bi-search me-2"></i>
-                            Nessun prodotto trovato per "${query}"
                         </div>
-                    `);
-                }
-            })
-            .fail(function(xhr, status, error) {
-                console.error('Errore ricerca:', error);
-                $('#search-results').html(`
-                    <div class="text-center py-3 text-danger">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        Errore durante la ricerca. Riprova.
                     </div>
-                `);
+                `;
             });
+            
+            html += '</div>';
+            
+            // Aggiungi link per vedere tutti i risultati se necessario
+            if (response.data.length >= 8) {
+                html += `
+                    <div class="text-center mt-3">
+                        <a href="{{ route('prodotti.index') }}?search=${encodeURIComponent(query)}" 
+                           class="btn btn-outline-primary">
+                            <i class="bi bi-arrow-right me-1"></i>
+                            Vedi tutti i risultati per "${query}"
+                        </a>
+                    </div>
+                `;
+            }
+            
+            $('#search-results').html(html).show();
+            
+            // Applica animazioni agli elementi
+            $('.search-result-item').each(function(index) {
+                $(this).css({
+                    opacity: 0,
+                    transform: 'translateY(20px)'
+                }).delay(index * 100).animate({
+                    opacity: 1
+                }, 300).css('transform', 'translateY(0)');
+            });
+            
+        } else {
+            // Nessun risultato trovato
+            $('#search-results').html(`
+                <div class="text-center py-4">
+                    <i class="bi bi-search text-muted display-6 mb-3"></i>
+                    <h6 class="text-muted">Nessun prodotto trovato</h6>
+                    <p class="text-muted small mb-3">
+                        Non abbiamo trovato prodotti corrispondenti a "<strong>${query}</strong>"
+                    </p>
+                    <a href="{{ route('prodotti.index') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-grid me-1"></i>Sfoglia tutto il catalogo
+                    </a>
+                </div>
+            `).show();
+        }
     }
     
-    // Nasconde i risultati quando si clicca fuori
+    /**
+     * Visualizza errore durante la ricerca
+     * @param {string} query - Query che ha causato l'errore
+     */
+    function displaySearchError(query) {
+        $('#search-results').html(`
+            <div class="text-center py-4">
+                <i class="bi bi-exclamation-triangle text-warning display-6 mb-3"></i>
+                <h6 class="text-warning">Errore durante la ricerca</h6>
+                <p class="text-muted small mb-3">
+                    Si è verificato un errore. Riprova o usa il pulsante di ricerca.
+                </p>
+                <button type="button" class="btn btn-outline-warning btn-sm" onclick="$('#search-form').submit();">
+                    <i class="bi bi-arrow-repeat me-1"></i>Riprova
+                </button>
+            </div>
+        `).show();
+    }
+    
+    /**
+     * Nasconde i risultati della ricerca
+     */
+    function hideSearchResults() {
+        $('#search-results').fadeOut(200).empty();
+    }
+    
+    // === GESTIONE CLICK FUORI DALLA RICERCA ===
     $(document).on('click', function(e) {
         if (!$(e.target).closest('#search-input, #search-results').length) {
-            $('#search-results').hide();
+            hideSearchResults();
         }
     });
     
     // === EFFETTI HOVER SULLE CARD CATEGORIE ===
     $('.category-card').hover(
         function() {
-            $(this).addClass('shadow-lg').css('transform', 'translateY(-5px)');
+            $(this).addClass('shadow-lg').css({
+                'transform': 'translateY(-8px)',
+                'transition': 'all 0.3s ease'
+            });
         },
         function() {
-            $(this).removeClass('shadow-lg').css('transform', 'translateY(0)');
+            $(this).removeClass('shadow-lg').css({
+                'transform': 'translateY(0)',
+                'transition': 'all 0.3s ease'
+            });
+        }
+    );
+    
+    // === EFFETTI HOVER SULLE CERTIFICAZIONI ===
+    $('.certification-item').hover(
+        function() {
+            $(this).css({
+                'transform': 'scale(1.05)',
+                'transition': 'all 0.2s ease'
+            });
+        },
+        function() {
+            $(this).css({
+                'transform': 'scale(1)',
+                'transition': 'all 0.2s ease'
+            });
         }
     );
     
@@ -584,17 +918,18 @@ $(document).ready(function() {
     const observer = new IntersectionObserver(function(entries) {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
+                entry.target.classList.add('fade-in-up');
                 entry.target.style.opacity = '1';
                 entry.target.style.transform = 'translateY(0)';
             }
         });
     }, observerOptions);
     
-    // Applica animazioni alle card
-    $('.card-custom').each(function() {
+    // Applica animazioni alle sezioni
+    $('section').each(function() {
         this.style.opacity = '0';
-        this.style.transform = 'translateY(20px)';
-        this.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        this.style.transform = 'translateY(30px)';
+        this.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
         observer.observe(this);
     });
     
@@ -605,43 +940,143 @@ $(document).ready(function() {
         if (target.length) {
             $('html, body').animate({
                 scrollTop: target.offset().top - 100
-            }, 500);
+            }, 600);
         }
     });
     
-    console.log('Homepage inizializzata con tutte le funzionalità');
-});
-
-// === GESTIONE ERRORI IMMAGINI ===
-$(document).on('error', 'img', function() {
-    if (this.src !== '/images/no-image.png') {
-        this.src = '/images/no-image.png';
+    // === CONTATORE ANIMATO PER LE STATISTICHE ===
+    function animateCounters() {
+        $('.stat-item h3').each(function() {
+            const $this = $(this);
+            const countTo = parseInt($this.text().replace(/[^\d]/g, '')) || 0;
+            
+            if (countTo > 0) {
+                $({ countNum: 0 }).animate({
+                    countNum: countTo
+                }, {
+                    duration: 2000,
+                    easing: 'swing',
+                    step: function() {
+                        const num = Math.floor(this.countNum);
+                        const originalText = $this.text();
+                        const suffix = originalText.replace(/[\d]/g, '');
+                        $this.text(num + suffix);
+                    },
+                    complete: function() {
+                        const originalText = $this.text();
+                        const suffix = originalText.replace(/[\d]/g, '');
+                        $this.text(countTo + suffix);
+                    }
+                });
+            }
+        });
     }
+    
+    // Avvia contatori quando la sezione statistiche diventa visibile
+    const statsObserver = new IntersectionObserver(function(entries) {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && !entry.target.classList.contains('animated')) {
+                entry.target.classList.add('animated');
+                animateCounters();
+            }
+        });
+    }, { threshold: 0.5 });
+    
+    const statsSection = document.querySelector('.bg-primary');
+    if (statsSection) {
+        statsObserver.observe(statsSection);
+    }
+    
+    // === GESTIONE ERRORI IMMAGINI ===
+    $(document).on('error', 'img', function() {
+        if (this.src !== '/images/no-image.png') {
+            console.log('🖼️ Caricamento immagine fallito, uso placeholder');
+            this.src = '/images/no-image.png';
+        }
+    });
+    
+    // === FEEDBACK INTERAZIONE UTENTE ===
+    $('.btn').on('click', function() {
+        const $btn = $(this);
+        const originalHtml = $btn.html();
+        
+        // Feedback visivo sui pulsanti
+        $btn.css('transform', 'scale(0.95)');
+        setTimeout(() => {
+            $btn.css('transform', 'scale(1)');
+        }, 150);
+    });
+    
+    // === SUGGERIMENTI RICERCA ===
+    const searchSuggestions = [
+        'lavatrice', 'lavastoviglie', 'forno', 'frigorifero', 
+        'asciugatrice', 'condizionatore', 'microonde'
+    ];
+    
+    $('#search-input').on('focus', function() {
+        if (!$(this).val().trim()) {
+            const randomSuggestion = searchSuggestions[Math.floor(Math.random() * searchSuggestions.length)];
+            $(this).attr('placeholder', `Prova con: ${randomSuggestion}`);
+        }
+    }).on('blur', function() {
+        $(this).attr('placeholder', 'Cerca prodotto (es: lavatrice, lav*)');
+    });
+    
+    // === LAZY LOADING PER LE IMMAGINI ===
+    if ('IntersectionObserver' in window) {
+        const imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    img.src = img.dataset.src;
+                    img.classList.remove('lazy');
+                    imageObserver.unobserve(img);
+                }
+            });
+        });
+        
+        document.querySelectorAll('img[data-src]').forEach(img => {
+            imageObserver.observe(img);
+        });
+    }
+    
+    console.log('✅ Homepage completamente inizializzata con tutte le funzionalità');
 });
+
+/**
+ * Funzione globale per refresh statistiche (se necessario)
+ */
+window.refreshHomeStats = function() {
+    console.log('🔄 Refresh statistiche homepage...');
+    
+    $.ajax({
+        url: '{{ route("api.stats.dashboard") }}',
+        method: 'GET',
+        success: function(response) {
+            if (response.success && response.data) {
+                // Aggiorna i valori statistici
+                $('.stat-item h3').each(function() {
+                    const $this = $(this);
+                    // Logica per aggiornare le statistiche
+                });
+                console.log('✅ Statistiche aggiornate');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('❌ Errore aggiornamento statistiche:', error);
+        }
+    });
+};
 </script>
+@endpush
 
+{{-- Stili CSS personalizzati per la homepage --}}
+@push('styles')
 <style>
-.card-custom {
-    border: none;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: all 0.3s ease;
-}
-
-.card-custom:hover {
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
-
-.category-card {
-    transition: all 0.3s ease;
-    cursor: pointer;
-}
-
-.category-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-}
-
+/* === HERO SECTION === */
 .hero-section {
+    background: linear-gradient(135deg, #2563eb 0%, #0891b2 100%);
+    color: white;
     position: relative;
     overflow: hidden;
 }
@@ -658,43 +1093,118 @@ $(document).on('error', 'img', function() {
     pointer-events: none;
 }
 
-.spinner-custom {
-    display: inline-block;
-    width: 1rem;
-    height: 1rem;
-    border: 2px solid #f3f3f3;
-    border-top: 2px solid #007bff;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+.stats-hero .stat-item {
+    transition: transform 0.3s ease;
 }
 
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+.stats-hero .stat-item:hover {
+    transform: translateY(-5px);
 }
 
-/* Miglioramenti responsive */
-@media (max-width: 768px) {
-    .display-4 {
-        font-size: 2rem;
-    }
-    
-    .hero-section .row > div {
-        text-align: center !important;
-        margin-bottom: 2rem;
-    }
-    
-    .btn-lg {
-        padding: 0.7rem 1.5rem;
-        font-size: 1rem;
-    }
-    
-    .col-lg-6:first-child {
-        margin-bottom: 2rem;
-    }
+/* === CARD PERSONALIZZATE === */
+.card-custom {
+    border: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+    border-radius: 12px;
 }
 
-/* Animazioni personalizzate */
+.card-custom:hover {
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+}
+
+/* === CATEGORY CARDS === */
+.category-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.category-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+}
+
+.category-card .card-body {
+    padding: 2rem 1.5rem;
+}
+
+.category-card .display-4 {
+    transition: transform 0.3s ease;
+}
+
+.category-card:hover .display-4 {
+    transform: scale(1.1);
+}
+
+/* === SEARCH RESULTS === */
+.search-results-container {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.search-result-item {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.search-result-item:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+/* === CERTIFICATION ITEMS === */
+.certification-item {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.certification-item:hover {
+    background-color: #f8f9fa !important;
+    transform: scale(1.05);
+}
+
+.certification-item .display-6 {
+    transition: transform 0.3s ease;
+}
+
+.certification-item:hover .display-6 {
+    transform: scale(1.1);
+}
+
+/* === INFO ITEMS === */
+.info-item h5 {
+    border-bottom: 2px solid transparent;
+    padding-bottom: 0.5rem;
+    transition: border-color 0.3s ease;
+}
+
+.info-item:hover h5 {
+    border-bottom-color: #007bff;
+}
+
+/* === SERVICE TIME === */
+.service-time {
+    padding: 1rem;
+    border-radius: 8px;
+    transition: background-color 0.3s ease;
+}
+
+.service-time:hover {
+    background-color: #f8f9fa;
+}
+
+/* === CENTRI LIST === */
+.centro-item {
+    transition: transform 0.2s ease;
+}
+
+.centro-item:hover {
+    transform: translateX(5px);
+}
+
+/* === ANIMAZIONI === */
 @keyframes fadeInUp {
     from {
         opacity: 0;
@@ -710,74 +1220,116 @@ $(document).on('error', 'img', function() {
     animation: fadeInUp 0.8s ease;
 }
 
-/* Effetti sui pulsanti */
+/* === SPINNER PERSONALIZZATO === */
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* === PULSANTI === */
 .btn {
     transition: all 0.3s ease;
+    border-radius: 8px;
 }
 
 .btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
 }
 
-/* Stili personalizzati per le icone */
-.display-4 i,
-.display-1 i {
+.btn-lg {
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+}
+
+/* === BADGE === */
+.badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.35rem 0.8rem;
+}
+
+/* === ICONE === */
+.display-1, .display-4, .display-6 {
+    line-height: 1;
     text-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* Miglioramenti per il form di ricerca */
+/* === FORM CONTROLS === */
 .form-control:focus {
     border-color: #007bff;
     box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
 }
 
-/* Stili per i badge delle certificazioni */
-.bg-light {
-    transition: all 0.3s ease;
+.form-control-lg {
+    border-radius: 8px;
 }
 
-.bg-light:hover {
-    background-color: #f8f9fa !important;
-    transform: scale(1.05);
+.form-select-lg {
+    border-radius: 8px;
 }
 
-/* Personalizzazione delle card dei centri assistenza */
-.border-start {
-    border-left-width: 4px !important;
+/* === LINKS === */
+a {
+    transition: color 0.2s ease;
 }
 
-/* Effetti di loading personalizzati */
-@keyframes pulse {
-    0% {
-        transform: scale(1);
+a:hover {
+    text-decoration: none !important;
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 768px) {
+    .hero-section .display-4 {
+        font-size: 2.5rem;
     }
-    50% {
-        transform: scale(1.05);
+    
+    .hero-section .lead {
+        font-size: 1.1rem;
     }
-    100% {
-        transform: scale(1);
+    
+    .stats-hero .col-3 {
+        margin-bottom: 1rem;
+    }
+    
+    .stats-hero h3 {
+        font-size: 1.75rem;
+    }
+    
+    .btn-lg {
+        font-size: 0.95rem;
+        padding: 0.6rem 1.5rem;
+    }
+    
+    .card-body {
+        padding: 1.25rem 1rem;
+    }
+    
+    .category-card .card-body {
+        padding: 1.5rem 1rem;
+    }
+    
+    .display-4 {
+        font-size: 2.5rem;
+    }
+    
+    .display-6 {
+        font-size: 1.25rem;
     }
 }
 
-.spinner-border-sm {
-    animation: pulse 1.5s ease-in-out infinite;
-}
-
-/* Stili per le statistiche nella sezione hero */
-.hero-section .col-4 h3 {
-    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-/* Personalizzazione per dispositivi molto piccoli */
 @media (max-width: 576px) {
     .container-fluid {
         padding-left: 10px;
         padding-right: 10px;
     }
     
+    .hero-section {
+        padding: 3rem 0;
+    }
+    
     .hero-section .display-4 {
-        font-size: 1.8rem;
+        font-size: 2rem;
     }
     
     .hero-section .lead {
@@ -786,27 +1338,108 @@ $(document).on('error', 'img', function() {
     
     .btn-lg {
         font-size: 0.9rem;
-        padding: 0.6rem 1.2rem;
+        padding: 0.5rem 1.25rem;
+        margin-bottom: 0.5rem;
     }
     
-    .col-4 h3 {
+    .stats-hero h3 {
         font-size: 1.5rem;
     }
     
-    .display-6 {
-        font-size: 2rem;
+    .card-custom {
+        margin-bottom: 1rem;
+    }
+    
+    .search-results-container {
+        max-height: 300px;
     }
 }
 
-/* Dark mode support (opzionale) */
+/* === DARK MODE SUPPORT === */
 @media (prefers-color-scheme: dark) {
     .card-custom {
         background-color: #f8f9fa;
+        color: #212529;
     }
     
     .bg-light {
         background-color: #e9ecef !important;
     }
+}
+
+/* === PRINT STYLES === */
+@media print {
+    .hero-section,
+    .btn,
+    #search-results {
+        display: none !important;
+    }
+    
+    .card-custom {
+        border: 1px solid #dee2e6 !important;
+        break-inside: avoid;
+    }
+    
+    .container-fluid {
+        max-width: none;
+        padding: 0;
+    }
+}
+
+/* === HIGH CONTRAST MODE === */
+@media (prefers-contrast: high) {
+    .btn {
+        border-width: 2px;
+    }
+    
+    .card-custom {
+        border: 2px solid #000;
+    }
+    
+    .badge {
+        border: 1px solid;
+    }
+}
+
+/* === REDUCED MOTION === */
+@media (prefers-reduced-motion: reduce) {
+    .card-custom,
+    .btn,
+    .category-card,
+    .certification-item,
+    .search-result-item,
+    .centro-item,
+    .info-item h5,
+    .service-time,
+    .stats-hero .stat-item {
+        transition: none;
+    }
+    
+    .fade-in-up,
+    @keyframes fadeInUp {
+        animation: none;
+    }
+}
+
+/* === ACCESSIBILITÀ === */
+.visually-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* Focus visible per navigazione da tastiera */
+.btn:focus-visible,
+.form-control:focus-visible,
+.form-select:focus-visible {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
 }
 </style>
 @endpush
