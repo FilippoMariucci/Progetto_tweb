@@ -216,7 +216,7 @@
                     <h6 class="mb-3">Azioni Cache</h6>
                     <div class="d-grid gap-2">
                         {{-- Pulisci tutte le cache --}}
-                        <form method="POST" action="{{ route('admin.clear.cache') }}" class="d-inline">
+                        <form method="POST" action="{{ route('admin.manutenzione.clear-cache') }}" class="d-inline">
                             @csrf
                             <input type="hidden" name="type" value="all">
                             <button type="submit" class="btn btn-danger w-100" 
@@ -229,7 +229,7 @@
                         {{-- Azioni cache specifiche --}}
                         <div class="row g-2">
                             <div class="col-6">
-                                <form method="POST" action="{{ route('admin.clear.cache') }}" class="d-inline">
+                                <form method="POST" action="{{ route('admin.manutenzione.clear-cache') }}" class="d-inline">
                                     @csrf
                                     <input type="hidden" name="type" value="config">
                                     <button type="submit" class="btn btn-outline-warning w-100">
@@ -239,7 +239,7 @@
                                 </form>
                             </div>
                             <div class="col-6">
-                                <form method="POST" action="{{ route('admin.clear.cache') }}" class="d-inline">
+                                <form method="POST" action="{{ route('admin.manutenzione.clear-cache') }}" class="d-inline">
                                     @csrf
                                     <input type="hidden" name="type" value="route">
                                     <button type="submit" class="btn btn-outline-warning w-100">
@@ -249,7 +249,7 @@
                                 </form>
                             </div>
                             <div class="col-6">
-                                <form method="POST" action="{{ route('admin.clear.cache') }}" class="d-inline">
+                                <form method="POST" action="{{ route('admin.manutenzione.clear-cache') }}" class="d-inline">
                                     @csrf
                                     <input type="hidden" name="type" value="view">
                                     <button type="submit" class="btn btn-outline-warning w-100">
@@ -259,7 +259,7 @@
                                 </form>
                             </div>
                             <div class="col-6">
-                                <form method="POST" action="{{ route('admin.clear.cache') }}" class="d-inline">
+                                <form method="POST" action="{{ route('admin.manutenzione.clear-cache') }}" class="d-inline">
                                     @csrf
                                     <input type="hidden" name="type" value="application">
                                     <button type="submit" class="btn btn-outline-warning w-100">
@@ -295,7 +295,7 @@
                     </div>
 
                     <div class="d-grid gap-2">
-                        <form method="POST" action="{{ route('admin.optimize.database') }}" class="d-inline">
+                        <form method="POST" action="{{ route('admin.manutenzione.optimize-db') }}" class="d-inline">
                             @csrf
                             <button type="submit" class="btn btn-success w-100" 
                                     onclick="return confirm('Avviare l\'ottimizzazione del database? L\'operazione potrebbe richiedere alcuni minuti.')">
@@ -418,7 +418,7 @@
                                 <i class="bi bi-download display-1 text-success mb-3"></i>
                                 <h6>Export Dati</h6>
                                 <p class="text-muted small">Esporta tutti i dati del sistema in formato JSON/CSV</p>
-                                <a href="{{ route('admin.export') }}" class="btn btn-success">
+                                <a href="{{ route('admin.export.index') }}" class="btn btn-success">
                                     <i class="bi bi-download me-1"></i>Gestisci Export
                                 </a>
                             </div>
@@ -430,7 +430,7 @@
                                 <i class="bi bi-graph-up display-1 text-info mb-3"></i>
                                 <h6>Statistiche Avanzate</h6>
                                 <p class="text-muted small">Visualizza analytics dettagliati e metriche sistema</p>
-                                <a href="{{ route('admin.statistiche') }}" class="btn btn-info">
+                                <a href="{{ route('admin.statistiche.index') }}" class="btn btn-info">
                                     <i class="bi bi-graph-up me-1"></i>Vai alle Statistiche
                                 </a>
                             </div>
@@ -484,7 +484,7 @@
  * Gestisce il monitoraggio sistema e controlli automatici
  */
 
-let systemCheckInterval;
+let systemCheckInterval = null;
 let autoRefreshEnabled = true;
 
 $(document).ready(function() {
@@ -560,7 +560,7 @@ function checkSystemStatus() {
     button.prop('disabled', true);
     
     $.ajax({
-        url: '{{ route("admin.system.status") }}',
+        url: '{{ route("api.admin.system.status") }}',
         method: 'GET',
         timeout: 10000,
         success: function(response) {

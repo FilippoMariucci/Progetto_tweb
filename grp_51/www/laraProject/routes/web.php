@@ -447,8 +447,8 @@ Route::middleware(['auth'])->group(function () {
             Route::prefix('manutenzione')->name('manutenzione.')->group(function () {
                 
                 // Dashboard manutenzione
-                Route::get('/', [AdminController::class, 'dashboardManutenzione'])->name('index');
-                
+                Route::get('/', [AdminController::class, 'manutenzione'])->name('index');
+
                 // Pulizia cache
                 Route::post('/clear-cache', [AdminController::class, 'clearCache'])->name('clear-cache');
                 
