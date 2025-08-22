@@ -5,191 +5,161 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
-use App\Models\Malfunzionamento;
 
-/**
- * Modello Eloquent che rappresenta la tabella "prodotti" nel database.
- * Ogni istanza di questa classe corrisponde a una riga della tabella "prodotti".
- * Fornisce relazioni, scope e metodi helper per la gestione dei prodotti.
- */
 class Prodotto extends Model
 {
-    // Nome della tabella associata al modello (opzionale se segue la convenzione Laravel)
-    protected $table = 'prodotti';
-    // Trait per abilitare le factory nei test e seed
     use HasFactory;
 
-    /**
-     * Campi che possono essere assegnati in massa
-     */
-    /**
-     * Elenco dei campi che possono essere assegnati in massa tramite create() o fill().
-     * Serve a proteggere da mass assignment vulnerability.
-     * Questi campi corrispondono alle colonne della tabella "prodotti".
-     */
+    protected $table = 'prodotti';
+
     protected $fillable = [
-        'nome',                  // Nome del prodotto
-        'modello',               // Modello del prodotto
-        'descrizione',           // Descrizione testuale
-        'categoria',             // Categoria di appartenenza (es: lavatrice)
-        'foto',                  // Nome file immagine associata
-        'note_tecniche',         // Note tecniche aggiuntive
-        'modalita_installazione',// Modalità di installazione
-        'modalita_uso',          // Modalità d'uso
-        'prezzo',                // Prezzo del prodotto
-        'attivo',                // Stato attivo/disattivo (boolean)
-        'staff_assegnato_id',    // ID membro staff assegnato (FK)
+        'nome',
+        'modello', 
+        'descrizione',
+        'categoria',
+        'note_tecniche',
+        'modalita_installazione',
+        'modalita_uso',
+        'prezzo',
+        'foto',
+        'staff_assegnato_id',
+        'attivo'
     ];
 
-    /**
-     * Cast automatici per i campi
-     */
-    /**
-     * Cast automatici per i campi: conversione automatica dei tipi.
-     * Esempio: 'prezzo' sarà sempre float con 2 decimali, 'attivo' sarà boolean.
-     * Questo permette di lavorare con i tipi corretti senza conversioni manuali.
-     */
-    protected function casts(): array
-    {
-        return [
-            'prezzo' => 'decimal:2', // Decimale con 2 cifre dopo la virgola
-            'attivo' => 'boolean',   // Conversione automatica a booleano (0/1 <-> false/true)
-        ];
-    }
+    protected $casts = [
+        'prezzo' => 'decimal:2',
+        'attivo' => 'boolean',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime'
+    ];
+
+    // ================================================
+    // RELAZIONI
+    // ================================================
 
     /**
-     * Relazione con i malfunzionamenti
-     * Un prodotto può avere molti malfunzionamenti
-     */
-    /**
-     * Relazione 1:N: un prodotto può avere molti malfunzionamenti.
-     * Restituisce la query per tutti i malfunzionamenti associati a questo prodotto.
-     * Esempio di uso: $prodotto->malfunzionamenti
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * Relazione con i malfunzionamenti del prodotto
      */
     public function malfunzionamenti()
     {
-        return $this->hasMany(Malfunzionamento::class);
+        return $this->hasMany(Malfunzionamento::class, 'prodotto_id');
     }
 
     /**
-     * Relazione con lo staff assegnato (funzionalità opzionale)
-     * Un prodotto può essere gestito da un membro dello staff
-     */
-    /**
-     * Relazione N:1: un prodotto può essere gestito da un membro dello staff.
-     * Restituisce l'utente (staff) assegnato a questo prodotto.
-     * Esempio di uso: $prodotto->staffAssegnato
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * Relazione con lo staff assegnato al prodotto
      */
     public function staffAssegnato()
     {
         return $this->belongsTo(User::class, 'staff_assegnato_id');
     }
 
-    // === SCOPE PER QUERY OTTIMIZZATE ===
+    // ================================================
+    // ACCESSORS (Attributi Calcolati)
+    // ================================================
 
     /**
-     * Scope per filtrare solo prodotti attivi
-     * Uso: Prodotto::attivi()->get()
-     */
-    /**
-     * Scope locale: filtra solo i prodotti attivi.
-     * Permette di scrivere Prodotto::attivi()->get() per ottenere solo quelli attivi.
-     * @param Builder $query
-     */
-    public function scopeAttivi(Builder $query): void
-    {
-        $query->where('attivo', true);
-    }
-
-    /**
-     * Scope per cercare prodotti per categoria
-     * Uso: Prodotto::categoria('lavatrice')->get()
-     */
-    /**
-     * Scope locale: filtra per categoria.
-     * Permette di scrivere Prodotto::categoria('lavatrice')->get()
-     * @param Builder $query
-     * @param string $categoria
-     */
-    public function scopeCategoria(Builder $query, string $categoria): void
-    {
-        $query->where('categoria', $categoria);
-    }
-
-    /**
-     * Scope per ricerca testuale con supporto wildcard
-     * Gestisce la ricerca con "*" come ultimo carattere (es: "lav*")
-     */
-    /**
-     * Scope locale: ricerca testuale con supporto wildcard finale (es: "lav*").
-     * Se il termine termina con *, ricerca "inizia con" su più campi; altrimenti usa fulltext.
-     * Permette ricerche flessibili su nome, descrizione e modello.
-     * @param Builder $query
-     * @param string $termine
-     */
-    public function scopeRicerca(Builder $query, string $termine): void
-    {
-        // Se il termine termina con *, facciamo una ricerca "inizia con"
-        if (str_ends_with($termine, '*')) {
-            $termine = rtrim($termine, '*'); // Rimuovi l'asterisco
-            $query->where(function($q) use ($termine) {
-                $q->where('nome', 'LIKE', $termine . '%')
-                  ->orWhere('descrizione', 'LIKE', $termine . '%')
-                  ->orWhere('modello', 'LIKE', $termine . '%');
-            });
-        } else {
-            // Ricerca fulltext (richiede indice FULLTEXT su questi campi)
-            $query->whereRaw(
-                "MATCH(nome, descrizione, modello) AGAINST(? IN BOOLEAN MODE)", 
-                [$termine . '*']
-            );
-        }
-    }
-
-    /**
-     * Scope per prodotti assegnati a uno staff specifico
-     */
-    /**
-     * Scope locale: filtra prodotti assegnati a uno specifico membro dello staff.
-     * Permette di scrivere Prodotto::assegnatiA($id)->get()
-     * @param Builder $query
-     * @param int $staffId
-     */
-    public function scopeAssegnatiA(Builder $query, int $staffId): void
-    {
-        $query->where('staff_assegnato_id', $staffId);
-    }
-
-    // === METODI HELPER ===
-
-    /**
-     * Ottiene il path completo dell'immagine
-     */
-    /**
-     * Accessor: restituisce l'URL completo dell'immagine del prodotto.
-     * Se non c'è immagine, restituisce un placeholder.
-     * Esempio di uso: $prodotto->foto_url
-     * @return string
+     * FIXED: Accessor per URL immagine prodotto
+     * Gestisce diversi scenari di storage
      */
     public function getFotoUrlAttribute(): string
     {
-        if ($this->foto) {
-            return asset('storage/prodotti/' . $this->foto);
+        if (!$this->foto) {
+            // Immagine placeholder se non presente
+            return asset('images/prodotto-placeholder.jpg');
         }
-        // Immagine placeholder se non presente
-        return asset('images/prodotto-placeholder.jpg');
+
+        // === TENTATIVO 1: Storage Laravel standard ===
+        $standardPath = asset('storage/' . $this->foto);
+        
+        // === TENTATIVO 2: Path diretto alla cartella storage ===
+        $directPath = asset('storage/app/public/' . $this->foto);
+        
+        // === TENTATIVO 3: Path verso uploads pubblici ===
+        $uploadsPath = asset('uploads/prodotti/' . basename($this->foto));
+        
+        // === TENTATIVO 4: URL completo con dominio ===
+        $fullUrl = url('storage/' . $this->foto);
+
+        // Per debug, logga tutti i path possibili
+        \Log::debug('Tentativi path immagine', [
+            'foto_field' => $this->foto,
+            'standard_path' => $standardPath,
+            'direct_path' => $directPath,
+            'uploads_path' => $uploadsPath,
+            'full_url' => $fullUrl
+        ]);
+
+        // Prova prima il path standard
+        return $standardPath;
+    }
+
+    /**
+     * Fallback: URL immagine con path alternativo
+     */
+    public function getFotoUrlAlternativeAttribute(): string
+    {
+        if (!$this->foto) {
+            return asset('images/no-image.png');
+        }
+
+        // Prova path alternativi
+        $paths = [
+            'storage/' . $this->foto,
+            'storage/app/public/' . $this->foto,
+            'uploads/prodotti/' . basename($this->foto),
+            'images/prodotti/' . basename($this->foto)
+        ];
+
+        foreach ($paths as $path) {
+            $fullPath = public_path($path);
+            if (file_exists($fullPath)) {
+                return asset($path);
+            }
+        }
+
+        // Se nessun file trovato, restituisce placeholder
+        return asset('images/no-image.png');
+    }
+
+    /**
+     * Nome completo del prodotto (nome + modello)
+     */
+    public function getNomeCompletoAttribute(): string
+    {
+        return $this->nome . ' ' . $this->modello;
+    }
+
+    /**
+     * Label formattata per la categoria
+     */
+    public function getCategoriaLabelAttribute(): string
+    {
+        $categorie = [
+            'elettrodomestici' => 'Elettrodomestici',
+            'climatizzazione' => 'Climatizzazione', 
+            'cucina' => 'Cucina',
+            'lavanderia' => 'Lavanderia',
+            'riscaldamento' => 'Riscaldamento',
+            'altro' => 'Altro'
+        ];
+
+        return $categorie[$this->categoria] ?? ucfirst($this->categoria);
+    }
+
+    /**
+     * Prezzo formattato in Euro
+     */
+    public function getPrezzoFormattato(): string
+    {
+        if (!$this->prezzo) {
+            return 'Prezzo non disponibile';
+        }
+
+        return '€ ' . number_format($this->prezzo, 2, ',', '.');
     }
 
     /**
      * Conta i malfunzionamenti totali per questo prodotto
-     */
-    /**
-     * Accessor: conta il numero totale di malfunzionamenti associati a questo prodotto.
-     * Utile per mostrare statistiche rapide.
-     * Esempio di uso: $prodotto->totale_malfunzionamenti
-     * @return int
      */
     public function getTotaleMalfunzionamentiAttribute(): int
     {
@@ -199,27 +169,15 @@ class Prodotto extends Model
     /**
      * Conta le segnalazioni totali per tutti i malfunzionamenti
      */
-    /**
-     * Accessor: somma il numero di segnalazioni di tutti i malfunzionamenti del prodotto.
-     * Utile per statistiche aggregate.
-     * Esempio di uso: $prodotto->totale_segnalazioni
-     * @return int
-     */
     public function getTotaleSegnalazioniAttribute(): int
     {
-        return $this->malfunzionamenti()->sum('numero_segnalazioni');
+        return $this->malfunzionamenti()->sum('numero_segnalazioni') ?? 0;
     }
 
     /**
      * Ottiene i malfunzionamenti ordinati per gravità e frequenza
      */
-    /**
-     * Accessor: restituisce i malfunzionamenti ordinati per gravità e frequenza.
-     * Prima i più gravi, poi quelli con più segnalazioni.
-     * Esempio di uso: $prodotto->malfunzionamenti_ordered
-     * @return \Illuminate\Database\Eloquent\Collection
-     */
-    public function getMalfunzionamentiOrderedAttribute()
+    public function getMalfunzionamentiOrdinatiAttribute()
     {
         return $this->malfunzionamenti()
             ->orderByRaw("FIELD(gravita, 'critica', 'alta', 'media', 'bassa')")
@@ -227,57 +185,271 @@ class Prodotto extends Model
             ->get();
     }
 
+    // ================================================
+    // SCOPE (Filtri per Query)
+    // ================================================
+
     /**
-     * Verifica se il prodotto ha malfunzionamenti critici
+     * Scope per prodotti attivi
      */
-    /**
-     * Metodo helper: verifica se il prodotto ha almeno un malfunzionamento critico.
-     * Restituisce true se esiste almeno un malfunzionamento "critica".
-     * Esempio di uso: $prodotto->hasMalfunzionamentiCritici()
-     * @return bool
-     */
-    public function hasMalfunzionamentiCritici(): bool
+    public function scopeAttivi(Builder $query): void
     {
-        return $this->malfunzionamenti()
-            ->where('gravita', 'critica')
-            ->exists();
+        $query->where('attivo', true);
     }
 
     /**
-     * Ottiene le categorie disponibili (metodo statico)
+     * Scope per prodotti di una categoria specifica
      */
+    public function scopeCategoria(Builder $query, string $categoria): void
+    {
+        $query->where('categoria', $categoria);
+    }
+
     /**
-     * Metodo statico: restituisce la lista delle categorie disponibili (chiave => etichetta).
-     * Utile per popolare select nei form o validare input.
-     * @return array
+     * Scope per ricerca testuale
+     */
+    public function scopeRicerca(Builder $query, string $termine): void
+    {
+        // Implementa wildcard search
+        if (str_ends_with($termine, '*')) {
+            $termine = rtrim($termine, '*');
+            $query->where(function($q) use ($termine) {
+                $q->where('nome', 'LIKE', $termine . '%')
+                  ->orWhere('descrizione', 'LIKE', $termine . '%')
+                  ->orWhere('modello', 'LIKE', $termine . '%');
+            });
+        } else {
+            $query->where(function($q) use ($termine) {
+                $q->where('nome', 'LIKE', '%' . $termine . '%')
+                  ->orWhere('descrizione', 'LIKE', '%' . $termine . '%')
+                  ->orWhere('modello', 'LIKE', '%' . $termine . '%');
+            });
+        }
+    }
+
+    /**
+     * Scope per prodotti assegnati a uno staff specifico
+     */
+    public function scopeAssegnatiA(Builder $query, int $staffId): void
+    {
+        $query->where('staff_assegnato_id', $staffId);
+    }
+
+    /**
+     * Scope per prodotti non assegnati
+     */
+    public function scopeNonAssegnati(Builder $query): void
+    {
+        $query->whereNull('staff_assegnato_id');
+    }
+
+    // ================================================
+    // METODI STATICI
+    // ================================================
+
+    /**
+     * Ottiene tutte le categorie disponibili
      */
     public static function getCategorie(): array
     {
         return [
-            'lavatrice' => 'Lavatrici',
-            'lavastoviglie' => 'Lavastoviglie', 
-            'forno' => 'Forni',
-            'frigorifero' => 'Frigoriferi',
-            'asciugatrice' => 'Asciugatrici',
-            'piano_cottura' => 'Piani Cottura',
-            'cappa' => 'Cappe Aspiranti',
-            'microonde' => 'Microonde',
-            'altro' => 'Altri Elettrodomestici'
+            'elettrodomestici' => 'Elettrodomestici',
+            'climatizzazione' => 'Climatizzazione',
+            'cucina' => 'Cucina', 
+            'lavanderia' => 'Lavanderia',
+            'riscaldamento' => 'Riscaldamento',
+            'altro' => 'Altro'
         ];
     }
 
     /**
-     * Ottiene il nome leggibile della categoria
+     * Ottiene le categorie con conteggio prodotti
      */
-    /**
-     * Accessor: restituisce l'etichetta leggibile della categoria del prodotto.
-     * Se la categoria non è tra quelle note, restituisce la stringa capitalizzata.
-     * Esempio di uso: $prodotto->categoria_label
-     * @return string
-     */
-    public function getCategoriaLabelAttribute(): string
+    public static function getCategorieConConteggio(): array
     {
-        $categorie = self::getCategorie();
-        return $categorie[$this->categoria] ?? ucfirst($this->categoria);
+        try {
+            $categorie = self::getCategorie();
+            
+            // Conta i prodotti per categoria
+            $prodottiPerCategoria = self::where('attivo', true)
+                ->selectRaw('categoria, COUNT(*) as count')
+                ->groupBy('categoria')
+                ->pluck('count', 'categoria')
+                ->toArray();
+
+            // Unisci con le etichette
+            $result = [];
+            foreach ($categorie as $key => $label) {
+                $result[$key] = [
+                    'label' => $label,
+                    'count' => $prodottiPerCategoria[$key] ?? 0
+                ];
+            }
+
+            return $result;
+
+        } catch (\Exception $e) {
+            \Log::error('Errore nel calcolo categorie con conteggio', [
+                'error' => $e->getMessage()
+            ]);
+
+            // Fallback
+            return array_map(function($label) {
+                return ['label' => $label, 'count' => 0];
+            }, self::getCategorie());
+        }
+    }
+
+    /**
+     * Ricerca prodotti con supporto wildcard
+     */
+    public static function ricercaAvanzata(string $termine, string $categoria = null): Builder
+    {
+        $query = self::where('attivo', true);
+
+        // Applica ricerca testuale
+        $query->ricerca($termine);
+
+        // Filtra per categoria se specificata
+        if ($categoria) {
+            $query->categoria($categoria);
+        }
+
+        return $query;
+    }
+
+    // ================================================
+    // METODI PER GESTIONE FILE
+    // ================================================
+
+    /**
+     * Salva l'immagine del prodotto in modo sicuro
+     */
+    public function salvaImmagine($file): string
+    {
+        try {
+            // Genera nome file univoco
+            $filename = time() . '_' . $this->id . '.' . $file->getClientOriginalExtension();
+            
+            // Prova diversi metodi di storage
+            $methods = [
+                'storage_public' => function() use ($file, $filename) {
+                    return $file->storeAs('prodotti', $filename, 'public');
+                },
+                'public_uploads' => function() use ($file, $filename) {
+                    $path = public_path('uploads/prodotti');
+                    if (!file_exists($path)) {
+                        mkdir($path, 0755, true);
+                    }
+                    $file->move($path, $filename);
+                    return 'uploads/prodotti/' . $filename;
+                },
+                'public_images' => function() use ($file, $filename) {
+                    $path = public_path('images/prodotti');
+                    if (!file_exists($path)) {
+                        mkdir($path, 0755, true);
+                    }
+                    $file->move($path, $filename);
+                    return 'images/prodotti/' . $filename;
+                }
+            ];
+
+            foreach ($methods as $method => $callback) {
+                try {
+                    $result = $callback();
+                    \Log::info("Immagine salvata con successo", [
+                        'method' => $method,
+                        'filename' => $filename,
+                        'result' => $result
+                    ]);
+                    return $result;
+                } catch (\Exception $e) {
+                    \Log::warning("Metodo {$method} fallito", [
+                        'error' => $e->getMessage()
+                    ]);
+                    continue;
+                }
+            }
+
+            throw new \Exception('Tutti i metodi di storage sono falliti');
+
+        } catch (\Exception $e) {
+            \Log::error('Errore nel salvataggio immagine', [
+                'error' => $e->getMessage(),
+                'prodotto_id' => $this->id
+            ]);
+            
+            throw $e;
+        }
+    }
+
+    /**
+     * Elimina l'immagine del prodotto
+     */
+    public function eliminaImmagine(): bool
+    {
+        if (!$this->foto) {
+            return true;
+        }
+
+        try {
+            $paths = [
+                storage_path('app/public/' . $this->foto),
+                public_path('storage/' . $this->foto),
+                public_path($this->foto)
+            ];
+
+            $deleted = false;
+            foreach ($paths as $path) {
+                if (file_exists($path)) {
+                    unlink($path);
+                    $deleted = true;
+                    \Log::info("Immagine eliminata", ['path' => $path]);
+                }
+            }
+
+            return $deleted;
+
+        } catch (\Exception $e) {
+            \Log::error('Errore eliminazione immagine', [
+                'error' => $e->getMessage(),
+                'foto' => $this->foto
+            ]);
+            return false;
+        }
+    }
+
+    // ================================================
+    // METODI PER DEBUGGING
+    // ================================================
+
+    /**
+     * Debug: verifica esistenza file immagine
+     */
+    public function verificaImmagine(): array
+    {
+        if (!$this->foto) {
+            return ['exists' => false, 'reason' => 'No image set'];
+        }
+
+        $paths = [
+            'storage_public' => storage_path('app/public/' . $this->foto),
+            'public_storage' => public_path('storage/' . $this->foto),
+            'public_direct' => public_path($this->foto),
+            'public_uploads' => public_path('uploads/prodotti/' . basename($this->foto)),
+            'public_images' => public_path('images/prodotti/' . basename($this->foto))
+        ];
+
+        $results = [];
+        foreach ($paths as $key => $path) {
+            $results[$key] = [
+                'path' => $path,
+                'exists' => file_exists($path),
+                'readable' => file_exists($path) && is_readable($path),
+                'size' => file_exists($path) ? filesize($path) : 0
+            ];
+        }
+
+        return $results;
     }
 }
