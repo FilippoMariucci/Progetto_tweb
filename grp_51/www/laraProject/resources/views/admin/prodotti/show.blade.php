@@ -1,7 +1,13 @@
 {{-- 
-    Vista dettaglio prodotto per amministratori - CORRETTA
+    Vista dettaglio prodotto per amministratori - VERSIONE CORRETTA E COMPLETA
     Percorso: resources/views/admin/prodotti/show.blade.php
     Accesso: Solo livello 4 (Amministratori)
+    
+    CORREZIONI APPLICATE:
+    - Modal riassegnazione staff con route corrette
+    - Form validation e error handling
+    - Gestione immagini con fallback
+    - JavaScript per UX migliorata
 --}}
 
 @extends('layouts.app')
@@ -14,7 +20,7 @@
     {{-- === HEADER CON BREADCRUMB === --}}
     <div class="row mb-4">
         <div class="col-12">
-            {{-- Breadcrumb --}}
+            {{-- Breadcrumb di navigazione --}}
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item">
@@ -31,50 +37,59 @@
                 </ol>
             </nav>
 
-            {{-- Header con azioni --}}
-            <div class="d-flex justify-content-between align-items-start">
-                <div>
+            {{-- Header principale con titolo e azioni --}}
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start">
+                <div class="mb-3 mb-md-0">
                     <h1 class="h2 mb-2">
                         <i class="bi bi-box text-primary me-2"></i>
                         {{ $prodotto->nome }}
+                        {{-- Badge stato prodotto --}}
                         @if(!$prodotto->attivo)
                             <span class="badge bg-danger ms-2">INATTIVO</span>
                         @else
                             <span class="badge bg-success ms-2">ATTIVO</span>
                         @endif
                     </h1>
+                    {{-- Informazioni base --}}
                     <p class="text-muted mb-0">
-                        Modello: <strong>{{ $prodotto->modello }}</strong> • 
-                        Categoria: <strong>{{ ucfirst(str_replace('_', ' ', $prodotto->categoria)) }}</strong>
+                        <strong>Modello:</strong> {{ $prodotto->modello }} • 
+                        <strong>Categoria:</strong> {{ ucfirst(str_replace('_', ' ', $prodotto->categoria)) }}
                         @if($prodotto->prezzo)
-                            • Prezzo: <strong>€ {{ number_format($prodotto->prezzo, 2, ',', '.') }}</strong>
+                            • <strong>Prezzo:</strong> € {{ number_format($prodotto->prezzo, 2, ',', '.') }}
                         @endif
                     </p>
                 </div>
 
-                {{-- Pulsanti di azione --}}
-                <div class="btn-group" role="group">
-                    <a href="{{ route('admin.prodotti.edit', $prodotto) }}" class="btn btn-warning">
+                {{-- Pulsanti di azione principale --}}
+                <div class="btn-group flex-wrap" role="group" aria-label="Azioni prodotto">
+                    {{-- Modifica prodotto --}}
+                    <a href="{{ route('admin.prodotti.edit', $prodotto) }}" 
+                       class="btn btn-warning"
+                       title="Modifica informazioni prodotto">
                         <i class="bi bi-pencil me-1"></i>Modifica
                     </a>
                     
-                    {{-- Toggle status --}}
+                    {{-- Toggle stato attivo/inattivo --}}
                     @if(Route::has('admin.prodotti.toggle-status'))
-                    <form action="{{ route('admin.prodotti.toggle-status', $prodotto) }}" method="POST" class="d-inline">
+                    <form action="{{ route('admin.prodotti.toggle-status', $prodotto) }}" 
+                          method="POST" 
+                          class="d-inline"
+                          onsubmit="return confirmToggleStatus({{ $prodotto->attivo ? 'true' : 'false' }})">
                         @csrf
                         <button type="submit" 
                                 class="btn {{ $prodotto->attivo ? 'btn-danger' : 'btn-success' }}"
-                                onclick="return confirm('Sei sicuro di voler {{ $prodotto->attivo ? 'disattivare' : 'attivare' }} questo prodotto?')">
+                                title="{{ $prodotto->attivo ? 'Disattiva prodotto' : 'Attiva prodotto' }}">
                             <i class="bi bi-{{ $prodotto->attivo ? 'pause' : 'play' }} me-1"></i>
                             {{ $prodotto->attivo ? 'Disattiva' : 'Attiva' }}
                         </button>
                     </form>
                     @endif
 
-                    {{-- Vista pubblica --}}
+                    {{-- Vista pubblica del prodotto --}}
                     <a href="{{ route('prodotti.show', $prodotto) }}" 
                        class="btn btn-outline-primary" 
-                       target="_blank">
+                       target="_blank"
+                       title="Visualizza come lo vedono gli utenti pubblici">
                         <i class="bi bi-eye me-1"></i>Vista Pubblica
                     </a>
                 </div>
@@ -82,64 +97,74 @@
         </div>
     </div>
 
-    {{-- === STATISTICHE RAPIDE === --}}
+    {{-- === STATISTICHE RAPIDE (se disponibili) === --}}
     @if(isset($statistiche))
     <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card bg-primary text-white">
+        {{-- Malfunzionamenti totali --}}
+        <div class="col-md-3 mb-3">
+            <div class="card bg-primary text-white h-100">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between">
+                    <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h4 class="card-title">{{ $statistiche['malfunzionamenti_totali'] }}</h4>
-                            <p class="card-text">Malfunzionamenti Totali</p>
+                            <h4 class="card-title mb-1">{{ $statistiche['malfunzionamenti_totali'] }}</h4>
+                            <p class="card-text mb-0">Malfunzionamenti Totali</p>
                         </div>
-                        <div class="align-self-center">
-                            <i class="bi bi-exclamation-triangle display-6"></i>
+                        <div>
+                            <i class="bi bi-exclamation-triangle display-6 opacity-75"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-danger text-white">
+        
+        {{-- Problemi critici --}}
+        <div class="col-md-3 mb-3">
+            <div class="card bg-danger text-white h-100">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between">
+                    <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h4 class="card-title">{{ $statistiche['malfunzionamenti_critici'] }}</h4>
-                            <p class="card-text">Problemi Critici</p>
+                            <h4 class="card-title mb-1">{{ $statistiche['malfunzionamenti_critici'] }}</h4>
+                            <p class="card-text mb-0">Problemi Critici</p>
                         </div>
-                        <div class="align-self-center">
-                            <i class="bi bi-exclamation-octagon display-6"></i>
+                        <div>
+                            <i class="bi bi-exclamation-octagon display-6 opacity-75"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-info text-white">
+        
+        {{-- Segnalazioni totali --}}
+        <div class="col-md-3 mb-3">
+            <div class="card bg-info text-white h-100">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between">
+                    <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h4 class="card-title">{{ $statistiche['segnalazioni_totali'] }}</h4>
-                            <p class="card-text">Segnalazioni Totali</p>
+                            <h4 class="card-title mb-1">{{ $statistiche['segnalazioni_totali'] }}</h4>
+                            <p class="card-text mb-0">Segnalazioni Totali</p>
                         </div>
-                        <div class="align-self-center">
-                            <i class="bi bi-flag display-6"></i>
+                        <div>
+                            <i class="bi bi-flag display-6 opacity-75"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-{{ isset($metriche['livello_criticita']['colore']) ? $metriche['livello_criticita']['colore'] : 'secondary' }} text-white">
+        
+        {{-- Livello criticità --}}
+        <div class="col-md-3 mb-3">
+            @php
+                $criticita = $metriche['livello_criticita'] ?? ['livello' => 'N/A', 'colore' => 'secondary'];
+            @endphp
+            <div class="card bg-{{ $criticita['colore'] }} text-white h-100">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between">
+                    <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h4 class="card-title">{{ isset($metriche['livello_criticita']['livello']) ? ucfirst($metriche['livello_criticita']['livello']) : 'N/A' }}</h4>
-                            <p class="card-text">Livello Criticità</p>
+                            <h4 class="card-title mb-1">{{ ucfirst($criticita['livello']) }}</h4>
+                            <p class="card-text mb-0">Livello Criticità</p>
                         </div>
-                        <div class="align-self-center">
-                            <i class="bi bi-speedometer2 display-6"></i>
+                        <div>
+                            <i class="bi bi-speedometer2 display-6 opacity-75"></i>
                         </div>
                     </div>
                 </div>
@@ -151,94 +176,138 @@
     {{-- === CONTENUTO PRINCIPALE === --}}
     <div class="row">
         
-        {{-- === INFORMAZIONI PRODOTTO === --}}
+        {{-- === COLONNA PRINCIPALE - INFORMAZIONI PRODOTTO === --}}
         <div class="col-lg-8">
-            <div class="card mb-4">
-                <div class="card-header">
+            
+            {{-- Card informazioni generali --}}
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-light">
                     <h5 class="card-title mb-0">
-                        <i class="bi bi-info-circle me-2"></i>Informazioni Prodotto
+                        <i class="bi bi-info-circle text-primary me-2"></i>Informazioni Prodotto
                     </h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        {{-- Foto prodotto --}}
+                        {{-- Foto prodotto (se presente) --}}
                         @if($prodotto->foto)
                         <div class="col-md-4 mb-3">
-                            <img src="{{ asset('storage/' . $prodotto->foto) }}" 
-                                 alt="Foto {{ $prodotto->nome }}"
-                                 class="img-fluid rounded shadow-sm"
-                                 onerror="this.src='{{ asset('images/placeholder-product.png') }}'; this.onerror=null;">
+                            <div class="text-center">
+                                <img src="{{ asset('storage/' . $prodotto->foto) }}" 
+                                     alt="Foto {{ $prodotto->nome }}"
+                                     class="img-fluid rounded shadow-sm product-image"
+                                     style="max-height: 250px; object-fit: cover;"
+                                     onerror="handleImageError(this)"
+                                     loading="lazy">
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <i class="bi bi-camera me-1"></i>Immagine prodotto
+                                    </small>
+                                </div>
+                            </div>
                         </div>
                         @endif
                         
-                        {{-- Dettagli --}}
+                        {{-- Tabella dettagli prodotto --}}
                         <div class="col-md-{{ $prodotto->foto ? '8' : '12' }}">
-                            <table class="table table-borderless">
-                                <tr>
-                                    <th width="30%">Nome:</th>
-                                    <td>{{ $prodotto->nome }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Modello:</th>
-                                    <td><code>{{ $prodotto->modello }}</code></td>
-                                </tr>
-                                <tr>
-                                    <th>Categoria:</th>
-                                    <td>
-                                        <span class="badge bg-secondary">
-                                            {{ ucfirst(str_replace('_', ' ', $prodotto->categoria)) }}
-                                        </span>
-                                    </td>
-                                </tr>
-                                @if($prodotto->prezzo)
-                                <tr>
-                                    <th>Prezzo:</th>
-                                    <td class="fw-bold text-success">€ {{ number_format($prodotto->prezzo, 2, ',', '.') }}</td>
-                                </tr>
-                                @endif
-                                <tr>
-                                    <th>Status:</th>
-                                    <td>
-                                        <span class="badge bg-{{ $prodotto->attivo ? 'success' : 'danger' }}">
-                                            {{ $prodotto->attivo ? 'ATTIVO' : 'INATTIVO' }}
-                                        </span>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th>Creato:</th>
-                                    <td>{{ $prodotto->created_at->format('d/m/Y H:i') }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Ultimo aggiornamento:</th>
-                                    <td>{{ $prodotto->updated_at->format('d/m/Y H:i') }}</td>
-                                </tr>
+                            <table class="table table-borderless table-sm">
+                                <tbody>
+                                    <tr>
+                                        <th width="30%" class="text-muted">Nome:</th>
+                                        <td class="fw-semibold">{{ $prodotto->nome }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted">Modello:</th>
+                                        <td>
+                                            <code class="bg-light px-2 py-1 rounded">{{ $prodotto->modello }}</code>
+                                            <button type="button" 
+                                                    class="btn btn-link btn-sm p-0 ms-2" 
+                                                    onclick="copyToClipboard('{{ $prodotto->modello }}')"
+                                                    title="Copia modello">
+                                                <i class="bi bi-clipboard"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted">Categoria:</th>
+                                        <td>
+                                            <span class="badge bg-secondary fs-6">
+                                                {{ ucfirst(str_replace('_', ' ', $prodotto->categoria)) }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    @if($prodotto->prezzo)
+                                    <tr>
+                                        <th class="text-muted">Prezzo:</th>
+                                        <td class="fw-bold text-success fs-5">
+                                            € {{ number_format($prodotto->prezzo, 2, ',', '.') }}
+                                        </td>
+                                    </tr>
+                                    @endif
+                                    <tr>
+                                        <th class="text-muted">Stato:</th>
+                                        <td>
+                                            <span class="badge bg-{{ $prodotto->attivo ? 'success' : 'danger' }} fs-6">
+                                                <i class="bi bi-{{ $prodotto->attivo ? 'check-circle' : 'x-circle' }} me-1"></i>
+                                                {{ $prodotto->attivo ? 'ATTIVO' : 'INATTIVO' }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted">Creato:</th>
+                                        <td>
+                                            {{ $prodotto->created_at->format('d/m/Y H:i') }}
+                                            <small class="text-muted">
+                                                ({{ $prodotto->created_at->diffForHumans() }})
+                                            </small>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted">Aggiornato:</th>
+                                        <td>
+                                            {{ $prodotto->updated_at->format('d/m/Y H:i') }}
+                                            @if($prodotto->updated_at != $prodotto->created_at)
+                                                <small class="text-muted">
+                                                    ({{ $prodotto->updated_at->diffForHumans() }})
+                                                </small>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                </tbody>
                             </table>
                         </div>
                     </div>
 
-                    {{-- Descrizione --}}
+                    {{-- Descrizione prodotto --}}
                     @if($prodotto->descrizione)
-                    <div class="mt-3">
-                        <h6>Descrizione:</h6>
-                        <p class="text-muted">{{ $prodotto->descrizione }}</p>
+                    <div class="mt-4">
+                        <h6 class="text-primary">
+                            <i class="bi bi-text-left me-1"></i>Descrizione:
+                        </h6>
+                        <div class="bg-light p-3 rounded">
+                            <p class="mb-0">{{ $prodotto->descrizione }}</p>
+                        </div>
                     </div>
                     @endif
 
                     {{-- Note tecniche --}}
                     @if($prodotto->note_tecniche)
-                    <div class="mt-3">
-                        <h6>Note Tecniche:</h6>
-                        <div class="bg-light p-3 rounded">
+                    <div class="mt-4">
+                        <h6 class="text-warning">
+                            <i class="bi bi-gear me-1"></i>Note Tecniche:
+                        </h6>
+                        <div class="bg-warning bg-opacity-10 border border-warning border-opacity-25 p-3 rounded">
                             {!! nl2br(e($prodotto->note_tecniche)) !!}
                         </div>
                     </div>
                     @endif
 
-                    {{-- Modalità installazione --}}
+                    {{-- Modalità di installazione --}}
                     @if($prodotto->modalita_installazione)
-                    <div class="mt-3">
-                        <h6>Modalità di Installazione:</h6>
-                        <div class="bg-light p-3 rounded">
+                    <div class="mt-4">
+                        <h6 class="text-info">
+                            <i class="bi bi-tools me-1"></i>Modalità di Installazione:
+                        </h6>
+                        <div class="bg-info bg-opacity-10 border border-info border-opacity-25 p-3 rounded">
                             {!! nl2br(e($prodotto->modalita_installazione)) !!}
                         </div>
                     </div>
@@ -246,9 +315,11 @@
 
                     {{-- Modalità d'uso --}}
                     @if($prodotto->modalita_uso)
-                    <div class="mt-3">
-                        <h6>Modalità d'Uso:</h6>
-                        <div class="bg-light p-3 rounded">
+                    <div class="mt-4">
+                        <h6 class="text-success">
+                            <i class="bi bi-book me-1"></i>Modalità d'Uso:
+                        </h6>
+                        <div class="bg-success bg-opacity-10 border border-success border-opacity-25 p-3 rounded">
                             {!! nl2br(e($prodotto->modalita_uso)) !!}
                         </div>
                     </div>
@@ -256,56 +327,104 @@
                 </div>
             </div>
 
-            {{-- === MALFUNZIONAMENTI === --}}
+            {{-- === SEZIONE MALFUNZIONAMENTI === --}}
             @if($prodotto->malfunzionamenti && $prodotto->malfunzionamenti->count() > 0)
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
-                        <i class="bi bi-bug me-2"></i>Malfunzionamenti e Soluzioni
+                        <i class="bi bi-bug text-warning me-2"></i>Malfunzionamenti e Soluzioni
                     </h5>
-                    <span class="badge bg-warning">{{ $prodotto->malfunzionamenti->count() }} problemi</span>
+                    <span class="badge bg-warning">
+                        {{ $prodotto->malfunzionamenti->count() }} 
+                        {{ $prodotto->malfunzionamenti->count() === 1 ? 'problema' : 'problemi' }}
+                    </span>
                 </div>
                 <div class="card-body">
-                    @foreach($prodotto->malfunzionamenti as $malfunzionamento)
+                    {{-- Loop malfunzionamenti --}}
+                    @foreach($prodotto->malfunzionamenti as $index => $malfunzionamento)
                     <div class="border rounded p-3 mb-3 {{ $loop->last ? '' : 'border-bottom' }}">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <h6 class="mb-1">
-                                {{-- Badge gravità --}}
-                                <span class="badge bg-{{ 
-                                    $malfunzionamento->gravita === 'critica' ? 'danger' : 
-                                    ($malfunzionamento->gravita === 'alta' ? 'warning' : 
-                                    ($malfunzionamento->gravita === 'media' ? 'info' : 'secondary')) 
-                                }} me-2">
-                                    {{ ucfirst($malfunzionamento->gravita) }}
-                                </span>
-                                {{ $malfunzionamento->descrizione }}
-                            </h6>
-                            <small class="text-muted">
-                                <i class="bi bi-flag me-1"></i>{{ $malfunzionamento->numero_segnalazioni }} segnalazioni
-                            </small>
+                        {{-- Header malfunzionamento --}}
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-2">
+                                    {{-- Badge gravità con colori appropriati --}}
+                                    @php
+                                        $gravetaColors = [
+                                            'critica' => 'danger',
+                                            'alta' => 'warning', 
+                                            'media' => 'info',
+                                            'bassa' => 'secondary'
+                                        ];
+                                        $color = $gravetaColors[$malfunzionamento->gravita] ?? 'secondary';
+                                    @endphp
+                                    <span class="badge bg-{{ $color }} me-2">
+                                        <i class="bi bi-{{ $malfunzionamento->gravita === 'critica' ? 'exclamation-triangle' : 'info-circle' }} me-1"></i>
+                                        {{ ucfirst($malfunzionamento->gravita) }}
+                                    </span>
+                                    <span class="text-dark">{{ $malfunzionamento->descrizione }}</span>
+                                </h6>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted d-block">
+                                    <i class="bi bi-flag me-1"></i>
+                                    {{ $malfunzionamento->numero_segnalazioni }} 
+                                    {{ $malfunzionamento->numero_segnalazioni === 1 ? 'segnalazione' : 'segnalazioni' }}
+                                </small>
+                                <small class="text-muted">
+                                    #{{ $index + 1 }}
+                                </small>
+                            </div>
                         </div>
                         
                         {{-- Soluzione tecnica --}}
                         @if($malfunzionamento->soluzione_tecnica)
-                        <div class="mt-2">
-                            <strong class="text-success">
-                                <i class="bi bi-tools me-1"></i>Soluzione:
-                            </strong>
-                            <p class="mb-1 text-muted">{{ $malfunzionamento->soluzione_tecnica }}</p>
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="bi bi-tools text-success me-2"></i>
+                                <strong class="text-success">Soluzione Tecnica:</strong>
+                            </div>
+                            <div class="bg-success bg-opacity-10 border border-success border-opacity-25 p-3 rounded">
+                                {{ $malfunzionamento->soluzione_tecnica }}
+                            </div>
                         </div>
                         @endif
 
-                        {{-- Info creazione/modifica --}}
-                        <div class="mt-2">
+                        {{-- Informazioni aggiuntive --}}
+                        <div class="row g-3 text-sm">
+                            @if($malfunzionamento->tempo_stimato)
+                            <div class="col-md-6">
+                                <small class="text-muted">
+                                    <i class="bi bi-clock me-1"></i>
+                                    <strong>Tempo stimato:</strong> {{ $malfunzionamento->tempo_stimato }} minuti
+                                </small>
+                            </div>
+                            @endif
+                            
+                            @if($malfunzionamento->difficolta)
+                            <div class="col-md-6">
+                                <small class="text-muted">
+                                    <i class="bi bi-bar-chart me-1"></i>
+                                    <strong>Difficoltà:</strong> {{ ucfirst($malfunzionamento->difficolta) }}
+                                </small>
+                            </div>
+                            @endif
+                        </div>
+
+                        {{-- Metadati creazione/modifica --}}
+                        <div class="mt-3 pt-2 border-top">
                             <small class="text-muted">
-                                Creato: {{ $malfunzionamento->created_at->format('d/m/Y') }}
+                                <i class="bi bi-calendar me-1"></i>
+                                <strong>Creato:</strong> {{ $malfunzionamento->created_at->format('d/m/Y H:i') }}
                                 @if($malfunzionamento->creatoBy)
-                                    da {{ $malfunzionamento->creatoBy->nome_completo }}
+                                    da <strong>{{ $malfunzionamento->creatoBy->nome_completo }}</strong>
                                 @endif
+                                
                                 @if($malfunzionamento->updated_at != $malfunzionamento->created_at)
-                                    • Aggiornato: {{ $malfunzionamento->updated_at->format('d/m/Y') }}
+                                    <br>
+                                    <i class="bi bi-arrow-clockwise me-1"></i>
+                                    <strong>Aggiornato:</strong> {{ $malfunzionamento->updated_at->format('d/m/Y H:i') }}
                                     @if($malfunzionamento->modificatoBy)
-                                        da {{ $malfunzionamento->modificatoBy->nome_completo }}
+                                        da <strong>{{ $malfunzionamento->modificatoBy->nome_completo }}</strong>
                                     @endif
                                 @endif
                             </small>
@@ -314,46 +433,74 @@
                     @endforeach
                 </div>
             </div>
+            @else
+            {{-- Nessun malfunzionamento --}}
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-check-circle display-1 text-success mb-3"></i>
+                    <h5 class="text-success">Nessun malfunzionamento segnalato</h5>
+                    <p class="text-muted">Questo prodotto non ha problemi noti al momento.</p>
+                </div>
+            </div>
             @endif
         </div>
 
-        {{-- === SIDEBAR === --}}
+        {{-- === SIDEBAR DESTRA === --}}
         <div class="col-lg-4">
             
-            {{-- Staff assegnato --}}
-            <div class="card mb-4">
-                <div class="card-header">
+            {{-- === CARD STAFF ASSEGNATO === --}}
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-light">
                     <h6 class="card-title mb-0">
-                        <i class="bi bi-person-badge me-2"></i>Staff Assegnato
+                        <i class="bi bi-person-badge text-primary me-2"></i>Staff Assegnato
                     </h6>
                 </div>
                 <div class="card-body">
                     @if($prodotto->staffAssegnato)
-                        <div class="d-flex align-items-center">
+                        {{-- Staff assegnato presente --}}
+                        <div class="d-flex align-items-center mb-3">
                             <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3" 
                                  style="width: 50px; height: 50px;">
-                                <i class="bi bi-person text-white fs-5"></i>
+                                <i class="bi bi-person text-white fs-4"></i>
                             </div>
-                            <div>
+                            <div class="flex-grow-1">
                                 <h6 class="mb-1">{{ $prodotto->staffAssegnato->nome_completo }}</h6>
-                                <small class="text-muted">Staff Aziendale</small>
+                                <small class="text-muted">
+                                    <i class="bi bi-briefcase me-1"></i>Staff Aziendale (Livello 3)
+                                </small>
                             </div>
                         </div>
                         
-                        {{-- Pulsante per cambiare staff --}}
-                        <div class="mt-3">
+                        {{-- Pulsanti azione per staff assegnato --}}
+                        <div class="d-grid gap-2">
                             <button class="btn btn-outline-primary btn-sm" 
                                     data-bs-toggle="modal" 
                                     data-bs-target="#changeStaffModal">
-                                <i class="bi bi-arrow-repeat me-1"></i>Riassegna
+                                <i class="bi bi-arrow-repeat me-1"></i>Riassegna Staff
                             </button>
+                            
+                            <form action="{{ route('admin.prodotti.update', $prodotto) }}" 
+                                  method="POST" 
+                                  class="d-inline"
+                                  onsubmit="return confirm('Rimuovere l\'assegnazione corrente?')">
+                                @csrf
+                                @method('PUT')
+                                <input type="hidden" name="staff_assegnato_id" value="">
+                                <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                                    <i class="bi bi-person-x me-1"></i>Rimuovi Assegnazione
+                                </button>
+                            </form>
                         </div>
                     @else
-                        <div class="text-center py-3">
-                            <i class="bi bi-person-x display-6 text-muted"></i>
-                            <p class="text-muted mt-2 mb-3">Nessuno staff assegnato</p>
+                        {{-- Nessuno staff assegnato --}}
+                        <div class="text-center py-4">
+                            <i class="bi bi-person-x display-4 text-muted mb-3"></i>
+                            <h6 class="text-muted">Nessuno staff assegnato</h6>
+                            <p class="text-muted small mb-3">
+                                Questo prodotto non ha un responsabile tecnico assegnato.
+                            </p>
                             
-                            <button class="btn btn-primary btn-sm" 
+                            <button class="btn btn-primary" 
                                     data-bs-toggle="modal" 
                                     data-bs-target="#assignStaffModal">
                                 <i class="bi bi-person-plus me-1"></i>Assegna Staff
@@ -363,73 +510,104 @@
                 </div>
             </div>
 
-            {{-- Metriche performance --}}
+            {{-- === CARD METRICHE PERFORMANCE === --}}
             @if(isset($metriche))
-            <div class="card mb-4">
-                <div class="card-header">
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-light">
                     <h6 class="card-title mb-0">
-                        <i class="bi bi-graph-up me-2"></i>Metriche Performance
+                        <i class="bi bi-graph-up text-info me-2"></i>Metriche Performance
                     </h6>
                 </div>
                 <div class="card-body">
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between mb-1">
-                            <small>Giorni dal lancio:</small>
-                            <small class="fw-bold">{{ $metriche['giorni_dal_lancio'] }}</small>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar-date me-1"></i>Giorni dal lancio:
+                                </small>
+                                <span class="badge bg-info">{{ $metriche['giorni_dal_lancio'] }}</span>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between mb-1">
-                            <small>Media segnalazioni:</small>
-                            <small class="fw-bold">{{ $metriche['media_segnalazioni_per_malfunzionamento'] }}</small>
+                        
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="bi bi-bar-chart me-1"></i>Media segnalazioni:
+                                </small>
+                                <span class="badge bg-warning">{{ $metriche['media_segnalazioni_per_malfunzionamento'] }}</span>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between mb-1">
-                            <small>Frequenza problemi:</small>
-                            <small class="fw-bold">{{ $metriche['frequenza_problemi'] }}</small>
+                        
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="bi bi-speedometer me-1"></i>Frequenza problemi:
+                                </small>
+                                @php
+                                    $frequenza = $metriche['frequenza_problemi'];
+                                    $colorFreq = match($frequenza) {
+                                        'Molto Alta' => 'danger',
+                                        'Alta' => 'warning', 
+                                        'Media' => 'info',
+                                        'Bassa' => 'success',
+                                        default => 'secondary'
+                                    };
+                                @endphp
+                                <span class="badge bg-{{ $colorFreq }}">{{ $frequenza }}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
             @endif
 
-            {{-- Prodotti correlati --}}
+            {{-- === CARD PRODOTTI CORRELATI === --}}
             @if(isset($prodottiCorrelati) && $prodottiCorrelati->count() > 0)
-            <div class="card">
-                <div class="card-header">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
                     <h6 class="card-title mb-0">
-                        <i class="bi bi-link-45deg me-2"></i>Prodotti Correlati
+                        <i class="bi bi-link-45deg text-secondary me-2"></i>Prodotti Correlati
+                        <span class="badge bg-secondary ms-2">{{ $prodottiCorrelati->count() }}</span>
                     </h6>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0">
                     @foreach($prodottiCorrelati as $correlato)
-                    <div class="d-flex align-items-center mb-2 {{ $loop->last ? '' : 'border-bottom pb-2' }}">
+                    <div class="d-flex align-items-center p-3 {{ $loop->last ? '' : 'border-bottom' }}">
+                        {{-- Miniatura prodotto --}}
                         <div class="me-3">
                             @if($correlato->foto)
                                 <img src="{{ asset('storage/' . $correlato->foto) }}" 
                                      alt="{{ $correlato->nome }}"
-                                     class="rounded"
+                                     class="rounded border"
                                      style="width: 40px; height: 40px; object-fit: cover;"
                                      onerror="this.src='{{ asset('images/placeholder-product.png') }}'; this.onerror=null;">
                             @else
-                                <div class="bg-light rounded d-flex align-items-center justify-content-center" 
+                                <div class="bg-light rounded border d-flex align-items-center justify-content-center" 
                                      style="width: 40px; height: 40px;">
                                     <i class="bi bi-box text-muted"></i>
                                 </div>
                             @endif
                         </div>
+                        
+                        {{-- Info prodotto correlato --}}
                         <div class="flex-grow-1">
                             <a href="{{ route('admin.prodotti.show', $correlato) }}" 
                                class="text-decoration-none">
-                                <small class="fw-bold">{{ $correlato->nome }}</small>
+                                <div class="fw-semibold text-dark small">{{ $correlato->nome }}</div>
                             </a>
-                            <br>
-                            <small class="text-muted">
-                                {{ $correlato->malfunzionamenti_count ?? 0 }} problemi
-                            </small>
+                            <div class="text-muted small">
+                                <i class="bi bi-bug me-1"></i>
+                                {{ $correlato->malfunzionamenti_count ?? 0 }} 
+                                {{ ($correlato->malfunzionamenti_count ?? 0) === 1 ? 'problema' : 'problemi' }}
+                            </div>
+                        </div>
+                        
+                        {{-- Link rapido --}}
+                        <div>
+                            <a href="{{ route('admin.prodotti.show', $correlato) }}" 
+                               class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-arrow-right"></i>
+                            </a>
                         </div>
                     </div>
                     @endforeach
@@ -440,536 +618,198 @@
     </div>
 </div>
 
-{{-- === MODALS CORRETTI === --}}
+{{-- ========================================= --}}
+{{-- === MODALS PER GESTIONE STAFF === --}}
+{{-- ========================================= --}}
 
-{{-- Modal assegnazione staff --}}
-<div class="modal fade" id="assignStaffModal" tabindex="-1">
-    <div class="modal-dialog">
+{{-- Modal per assegnazione nuovo staff --}}
+<div class="modal fade" id="assignStaffModal" tabindex="-1" aria-labelledby="assignStaffModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Assegna Staff al Prodotto</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="assignStaffModalLabel">
+                    <i class="bi bi-person-plus text-primary me-2"></i>Assegna Staff al Prodotto
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            {{-- CORREZIONE: Verifica che la route esista --}}
-            @if(Route::has('admin.assegna.prodotto'))
-                <form action="{{ route('admin.assegna.prodotto') }}" method="POST">
-            @else
-                {{-- Fallback alla route di update --}}
-                <form action="{{ route('admin.prodotti.update', $prodotto) }}" method="POST">
-                @method('PUT')
-            @endif
+            
+            {{-- Form assegnazione - ROUTE CORRETTA --}}
+            <form action="{{ route('admin.prodotti.update', $prodotto) }}" method="POST" id="assignStaffForm">
                 @csrf
-                <input type="hidden" name="prodotto_id" value="{{ $prodotto->id }}">
+                @method('PUT')
                 
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <p class="text-muted mb-3">
-                            <strong>Prodotto:</strong> {{ $prodotto->nome }} - {{ $prodotto->modello }}
-                        </p>
+                    {{-- Info prodotto --}}
+                    <div class="alert alert-info">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <div>
+                                <strong>Prodotto:</strong> {{ $prodotto->nome }}<br>
+                                <small class="text-muted">Modello: {{ $prodotto->modello }}</small>
+                            </div>
+                        </div>
                     </div>
+                    
+                    {{-- Selezione staff --}}
                     <div class="mb-3">
-                        <label for="staff_id" class="form-label">Seleziona Staff:</label>
-                        <select name="staff_assegnato_id" id="staff_id" class="form-select" required>
-                            <option value="">Seleziona...</option>
-                            {{-- Genera lista staff dal controller o query diretta --}}
+                        <label for="staff_assegnato_id" class="form-label">
+                            <i class="bi bi-person me-1"></i>Seleziona Staff da Assegnare:
+                        </label>
+                        <select name="staff_assegnato_id" 
+                                id="staff_assegnato_id" 
+                                class="form-select @error('staff_assegnato_id') is-invalid @enderror" 
+                                required>
+                            <option value="">-- Seleziona uno staff --</option>
                             @php
-                                $staffDisponibili = $staffDisponibili ?? \App\Models\User::where('livello_accesso', '3')->select('id', 'nome', 'cognome')->orderBy('nome')->get();
+                                // Recupera lista staff disponibili (livello 3)
+                                $staffDisponibili = $staffDisponibili ?? \App\Models\User::where('livello_accesso', '3')
+                                    ->select('id', 'nome', 'cognome')
+                                    ->orderBy('nome')
+                                    ->orderBy('cognome')
+                                    ->get();
                             @endphp
-                            @foreach($staffDisponibili as $staff)
-                                <option value="{{ $staff->id }}">{{ $staff->nome_completo }}</option>
-                            @endforeach
+                            @forelse($staffDisponibili as $staff)
+                                <option value="{{ $staff->id }}">
+                                    {{ $staff->nome_completo }}
+                                    @php
+                                        $prodottiAssegnati = \App\Models\Prodotto::where('staff_assegnato_id', $staff->id)->count();
+                                    @endphp
+                                    ({{ $prodottiAssegnati }} {{ $prodottiAssegnati === 1 ? 'prodotto' : 'prodotti' }} assegnati)
+                                </option>
+                            @empty
+                                <option value="" disabled>Nessuno staff disponibile</option>
+                            @endforelse
                         </select>
+                        @error('staff_assegnato_id')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                        <div class="form-text">
+                            <i class="bi bi-lightbulb me-1"></i>
+                            Lo staff assegnato potrà gestire i malfunzionamenti di questo prodotto.
+                        </div>
                     </div>
                 </div>
+                
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                    <button type="submit" class="btn btn-primary">Assegna Staff</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x me-1"></i>Annulla
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="confirmAssignBtn">
+                        <i class="bi bi-check me-1"></i>Assegna Staff
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-{{-- Modal cambio staff --}}
-<div class="modal fade" id="changeStaffModal" tabindex="-1">
-    <div class="modal-dialog">
+{{-- Modal per riassegnazione staff esistente --}}
+<div class="modal fade" id="changeStaffModal" tabindex="-1" aria-labelledby="changeStaffModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Riassegna Staff al Prodotto</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="changeStaffModalLabel">
+                    <i class="bi bi-arrow-repeat text-warning me-2"></i>Riassegna Staff al Prodotto
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            {{-- CORREZIONE: Verifica che la route esista --}}
-            @if(Route::has('admin.assegna.prodotto'))
-                <form action="{{ route('admin.assegna.prodotto') }}" method="POST">
-            @else
-                {{-- Fallback alla route di update --}}
-                <form action="{{ route('admin.prodotti.update', $prodotto) }}" method="POST">
-                @method('PUT')
-            @endif
+            
+            {{-- Form riassegnazione - ROUTE CORRETTA --}}
+            <form action="{{ route('admin.prodotti.update', $prodotto) }}" method="POST" id="changeStaffForm">
                 @csrf
-                <input type="hidden" name="prodotto_id" value="{{ $prodotto->id }}">
+                @method('PUT')
                 
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <p class="text-muted">
-                            <strong>Prodotto:</strong> {{ $prodotto->nome }} - {{ $prodotto->modello }}
-                        </p>
-                        <p class="text-muted">
-                            Staff attualmente assegnato: 
-                            <strong>{{ $prodotto->staffAssegnato ? $prodotto->staffAssegnato->nome_completo : 'Nessuno' }}</strong>
-                        </p>
+                    {{-- Info prodotto e staff attuale --}}
+                    <div class="alert alert-warning">
+                        <div class="d-flex align-items-start">
+                            <i class="bi bi-exclamation-triangle me-2 mt-1"></i>
+                            <div>
+                                <strong>Prodotto:</strong> {{ $prodotto->nome }} - {{ $prodotto->modello }}<br>
+                                <strong>Staff attualmente assegnato:</strong> 
+                                <span class="text-primary">
+                                    {{ $prodotto->staffAssegnato ? $prodotto->staffAssegnato->nome_completo : 'Nessuno' }}
+                                </span>
+                            </div>
+                        </div>
                     </div>
+                    
+                    {{-- Selezione nuovo staff --}}
                     <div class="mb-3">
-                        <label for="new_staff_id" class="form-label">Nuovo Staff:</label>
-                        <select name="staff_assegnato_id" id="new_staff_id" class="form-select">
-                            <option value="">Rimuovi assegnazione</option>
+                        <label for="new_staff_assegnato_id" class="form-label">
+                            <i class="bi bi-person-gear me-1"></i>Nuovo Staff da Assegnare:
+                        </label>
+                        <select name="staff_assegnato_id" 
+                                id="new_staff_assegnato_id" 
+                                class="form-select @error('staff_assegnato_id') is-invalid @enderror">
+                            <option value="">-- Rimuovi assegnazione (nessuno staff) --</option>
                             @php
-                                $staffDisponibili = $staffDisponibili ?? \App\Models\User::where('livello_accesso', '3')->select('id', 'nome', 'cognome')->orderBy('nome')->get();
+                                $staffDisponibili = $staffDisponibili ?? \App\Models\User::where('livello_accesso', '3')
+                                    ->select('id', 'nome', 'cognome')
+                                    ->orderBy('nome')
+                                    ->orderBy('cognome')
+                                    ->get();
                             @endphp
                             @foreach($staffDisponibili as $staff)
                                 <option value="{{ $staff->id }}"
                                         {{ $prodotto->staff_assegnato_id == $staff->id ? 'selected' : '' }}>
                                     {{ $staff->nome_completo }}
+                                    @if($prodotto->staff_assegnato_id == $staff->id)
+                                        (attualmente assegnato)
+                                    @else
+                                        @php
+                                            $prodottiAssegnati = \App\Models\Prodotto::where('staff_assegnato_id', $staff->id)->count();
+                                        @endphp
+                                        ({{ $prodottiAssegnati }} {{ $prodottiAssegnati === 1 ? 'prodotto' : 'prodotti' }} assegnati)
+                                    @endif
                                 </option>
                             @endforeach
                         </select>
+                        @error('staff_assegnato_id')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
                         <div class="form-text">
-                            Lascia vuoto per rimuovere l'assegnazione corrente
+                            <i class="bi bi-info-circle me-1"></i>
+                            Lascia vuoto per rimuovere completamente l'assegnazione del prodotto.
                         </div>
                     </div>
                 </div>
+                
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                    <button type="submit" class="btn btn-warning">Riassegna</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x me-1"></i>Annulla
+                    </button>
+                    <button type="submit" class="btn btn-warning" id="confirmChangeBtn">
+                        <i class="bi bi-arrow-repeat me-1"></i>Riassegna
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-@endsection
-
-{{-- === STILI PERSONALIZZATI === --}}
-@push('styles')
-<style>
-/* Card personalizzate */
-.card {
-    border: none;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    transition: box-shadow 0.15s ease-in-out;
-}
-
-.card:hover {
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-}
-
-/* Badge personalizzati */
-.badge {
-    font-size: 0.75em;
-}
-
-/* Tabelle borderless personalizzate */
-.table-borderless th {
-    font-weight: 600;
-    color: #6c757d;
-}
-
-.table-borderless td {
-    font-weight: 500;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .btn-group {
-        flex-direction: column;
-    }
-    
-    .btn-group .btn {
-        margin-bottom: 0.25rem;
-    }
-}
-
-/* Debug route */
-.route-debug {
-    position: fixed;
-    bottom: 10px;
-    right: 10px;
-    background: rgba(0,0,0,0.8);
-    color: white;
-    padding: 10px;
-    border-radius: 5px;
-    font-size: 12px;
-    z-index: 9999;
-}
-</style>
-@endpush
-
-{{-- === JAVASCRIPT PERSONALIZZATO === --}}
-@push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    
-    // === DEBUG ROUTE CHECKER ===
-    const routes = {
-        'admin.assegna.prodotto': '{{ Route::has("admin.assegna.prodotto") ? route("admin.assegna.prodotto") : "NON_TROVATA" }}',
-        'admin.prodotti.update': '{{ route("admin.prodotti.update", $prodotto) }}',
-        'admin.prodotti.toggle-status': '{{ Route::has("admin.prodotti.toggle-status") ? "ESISTE" : "NON_TROVATA" }}'
-    };
-    
-    console.log('🔍 Route disponibili:', routes);
-    
-    // Mostra debug se necessario (rimuovi in produzione)
-    if (routes['admin.assegna.prodotto'] === 'NON_TROVATA') {
-        console.warn('⚠️ Route admin.assegna.prodotto non trovata! Verrà usato fallback.');
-    }
-    
-    // === GESTIONE FORM SUBMISSION ===
-    const forms = document.querySelectorAll('form[action*="assegna"]');
-    
-    forms.forEach(form => {
-        form.addEventListener('submit', function(e) {
-            const formData = new FormData(form);
-            
-            console.log('📤 Form submission:');
-            for (let [key, value] of formData.entries()) {
-                console.log(`  ${key}: ${value}`);
-            }
-            
-            // Validazione
-            const prodottoId = formData.get('prodotto_id');
-            if (!prodottoId) {
-                alert('ERRORE: ID prodotto mancante!');
-                e.preventDefault();
-                return false;
-            }
-            
-            // Loading state
-            const submitBtn = form.querySelector('button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Salvando...';
-                
-                // Reset dopo 5 secondi (fallback)
-                setTimeout(() => {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = submitBtn.innerHTML.replace(/Salvando\.\.\./, 'Riprova');
-                }, 5000);
-            }
-        });
-    });
-    
-    // === GESTIONE TOGGLE STATUS ===
-    const toggleForms = document.querySelectorAll('form[action*="toggle-status"]');
-    
-    toggleForms.forEach(form => {
-        form.addEventListener('submit', function(e) {
-            const button = form.querySelector('button[type="submit"]');
-            const isActive = button.textContent.trim().includes('Disattiva');
-            
-            if (!confirm(`Sei sicuro di voler ${isActive ? 'disattivare' : 'attivare'} questo prodotto?`)) {
-                e.preventDefault();
-                return false;
-            }
-            
-            button.disabled = true;
-            button.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Attendere...';
-        });
-    });
-    
-    // === AUTO-FOCUS SUI MODALS ===
-    const assignModal = document.getElementById('assignStaffModal');
-    const changeModal = document.getElementById('changeStaffModal');
-    
-    if (assignModal) {
-        assignModal.addEventListener('shown.bs.modal', function () {
-            document.getElementById('staff_id')?.focus();
-        });
-    }
-    
-    if (changeModal) {
-        changeModal.addEventListener('shown.bs.modal', function () {
-            document.getElementById('new_staff_id')?.focus();
-        });
-    }
-    
-    // === GESTIONE ERRORI IMMAGINI ===
-    const images = document.querySelectorAll('img[src*="storage"]');
-    images.forEach(img => {
-        img.addEventListener('error', function() {
-            console.warn('🖼️ Immagine non caricata:', this.src);
-            this.src = '{{ asset("images/placeholder-product.png") }}';
-            this.onerror = null; // Previeni loop infinito
-        });
-    });
-    
-    // === TOOLTIP BOOTSTRAP (se presente) ===
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-    
-    // === NOTIFICAZIONI SUCCESS/ERROR ===
-    @if(session('success'))
-        showNotification('success', '{{ session('success') }}');
-    @endif
-    
-    @if(session('error'))
-        showNotification('error', '{{ session('error') }}');
-    @endif
-    
-    @if($errors->any())
-        @foreach($errors->all() as $error)
-            showNotification('error', '{{ $error }}');
-        @endforeach
-    @endif
-});
-
-// === FUNZIONI UTILITY ===
-
-/**
- * Mostra notifiche toast
- */
-function showNotification(type, message) {
-    // Se Bootstrap Toast è disponibile
-    if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
-        const toastHtml = `
-            <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0" role="alert">
-                <div class="d-flex">
-                    <div class="toast-body">
-                        <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>
-                        ${message}
-                    </div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>
-            </div>
-        `;
-        
-        // Container per toast
-        let toastContainer = document.getElementById('toast-container');
-        if (!toastContainer) {
-            toastContainer = document.createElement('div');
-            toastContainer.id = 'toast-container';
-            toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-            toastContainer.style.zIndex = '9999';
-            document.body.appendChild(toastContainer);
-        }
-        
-        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
-        
-        const toastElement = toastContainer.lastElementChild;
-        const toast = new bootstrap.Toast(toastElement, {
-            autohide: true,
-            delay: 5000
-        });
-        
-        toast.show();
-        
-        // Rimuovi elemento dopo che è stato nascosto
-        toastElement.addEventListener('hidden.bs.toast', function () {
-            this.remove();
-        });
-    } else {
-        // Fallback ad alert
-        alert(`${type.toUpperCase()}: ${message}`);
-    }
-}
-
-/**
- * Conferma azione con sweet alert (se disponibile) o confirm normale
- */
-function confirmAction(message, callback) {
-    if (typeof Swal !== 'undefined') {
-        Swal.fire({
-            title: 'Conferma azione',
-            text: message,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Sì, procedi',
-            cancelButtonText: 'Annulla'
-        }).then((result) => {
-            if (result.isConfirmed && typeof callback === 'function') {
-                callback();
-            }
-        });
-    } else {
-        if (confirm(message) && typeof callback === 'function') {
-            callback();
-        }
-    }
-}
-
-/**
- * Copia testo negli appunti
- */
-function copyToClipboard(text, successMessage = 'Copiato negli appunti!') {
-    if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(text).then(() => {
-            showNotification('success', successMessage);
-        }).catch(err => {
-            console.error('Errore copia clipboard:', err);
-            fallbackCopyTextToClipboard(text);
-        });
-    } else {
-        fallbackCopyTextToClipboard(text);
-    }
-}
-
-function fallbackCopyTextToClipboard(text) {
-    const textArea = document.createElement("textarea");
-    textArea.value = text;
-    textArea.style.top = "0";
-    textArea.style.left = "0";
-    textArea.style.position = "fixed";
-    
-    document.body.appendChild(textArea);
-    textArea.focus();
-    textArea.select();
-    
-    try {
-        const successful = document.execCommand('copy');
-        if (successful) {
-            showNotification('success', 'Copiato negli appunti!');
-        } else {
-            throw new Error('execCommand fallito');
-        }
-    } catch (err) {
-        console.error('Fallback copy fallito:', err);
-        showNotification('error', 'Impossibile copiare negli appunti');
-    }
-    
-    document.body.removeChild(textArea);
-}
-
-/**
- * Refresh statistiche via AJAX (opzionale)
- */
-function refreshStats() {
-    const statsCards = document.querySelectorAll('.card[class*="bg-"]');
-    
-    statsCards.forEach(card => {
-        card.style.opacity = '0.7';
-    });
-    
-    // Simula refresh con delay
-    setTimeout(() => {
-        statsCards.forEach(card => {
-            card.style.opacity = '1';
-        });
-        showNotification('success', 'Statistiche aggiornate');
-    }, 1000);
-}
-
-/**
- * Controllo connettività e stato server
- */
-function checkServerStatus() {
-    fetch('{{ route("home") }}', { 
-        method: 'HEAD',
-        cache: 'no-cache'
-    })
-    .then(response => {
-        if (response.ok) {
-            console.log('✅ Server raggiungibile');
-        } else {
-            console.warn('⚠️ Server risponde ma con errori');
-        }
-    })
-    .catch(error => {
-        console.error('❌ Server non raggiungibile:', error);
-        showNotification('error', 'Problemi di connessione al server');
-    });
-}
-
-// Controlla stato server ogni 5 minuti
-setInterval(checkServerStatus, 5 * 60 * 1000);
-
-/**
- * Debug info per sviluppo (rimuovi in produzione)
- */
-function showDebugInfo() {
-    if (console && console.table) {
-        const debugData = {
-            'Prodotto ID': '{{ $prodotto->id }}',
-            'Prodotto Nome': '{{ $prodotto->nome }}',
-            'Staff Assegnato': '{{ $prodotto->staffAssegnato ? $prodotto->staffAssegnato->nome_completo : "Nessuno" }}',
-            'Malfunzionamenti': '{{ $prodotto->malfunzionamenti ? $prodotto->malfunzionamenti->count() : 0 }}',
-            'Route Assegna': '{{ Route::has("admin.assegna.prodotto") ? "Disponibile" : "Non trovata" }}',
-            'Laravel Version': '{{ app()->version() }}',
-            'Environment': '{{ app()->environment() }}'
-        };
-        
-        console.table(debugData);
-    }
-}
-
-// Mostra debug info in sviluppo
-@if(app()->environment('local'))
-    console.log('🐛 Debug mode attivo');
-    showDebugInfo();
-@endif
-</script>
-
-{{-- Script aggiuntivi per funzionalità avanzate (opzionali) --}}
-@if(config('app.debug'))
-<script>
-// === PERFORMANCE MONITORING ===
-window.addEventListener('load', function() {
-    if (performance && performance.timing) {
-        const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
-        console.log(`⏱️ Pagina caricata in: ${loadTime}ms`);
-        
-        if (loadTime > 3000) {
-            console.warn('🐌 Caricamento lento rilevato');
-        }
-    }
-});
-
-// === MEMORY USAGE ===
-if (performance && performance.memory) {
-    setInterval(() => {
-        const memory = performance.memory;
-        const used = Math.round(memory.usedJSHeapSize / 1048576);
-        const total = Math.round(memory.totalJSHeapSize / 1048576);
-        
-        console.log(`💾 Memoria JS: ${used}MB / ${total}MB`);
-        
-        if (used > 100) {
-            console.warn('⚠️ Elevato uso di memoria JavaScript');
-        }
-    }, 30000); // Ogni 30 secondi
-}
-</script>
-@endif
-
-{{-- Inclusione librerie esterne se necessarie --}}
-@if(config('app.env') === 'production')
-{{-- Script per analytics, monitoraggio errori, etc. --}}
-@endif
-@endpush
-
-{{-- === SEZIONE MODALI AGGIUNTIVI (se necessari) === --}}
-
-{{-- Modal conferma eliminazione (se implementato) --}}
-@if(false) {{-- Abilitare se serve --}}
-<div class="modal fade" id="deleteConfirmModal" tabindex="-1">
-    <div class="modal-dialog">
+{{-- Modal di conferma eliminazione (se necessario) --}}
+@if(false) {{-- Attivare se serve funzionalità di eliminazione --}}
+<div class="modal fade" id="deleteProductModal" tabindex="-1" aria-labelledby="deleteProductModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title text-danger">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteProductModalLabel">
                     <i class="bi bi-exclamation-triangle me-2"></i>Conferma Eliminazione
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>Sei sicuro di voler eliminare questo prodotto?</p>
-                <div class="alert alert-warning">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <strong>Attenzione:</strong> Questa azione non può essere annullata.
-                    Tutti i malfunzionamenti associati verranno mantenuti ma il prodotto
-                    non sarà più visibile nel catalogo.
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Attenzione!</strong> Questa azione è irreversibile.
                 </div>
+                <p>Sei sicuro di voler eliminare definitivamente il prodotto <strong>{{ $prodotto->nome }}</strong>?</p>
+                <ul class="text-muted small">
+                    <li>Il prodotto verrà rimosso dal catalogo</li>
+                    <li>Tutti i malfunzionamenti associati verranno mantenuti per storico</li>
+                    <li>Le assegnazioni staff verranno rimosse</li>
+                </ul>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
@@ -986,15 +826,1010 @@ if (performance && performance.memory) {
 </div>
 @endif
 
-{{-- Debug panel (solo sviluppo) --}}
-@if(app()->environment('local') && request()->get('debug'))
-<div class="route-debug">
-    <strong>🔧 Debug Panel</strong><br>
-    <small>
-        Route Check: {{ Route::has('admin.assegna.prodotto') ? '✅' : '❌' }}<br>
-        Prodotto ID: {{ $prodotto->id }}<br>
-        Staff: {{ $prodotto->staff_assegnato_id ?? 'NULL' }}<br>
-        Env: {{ app()->environment() }}
-    </small>
+@endsection
+
+{{-- ========================================= --}}
+{{-- === STILI CSS PERSONALIZZATI === --}}
+{{-- ========================================= --}}
+
+@push('styles')
+<style>
+/* === STILI GENERALI CARD === */
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: all 0.2s ease-in-out;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.card-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+    font-weight: 600;
+}
+
+/* === BADGE PERSONALIZZATI === */
+.badge {
+    font-size: 0.75em;
+    font-weight: 500;
+}
+
+.badge.fs-6 {
+    font-size: 0.875rem !important;
+}
+
+/* === TABELLE SENZA BORDI === */
+.table-borderless th {
+    font-weight: 600;
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+.table-borderless td {
+    font-weight: 500;
+    color: #212529;
+}
+
+/* === IMMAGINI PRODOTTO === */
+.product-image {
+    transition: transform 0.2s ease-in-out;
+    cursor: pointer;
+}
+
+.product-image:hover {
+    transform: scale(1.05);
+}
+
+/* === BOTTONI GRUPPI === */
+.btn-group .btn {
+    margin: 0.125rem;
+}
+
+/* === ANIMAZIONI CARICAMENTO === */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* === RESPONSIVE DESIGN === */
+@media (max-width: 768px) {
+    .btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-group .btn {
+        margin-bottom: 0.25rem;
+        width: 100%;
+    }
+    
+    .card-body .row .col-md-8,
+    .card-body .row .col-md-4 {
+        margin-bottom: 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .display-6 {
+        font-size: 2rem;
+    }
+    
+    .h2 {
+        font-size: 1.5rem;
+    }
+}
+
+/* === STATI INTERATTIVI === */
+.btn:focus {
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.form-select:focus,
+.form-control:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* === UTILITÀ CUSTOM === */
+.text-truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.border-opacity-25 {
+    --bs-border-opacity: 0.25;
+}
+
+.bg-opacity-10 {
+    --bs-bg-opacity: 0.1;
+}
+
+/* === NOTIFICHE TOAST === */
+.toast-container {
+    z-index: 9999;
+}
+
+.toast {
+    min-width: 300px;
+}
+
+/* === DEBUG PANEL (solo sviluppo) === */
+.debug-panel {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    z-index: 9998;
+    max-width: 300px;
+    line-height: 1.3;
+}
+
+.debug-panel .debug-title {
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: #ffc107;
+}
+
+.debug-panel .debug-item {
+    margin-bottom: 2px;
+}
+
+.debug-panel .debug-status-ok {
+    color: #28a745;
+}
+
+.debug-panel .debug-status-error {
+    color: #dc3545;
+}
+
+/* === ACCESSIBILITÀ === */
+@media (prefers-reduced-motion: reduce) {
+    .card,
+    .product-image,
+    .btn {
+        transition: none;
+    }
+    
+    .loading::after {
+        animation: none;
+    }
+}
+
+/* === MODALITÀ SCURA (se implementata) === */
+@media (prefers-color-scheme: dark) {
+    .card {
+        background-color: #2d3748;
+        color: #e2e8f0;
+    }
+    
+    .card-header {
+        background-color: #4a5568;
+        border-color: #2d3748;
+    }
+    
+    .table-borderless th {
+        color: #a0aec0;
+    }
+    
+    .text-muted {
+        color: #718096 !important;
+    }
+}
+</style>
+@endpush
+
+{{-- ========================================= --}}
+{{-- === JAVASCRIPT FUNZIONALITÀ === --}}
+{{-- ========================================= --}}
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // ===== CONFIGURAZIONE GLOBALE =====
+    const config = {
+        prodotto: {
+            id: {{ $prodotto->id }},
+            nome: @json($prodotto->nome),
+            attivo: {{ $prodotto->attivo ? 'true' : 'false' }},
+            staffAssegnato: @json($prodotto->staffAssegnato ? $prodotto->staffAssegnato->nome_completo : null)
+        },
+        routes: {
+            update: @json(route('admin.prodotti.update', $prodotto)),
+            toggleStatus: @json(Route::has('admin.prodotti.toggle-status') ? route('admin.prodotti.toggle-status', $prodotto) : ''),
+            show: @json(route('admin.prodotti.show', $prodotto))
+        },
+        debug: {{ config('app.debug') ? 'true' : 'false' }}
+    };
+    
+    // ===== LOGGING E DEBUG =====
+    function log(message, type = 'info', data = null) {
+        if (config.debug) {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = `[${timestamp}] TechSupport Admin:`;
+            
+            switch(type) {
+                case 'error':
+                    console.error(prefix, message, data);
+                    break;
+                case 'warn':
+                    console.warn(prefix, message, data);
+                    break;
+                case 'success':
+                    console.log(`%c${prefix}`, 'color: green; font-weight: bold;', message, data);
+                    break;
+                default:
+                    console.log(prefix, message, data);
+            }
+        }
+    }
+    
+    log('Inizializzazione pagina dettaglio prodotto', 'info', config.prodotto);
+    
+    // ===== GESTIONE FORM ASSEGNAZIONE =====
+    const assignForm = document.getElementById('assignStaffForm');
+    const changeForm = document.getElementById('changeStaffForm');
+    
+    if (assignForm) {
+        assignForm.addEventListener('submit', function(e) {
+            const formData = new FormData(this);
+            const staffId = formData.get('staff_assegnato_id');
+            
+            log('Invio form assegnazione staff', 'info', {
+                staffId: staffId,
+                prodottoId: config.prodotto.id
+            });
+            
+            if (!staffId) {
+                e.preventDefault();
+                showNotification('error', 'Seleziona uno staff da assegnare al prodotto.');
+                return false;
+            }
+            
+            // Disabilita pulsante e mostra loading
+            const submitBtn = document.getElementById('confirmAssignBtn');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Assegnando...';
+            }
+        });
+    }
+    
+    if (changeForm) {
+        changeForm.addEventListener('submit', function(e) {
+            const formData = new FormData(this);
+            const newStaffId = formData.get('staff_assegnato_id');
+            
+            log('Invio form riassegnazione staff', 'info', {
+                newStaffId: newStaffId,
+                currentStaff: config.prodotto.staffAssegnato,
+                prodottoId: config.prodotto.id
+            });
+            
+            // Conferma se si sta rimuovendo l'assegnazione
+            if (!newStaffId && config.prodotto.staffAssegnato) {
+                if (!confirm(`Vuoi davvero rimuovere l'assegnazione di ${config.prodotto.staffAssegnato} da questo prodotto?`)) {
+                    e.preventDefault();
+                    return false;
+                }
+            }
+            
+            // Disabilita pulsante e mostra loading
+            const submitBtn = document.getElementById('confirmChangeBtn');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Riassegnando...';
+            }
+        });
+    }
+    
+    // ===== GESTIONE TOGGLE STATUS =====
+    const toggleForms = document.querySelectorAll('form[action*="toggle-status"]');
+    
+    toggleForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const isActive = config.prodotto.attivo;
+            const action = isActive ? 'disattivare' : 'attivare';
+            
+            if (!confirmToggleStatus(isActive)) {
+                e.preventDefault();
+                return false;
+            }
+            
+            log(`Toggle status prodotto: ${action}`, 'info', {
+                prodottoId: config.prodotto.id,
+                currentStatus: isActive
+            });
+            
+            const button = form.querySelector('button[type="submit"]');
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Attendere...';
+            }
+        });
+    });
+    
+    // ===== GESTIONE MODALS =====
+    const assignModal = document.getElementById('assignStaffModal');
+    const changeModal = document.getElementById('changeStaffModal');
+    
+    if (assignModal) {
+        assignModal.addEventListener('shown.bs.modal', function () {
+            const staffSelect = document.getElementById('staff_assegnato_id');
+            if (staffSelect) {
+                staffSelect.focus();
+                log('Modal assegnazione staff aperto');
+            }
+        });
+        
+        assignModal.addEventListener('hidden.bs.modal', function () {
+            resetFormState('assignStaffForm');
+        });
+    }
+    
+    if (changeModal) {
+        changeModal.addEventListener('shown.bs.modal', function () {
+            const staffSelect = document.getElementById('new_staff_assegnato_id');
+            if (staffSelect) {
+                staffSelect.focus();
+                log('Modal riassegnazione staff aperto');
+            }
+        });
+        
+        changeModal.addEventListener('hidden.bs.modal', function () {
+            resetFormState('changeStaffForm');
+        });
+    }
+    
+    // ===== GESTIONE IMMAGINI =====
+    const productImages = document.querySelectorAll('.product-image');
+    
+    productImages.forEach(img => {
+        img.addEventListener('error', function() {
+            handleImageError(this);
+        });
+        
+        img.addEventListener('click', function() {
+            // Modalità fullscreen per immagine (opzionale)
+            if (this.requestFullscreen) {
+                this.requestFullscreen();
+            }
+        });
+    });
+    
+    // ===== FUNZIONI UTILITY =====
+    
+    function resetFormState(formId) {
+        const form = document.getElementById(formId);
+        if (form) {
+            // Reset pulsanti
+            const submitBtns = form.querySelectorAll('button[type="submit"]');
+            submitBtns.forEach(btn => {
+                btn.disabled = false;
+                if (btn.id === 'confirmAssignBtn') {
+                    btn.innerHTML = '<i class="bi bi-check me-1"></i>Assegna Staff';
+                } else if (btn.id === 'confirmChangeBtn') {
+                    btn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>Riassegna';
+                }
+            });
+            
+            // Reset form
+            form.reset();
+            
+            // Rimuovi classi di errore
+            form.querySelectorAll('.is-invalid').forEach(el => {
+                el.classList.remove('is-invalid');
+            });
+        }
+    }
+    
+    // ===== NOTIFICAZIONI =====
+    @if(session('success'))
+        showNotification('success', @json(session('success')));
+        log('Notifica success mostrata', 'success', @json(session('success')));
+    @endif
+    
+    @if(session('error'))
+        showNotification('error', @json(session('error')));
+        log('Notifica error mostrata', 'error', @json(session('error')));
+    @endif
+    
+    @if($errors->any())
+        @foreach($errors->all() as $error)
+            showNotification('error', @json($error));
+            log('Errore validazione', 'error', @json($error));
+        @endforeach
+    @endif
+});
+
+// ===== FUNZIONI GLOBALI =====
+
+/**
+ * Conferma toggle status prodotto
+ */
+function confirmToggleStatus(isActive) {
+    const action = isActive ? 'disattivare' : 'attivare';
+    const message = `Sei sicuro di voler ${action} questo prodotto?`;
+    
+    if (isActive) {
+        return confirm(`${message}\n\nSe disattivato, il prodotto non sarà più visibile nel catalogo pubblico.`);
+    } else {
+        return confirm(`${message}\n\nSe attivato, il prodotto tornerà visibile nel catalogo pubblico.`);
+    }
+}
+
+/**
+ * Gestione errori immagini
+ */
+function handleImageError(img) {
+    const placeholderUrl = @json(asset('images/placeholder-product.png'));
+    
+    if (img.src !== placeholderUrl) {
+        console.warn('🖼️ Errore caricamento immagine:', img.src);
+        img.src = placeholderUrl;
+        img.onerror = null; // Previeni loop infinito
+        
+        // Aggiungi classe per styling
+        img.classList.add('image-error');
+    }
+}
+
+/**
+ * Copia testo negli appunti
+ */
+function copyToClipboard(text, successMessage = 'Testo copiato negli appunti!') {
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+            showNotification('success', successMessage);
+        }).catch(err => {
+            console.error('Errore copia clipboard:', err);
+            fallbackCopyTextToClipboard(text, successMessage);
+        });
+    } else {
+        fallbackCopyTextToClipboard(text, successMessage);
+    }
+}
+
+function fallbackCopyTextToClipboard(text, successMessage) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.top = "0";
+    textArea.style.left = "0";
+    textArea.style.position = "fixed";
+    textArea.style.opacity = "0";
+    
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            showNotification('success', successMessage);
+        } else {
+            throw new Error('execCommand fallito');
+        }
+    } catch (err) {
+        console.error('Fallback copy fallito:', err);
+        showNotification('error', 'Impossibile copiare negli appunti');
+    }
+    
+    document.body.removeChild(textArea);
+}
+
+/**
+ * Sistema di notificazioni toast
+ */
+function showNotification(type, message, duration = 5000) {
+    // Controlla se Bootstrap Toast è disponibile
+    if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
+        const toastId = 'toast-' + Date.now();
+        const iconClass = type === 'success' ? 'check-circle' : 
+                         type === 'error' ? 'exclamation-circle' : 
+                         type === 'warning' ? 'exclamation-triangle' : 'info-circle';
+        const bgClass = type === 'success' ? 'success' : 
+                       type === 'error' ? 'danger' : 
+                       type === 'warning' ? 'warning' : 'info';
+        
+        const toastHtml = `
+            <div id="${toastId}" class="toast align-items-center text-white bg-${bgClass} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="bi bi-${iconClass} me-2"></i>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        `;
+        
+        // Container per toast
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            toastContainer.style.zIndex = '9999';
+            document.body.appendChild(toastContainer);
+        }
+        
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+        
+        const toastElement = document.getElementById(toastId);
+        const toast = new bootstrap.Toast(toastElement, {
+            autohide: true,
+            delay: duration
+        });
+        
+        toast.show();
+        
+        // Rimuovi elemento dopo che è stato nascosto
+        toastElement.addEventListener('hidden.bs.toast', function () {
+            this.remove();
+        });
+    } else {
+        // Fallback ad alert
+        alert(`${type.toUpperCase()}: ${message}`);
+    }
+}
+
+/**
+ * Controllo performance pagina (solo debug)
+ */
+@if(config('app.debug'))
+window.addEventListener('load', function() {
+    if (performance && performance.timing) {
+        const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
+        console.log(`⏱️ Pagina admin prodotto caricata in: ${loadTime}ms`);
+        
+        if (loadTime > 3000) {
+            console.warn('🐌 Caricamento lento rilevato per pagina admin prodotto');
+        }
+    }
+});
+
+// Monitoraggio memoria JavaScript
+if (performance && performance.memory) {
+    setInterval(() => {
+        const memory = performance.memory;
+        const used = Math.round(memory.usedJSHeapSize / 1048576);
+        const total = Math.round(memory.totalJSHeapSize / 1048576);
+        
+        if (used > 100) {
+            console.warn(`⚠️ Elevato uso di memoria JavaScript: ${used}MB / ${total}MB`);
+        }
+    }, 60000); // Ogni minuto
+}
+
+// Debug panel per sviluppo
+function createDebugPanel() {
+    const panel = document.createElement('div');
+    panel.className = 'debug-panel';
+    panel.innerHTML = `
+        <div class="debug-title">🔧 DEBUG PANEL</div>
+        <div class="debug-item">Prodotto: <span class="debug-status-ok">${config.prodotto.id}</span></div>
+        <div class="debug-item">Staff: <span class="${config.prodotto.staffAssegnato ? 'debug-status-ok' : 'debug-status-error'}">${config.prodotto.staffAssegnato || 'Non assegnato'}</span></div>
+        <div class="debug-item">Route Update: <span class="debug-status-ok">OK</span></div>
+        <div class="debug-item">Bootstrap: <span class="${typeof bootstrap !== 'undefined' ? 'debug-status-ok' : 'debug-status-error'}">${typeof bootstrap !== 'undefined' ? 'Caricato' : 'Mancante'}</span></div>
+        <div class="debug-item">Memory: <span id="memory-usage">--</span></div>
+    `;
+    
+    document.body.appendChild(panel);
+    
+    // Aggiorna memoria ogni 5 secondi
+    if (performance && performance.memory) {
+        setInterval(() => {
+            const used = Math.round(performance.memory.usedJSHeapSize / 1048576);
+            document.getElementById('memory-usage').textContent = `${used}MB`;
+        }, 5000);
+    }
+}
+
+// Mostra debug panel se in modalità debug e URL contiene ?debug=1
+if (config.debug && new URLSearchParams(window.location.search).get('debug') === '1') {
+    createDebugPanel();
+}
+@endif
+
+/**
+ * Refresh automatico statistiche (opzionale)
+ */
+function refreshStats() {
+    const statsCards = document.querySelectorAll('.card[class*="bg-primary"], .card[class*="bg-danger"], .card[class*="bg-info"], .card[class*="bg-warning"], .card[class*="bg-success"]');
+    
+    // Aggiungi effetto loading
+    statsCards.forEach(card => {
+        card.classList.add('loading');
+    });
+    
+    // Simula refresh con timeout (sostituire con chiamata AJAX reale se necessario)
+    setTimeout(() => {
+        statsCards.forEach(card => {
+            card.classList.remove('loading');
+        });
+        showNotification('success', 'Statistiche aggiornate con successo');
+    }, 1500);
+}
+
+/**
+ * Controllo connettività server
+ */
+function checkServerConnectivity() {
+    fetch(config.routes.show, { 
+        method: 'HEAD',
+        cache: 'no-cache'
+    })
+    .then(response => {
+        if (response.ok) {
+            console.log('✅ Server raggiungibile');
+            document.body.classList.remove('server-offline');
+        } else {
+            console.warn('⚠️ Server risponde ma con errori:', response.status);
+        }
+    })
+    .catch(error => {
+        console.error('❌ Server non raggiungibile:', error);
+        document.body.classList.add('server-offline');
+        showNotification('error', 'Problemi di connessione al server. Alcune funzionalità potrebbero non funzionare.');
+    });
+}
+
+// Controlla connettività ogni 2 minuti
+setInterval(checkServerConnectivity, 2 * 60 * 1000);
+
+/**
+ * Gestione keyboard shortcuts
+ */
+document.addEventListener('keydown', function(e) {
+    // Ctrl/Cmd + S per salvare (previeni default)
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        showNotification('info', 'Usa i pulsanti di modifica per salvare le modifiche');
+        return false;
+    }
+    
+    // Escape per chiudere modals
+    if (e.key === 'Escape') {
+        const openModals = document.querySelectorAll('.modal.show');
+        openModals.forEach(modal => {
+            const bsModal = bootstrap.Modal.getInstance(modal);
+            if (bsModal) {
+                bsModal.hide();
+            }
+        });
+    }
+    
+    // Alt + E per modificare prodotto
+    if (e.altKey && e.key === 'e') {
+        e.preventDefault();
+        const editBtn = document.querySelector('a[href*="edit"]');
+        if (editBtn) {
+            editBtn.click();
+        }
+    }
+    
+    // Alt + S per assegnare staff (se non già assegnato)
+    if (e.altKey && e.key === 's') {
+        e.preventDefault();
+        if (!config.prodotto.staffAssegnato) {
+            const assignBtn = document.querySelector('[data-bs-target="#assignStaffModal"]');
+            if (assignBtn) {
+                assignBtn.click();
+            }
+        } else {
+            const changeBtn = document.querySelector('[data-bs-target="#changeStaffModal"]');
+            if (changeBtn) {
+                changeBtn.click();
+            }
+        }
+    }
+});
+
+/**
+ * Tooltips per keyboard shortcuts
+ */
+function initKeyboardTooltips() {
+    const tooltips = [
+        { selector: 'a[href*="edit"]', title: 'Modifica prodotto (Alt+E)' },
+        { selector: '[data-bs-target="#assignStaffModal"]', title: 'Assegna staff (Alt+S)' },
+        { selector: '[data-bs-target="#changeStaffModal"]', title: 'Riassegna staff (Alt+S)' }
+    ];
+    
+    tooltips.forEach(item => {
+        const element = document.querySelector(item.selector);
+        if (element && typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            new bootstrap.Tooltip(element, {
+                title: item.title,
+                placement: 'top'
+            });
+        }
+    });
+}
+
+// Inizializza tooltips
+initKeyboardTooltips();
+
+/**
+ * Auto-save form data (localStorage fallback)
+ */
+function setupAutoSave() {
+    const forms = document.querySelectorAll('form[id]');
+    
+    forms.forEach(form => {
+        const formId = form.id;
+        const inputs = form.querySelectorAll('input, select, textarea');
+        
+        // Carica dati salvati
+        inputs.forEach(input => {
+            const savedValue = sessionStorage.getItem(`${formId}_${input.name}`);
+            if (savedValue && input.type !== 'hidden') {
+                input.value = savedValue;
+            }
+        });
+        
+        // Salva ad ogni cambio
+        inputs.forEach(input => {
+            input.addEventListener('change', function() {
+                if (this.type !== 'hidden') {
+                    sessionStorage.setItem(`${formId}_${this.name}`, this.value);
+                }
+            });
+        });
+        
+        // Pulisci al submit
+        form.addEventListener('submit', function() {
+            inputs.forEach(input => {
+                sessionStorage.removeItem(`${formId}_${input.name}`);
+            });
+        });
+    });
+}
+
+setupAutoSave();
+
+/**
+ * Prevenzione perdita dati
+ */
+let hasUnsavedChanges = false;
+
+document.querySelectorAll('form input, form select, form textarea').forEach(input => {
+    if (input.type !== 'hidden') {
+        input.addEventListener('change', function() {
+            hasUnsavedChanges = true;
+        });
+    }
+});
+
+window.addEventListener('beforeunload', function(e) {
+    if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = 'Hai modifiche non salvate. Sei sicuro di voler uscire?';
+        return e.returnValue;
+    }
+});
+
+// Reset flag quando si submittano i form
+document.querySelectorAll('form').forEach(form => {
+    form.addEventListener('submit', function() {
+        hasUnsavedChanges = false;
+    });
+});
+
+/**
+ * Lazy loading per immagini (se supportato)
+ */
+if ('loading' in HTMLImageElement.prototype) {
+    console.log('✅ Native lazy loading supportato');
+} else {
+    // Fallback per browser che non supportano lazy loading
+    const images = document.querySelectorAll('img[loading="lazy"]');
+    
+    if ('IntersectionObserver' in window) {
+        const imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    img.src = img.dataset.src || img.src;
+                    img.classList.remove('lazy');
+                    imageObserver.unobserve(img);
+                }
+            });
+        });
+        
+        images.forEach(img => {
+            img.classList.add('lazy');
+            imageObserver.observe(img);
+        });
+    }
+}
+
+/**
+ * Accessibilità migliorata
+ */
+function improveAccessibility() {
+    // Aggiungi aria-labels mancanti
+    document.querySelectorAll('button:not([aria-label]):not([aria-labelledby])').forEach(btn => {
+        const text = btn.textContent.trim();
+        if (text) {
+            btn.setAttribute('aria-label', text);
+        }
+    });
+    
+    // Aggiungi role ai pulsanti che sembrano link
+    document.querySelectorAll('button[onclick*="location"]').forEach(btn => {
+        btn.setAttribute('role', 'link');
+    });
+    
+    // Miglioramento focus per keyboard navigation
+    document.querySelectorAll('.btn, .form-control, .form-select').forEach(el => {
+        el.addEventListener('focus', function() {
+            this.style.outline = '2px solid #007bff';
+            this.style.outlineOffset = '2px';
+        });
+        
+        el.addEventListener('blur', function() {
+            this.style.outline = '';
+            this.style.outlineOffset = '';
+        });
+    });
+}
+
+improveAccessibility();
+
+// ===== INIZIALIZZAZIONE FINALE =====
+console.log('🎉 Pagina admin prodotto completamente inizializzata');
+
+// Notifica ready per altri script
+window.dispatchEvent(new CustomEvent('adminProductPageReady', {
+    detail: {
+        prodotto: config.prodotto,
+        routes: config.routes,
+        timestamp: new Date().toISOString()
+    }
+}));
+</script>
+
+{{-- Script aggiuntivi per funzionalità avanzate --}}
+@if(config('app.env') === 'production')
+{{-- Analytics, monitoring, etc. per produzione --}}
+<script>
+// Tracking eventi amministrazione (sostituire con il tuo sistema di analytics)
+if (typeof gtag !== 'undefined') {
+    gtag('event', 'admin_product_view', {
+        'product_id': {{ $prodotto->id }},
+        'product_name': @json($prodotto->nome),
+        'user_role': 'admin'
+    });
+}
+</script>
+@endif
+
+{{-- Script di sicurezza aggiuntivi --}}
+<script>
+// Prevenzione XSS nelle notificazioni
+function sanitizeMessage(message) {
+    const div = document.createElement('div');
+    div.textContent = message;
+    return div.innerHTML;
+}
+
+// Override showNotification per sicurezza
+const originalShowNotification = window.showNotification;
+window.showNotification = function(type, message, duration = 5000) {
+    return originalShowNotification(type, sanitizeMessage(message), duration);
+};
+
+// Controllo CSP (Content Security Policy)
+document.addEventListener('securitypolicyviolation', function(e) {
+    console.error('Violazione CSP rilevata:', e.violatedDirective, e.blockedURI);
+});
+</script>
+@endpush
+
+{{-- ========================================= --}}
+{{-- === DEBUG INFO (solo sviluppo) === --}}
+{{-- ========================================= --}}
+
+@if(config('app.debug') && request()->get('debug'))
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning bg-opacity-25">
+                    <h6 class="mb-0">
+                        <i class="bi bi-bug text-warning me-2"></i>
+                        Debug Information (Solo Sviluppo)
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Informazioni Prodotto:</h6>
+                            <table class="table table-sm table-borderless">
+                                <tr><th>ID:</th><td>{{ $prodotto->id }}</td></tr>
+                                <tr><th>Nome:</th><td>{{ $prodotto->nome }}</td></tr>
+                                <tr><th>Modello:</th><td>{{ $prodotto->modello }}</td></tr>
+                                <tr><th>Attivo:</th><td>{{ $prodotto->attivo ? 'Sì' : 'No' }}</td></tr>
+                                <tr><th>Staff ID:</th><td>{{ $prodotto->staff_assegnato_id ?? 'NULL' }}</td></tr>
+                                <tr><th>Staff Nome:</th><td>{{ $prodotto->staffAssegnato->nome_completo ?? 'N/A' }}</td></tr>
+                                <tr><th>Malfunzionamenti:</th><td>{{ $prodotto->malfunzionamenti ? $prodotto->malfunzionamenti->count() : 0 }}</td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Informazioni Sistema:</h6>
+                            <table class="table table-sm table-borderless">
+                                <tr><th>Laravel:</th><td>{{ app()->version() }}</td></tr>
+                                <tr><th>PHP:</th><td>{{ PHP_VERSION }}</td></tr>
+                                <tr><th>Environment:</th><td>{{ app()->environment() }}</td></tr>
+                                <tr><th>Debug Mode:</th><td>{{ config('app.debug') ? 'Attivo' : 'Disattivo' }}</td></tr>
+                                <tr><th>User ID:</th><td>{{ auth()->id() }}</td></tr>
+                                <tr><th>User Livello:</th><td>{{ auth()->user()->livello_accesso }}</td></tr>
+                                <tr><th>Timestamp:</th><td>{{ now()->format('Y-m-d H:i:s') }}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <h6 class="mt-3">Route Disponibili:</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled small">
+                                <li><i class="bi bi-{{ Route::has('admin.prodotti.index') ? 'check-circle text-success' : 'x-circle text-danger' }}"></i> admin.prodotti.index</li>
+                                <li><i class="bi bi-{{ Route::has('admin.prodotti.show') ? 'check-circle text-success' : 'x-circle text-danger' }}"></i> admin.prodotti.show</li>
+                                <li><i class="bi bi-{{ Route::has('admin.prodotti.edit') ? 'check-circle text-success' : 'x-circle text-danger' }}"></i> admin.prodotti.edit</li>
+                                <li><i class="bi bi-{{ Route::has('admin.prodotti.update') ? 'check-circle text-success' : 'x-circle text-danger' }}"></i> admin.prodotti.update</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled small">
+                                <li><i class="bi bi-{{ Route::has('admin.prodotti.toggle-status') ? 'check-circle text-success' : 'x-circle text-danger' }}"></i> admin.prodotti.toggle-status</li>
+                                <li><i class="bi bi-{{ Route::has('admin.assegna.prodotto') ? 'check-circle text-success' : 'x-circle text-danger' }}"></i> admin.assegna.prodotto</li>
+                                <li><i class="bi bi-{{ Route::has('admin.dashboard') ? 'check-circle text-success' : 'x-circle text-danger' }}"></i> admin.dashboard</li>
+                                <li><i class="bi bi-{{ Route::has('prodotti.show') ? 'check-circle text-success' : 'x-circle text-danger' }}"></i> prodotti.show</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    @if(isset($statistiche))
+                    <h6 class="mt-3">Statistiche Debug:</h6>
+                    <pre class="bg-light p-3 rounded small">{{ json_encode($statistiche, JSON_PRETTY_PRINT) }}</pre>
+                    @endif
+                    
+                    @if(isset($metriche))
+                    <h6 class="mt-3">Metriche Debug:</h6>
+                    <pre class="bg-light p-3 rounded small">{{ json_encode($metriche, JSON_PRETTY_PRINT) }}</pre>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 @endif
