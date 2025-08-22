@@ -1,10 +1,10 @@
 {{-- 
-    Vista dettaglio prodotto per amministratori
+    Vista dettaglio prodotto per amministratori - CORRETTA
     Percorso: resources/views/admin/prodotti/show.blade.php
     Accesso: Solo livello 4 (Amministratori)
 --}}
 
-@extends('layouts.admin')
+@extends('layouts.app')
 
 @section('title', 'Dettaglio Prodotto - ' . $prodotto->nome)
 
@@ -59,6 +59,7 @@
                     </a>
                     
                     {{-- Toggle status --}}
+                    @if(Route::has('admin.prodotti.toggle-status'))
                     <form action="{{ route('admin.prodotti.toggle-status', $prodotto) }}" method="POST" class="d-inline">
                         @csrf
                         <button type="submit" 
@@ -68,6 +69,7 @@
                             {{ $prodotto->attivo ? 'Disattiva' : 'Attiva' }}
                         </button>
                     </form>
+                    @endif
 
                     {{-- Vista pubblica --}}
                     <a href="{{ route('prodotti.show', $prodotto) }}" 
@@ -164,7 +166,8 @@
                         <div class="col-md-4 mb-3">
                             <img src="{{ asset('storage/' . $prodotto->foto) }}" 
                                  alt="Foto {{ $prodotto->nome }}"
-                                 class="img-fluid rounded shadow-sm">
+                                 class="img-fluid rounded shadow-sm"
+                                 onerror="this.src='{{ asset('images/placeholder-product.png') }}'; this.onerror=null;">
                         </div>
                         @endif
                         
@@ -254,7 +257,7 @@
             </div>
 
             {{-- === MALFUNZIONAMENTI === --}}
-            @if($prodotto->malfunzionamenti->count() > 0)
+            @if($prodotto->malfunzionamenti && $prodotto->malfunzionamenti->count() > 0)
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
@@ -338,23 +341,23 @@
                         </div>
                         
                         {{-- Pulsante per cambiare staff --}}
-                        @if(isset($staffDisponibili) && $staffDisponibili->count() > 0)
                         <div class="mt-3">
-                            <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#changeStaffModal">
+                            <button class="btn btn-outline-primary btn-sm" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#changeStaffModal">
                                 <i class="bi bi-arrow-repeat me-1"></i>Riassegna
                             </button>
                         </div>
-                        @endif
                     @else
                         <div class="text-center py-3">
                             <i class="bi bi-person-x display-6 text-muted"></i>
                             <p class="text-muted mt-2 mb-3">Nessuno staff assegnato</p>
                             
-                            @if(isset($staffDisponibili) && $staffDisponibili->count() > 0)
-                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#assignStaffModal">
+                            <button class="btn btn-primary btn-sm" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#assignStaffModal">
                                 <i class="bi bi-person-plus me-1"></i>Assegna Staff
                             </button>
-                            @endif
                         </div>
                     @endif
                 </div>
@@ -409,7 +412,8 @@
                                 <img src="{{ asset('storage/' . $correlato->foto) }}" 
                                      alt="{{ $correlato->nome }}"
                                      class="rounded"
-                                     style="width: 40px; height: 40px; object-fit: cover;">
+                                     style="width: 40px; height: 40px; object-fit: cover;"
+                                     onerror="this.src='{{ asset('images/placeholder-product.png') }}'; this.onerror=null;">
                             @else
                                 <div class="bg-light rounded d-flex align-items-center justify-content-center" 
                                      style="width: 40px; height: 40px;">
@@ -424,7 +428,7 @@
                             </a>
                             <br>
                             <small class="text-muted">
-                                {{ $correlato->malfunzionamenti_count }} problemi
+                                {{ $correlato->malfunzionamenti_count ?? 0 }} problemi
                             </small>
                         </div>
                     </div>
@@ -436,10 +440,9 @@
     </div>
 </div>
 
-{{-- === MODALS === --}}
+{{-- === MODALS CORRETTI === --}}
 
 {{-- Modal assegnazione staff --}}
-@if(isset($staffDisponibili) && $staffDisponibili->count() > 0)
 <div class="modal fade" id="assignStaffModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -447,14 +450,31 @@
                 <h5 class="modal-title">Assegna Staff al Prodotto</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ route('admin.prodotti.update', $prodotto) }}" method="POST">
-                @csrf
+            {{-- CORREZIONE: Verifica che la route esista --}}
+            @if(Route::has('admin.assegna.prodotto'))
+                <form action="{{ route('admin.assegna.prodotto') }}" method="POST">
+            @else
+                {{-- Fallback alla route di update --}}
+                <form action="{{ route('admin.prodotti.update', $prodotto) }}" method="POST">
                 @method('PUT')
+            @endif
+                @csrf
+                <input type="hidden" name="prodotto_id" value="{{ $prodotto->id }}">
+                
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="staff_assegnato_id" class="form-label">Seleziona Staff:</label>
-                        <select name="staff_assegnato_id" id="staff_assegnato_id" class="form-select" required>
+                        <p class="text-muted mb-3">
+                            <strong>Prodotto:</strong> {{ $prodotto->nome }} - {{ $prodotto->modello }}
+                        </p>
+                    </div>
+                    <div class="mb-3">
+                        <label for="staff_id" class="form-label">Seleziona Staff:</label>
+                        <select name="staff_assegnato_id" id="staff_id" class="form-select" required>
                             <option value="">Seleziona...</option>
+                            {{-- Genera lista staff dal controller o query diretta --}}
+                            @php
+                                $staffDisponibili = $staffDisponibili ?? \App\Models\User::where('livello_accesso', '3')->select('id', 'nome', 'cognome')->orderBy('nome')->get();
+                            @endphp
                             @foreach($staffDisponibili as $staff)
                                 <option value="{{ $staff->id }}">{{ $staff->nome_completo }}</option>
                             @endforeach
@@ -478,11 +498,22 @@
                 <h5 class="modal-title">Riassegna Staff al Prodotto</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ route('admin.prodotti.update', $prodotto) }}" method="POST">
-                @csrf
+            {{-- CORREZIONE: Verifica che la route esista --}}
+            @if(Route::has('admin.assegna.prodotto'))
+                <form action="{{ route('admin.assegna.prodotto') }}" method="POST">
+            @else
+                {{-- Fallback alla route di update --}}
+                <form action="{{ route('admin.prodotti.update', $prodotto) }}" method="POST">
                 @method('PUT')
+            @endif
+                @csrf
+                <input type="hidden" name="prodotto_id" value="{{ $prodotto->id }}">
+                
                 <div class="modal-body">
                     <div class="mb-3">
+                        <p class="text-muted">
+                            <strong>Prodotto:</strong> {{ $prodotto->nome }} - {{ $prodotto->modello }}
+                        </p>
                         <p class="text-muted">
                             Staff attualmente assegnato: 
                             <strong>{{ $prodotto->staffAssegnato ? $prodotto->staffAssegnato->nome_completo : 'Nessuno' }}</strong>
@@ -492,6 +523,9 @@
                         <label for="new_staff_id" class="form-label">Nuovo Staff:</label>
                         <select name="staff_assegnato_id" id="new_staff_id" class="form-select">
                             <option value="">Rimuovi assegnazione</option>
+                            @php
+                                $staffDisponibili = $staffDisponibili ?? \App\Models\User::where('livello_accesso', '3')->select('id', 'nome', 'cognome')->orderBy('nome')->get();
+                            @endphp
                             @foreach($staffDisponibili as $staff)
                                 <option value="{{ $staff->id }}"
                                         {{ $prodotto->staff_assegnato_id == $staff->id ? 'selected' : '' }}>
@@ -499,6 +533,9 @@
                                 </option>
                             @endforeach
                         </select>
+                        <div class="form-text">
+                            Lascia vuoto per rimuovere l'assegnazione corrente
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -509,7 +546,6 @@
         </div>
     </div>
 </div>
-@endif
 
 @endsection
 
@@ -552,6 +588,19 @@
         margin-bottom: 0.25rem;
     }
 }
+
+/* Debug route */
+.route-debug {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    z-index: 9999;
+}
 </style>
 @endpush
 
@@ -559,7 +608,57 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Gestione toggle status via AJAX (opzionale)
+    
+    // === DEBUG ROUTE CHECKER ===
+    const routes = {
+        'admin.assegna.prodotto': '{{ Route::has("admin.assegna.prodotto") ? route("admin.assegna.prodotto") : "NON_TROVATA" }}',
+        'admin.prodotti.update': '{{ route("admin.prodotti.update", $prodotto) }}',
+        'admin.prodotti.toggle-status': '{{ Route::has("admin.prodotti.toggle-status") ? "ESISTE" : "NON_TROVATA" }}'
+    };
+    
+    console.log('🔍 Route disponibili:', routes);
+    
+    // Mostra debug se necessario (rimuovi in produzione)
+    if (routes['admin.assegna.prodotto'] === 'NON_TROVATA') {
+        console.warn('⚠️ Route admin.assegna.prodotto non trovata! Verrà usato fallback.');
+    }
+    
+    // === GESTIONE FORM SUBMISSION ===
+    const forms = document.querySelectorAll('form[action*="assegna"]');
+    
+    forms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const formData = new FormData(form);
+            
+            console.log('📤 Form submission:');
+            for (let [key, value] of formData.entries()) {
+                console.log(`  ${key}: ${value}`);
+            }
+            
+            // Validazione
+            const prodottoId = formData.get('prodotto_id');
+            if (!prodottoId) {
+                alert('ERRORE: ID prodotto mancante!');
+                e.preventDefault();
+                return false;
+            }
+            
+            // Loading state
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Salvando...';
+                
+                // Reset dopo 5 secondi (fallback)
+                setTimeout(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = submitBtn.innerHTML.replace(/Salvando\.\.\./, 'Riprova');
+                }, 5000);
+            }
+        });
+    });
+    
+    // === GESTIONE TOGGLE STATUS ===
     const toggleForms = document.querySelectorAll('form[action*="toggle-status"]');
     
     toggleForms.forEach(form => {
@@ -572,20 +671,330 @@ document.addEventListener('DOMContentLoaded', function() {
                 return false;
             }
             
-            // Disabilita il pulsante durante l'invio
             button.disabled = true;
             button.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Attendere...';
         });
     });
     
-    // Auto-focus sui modals
-    document.getElementById('assignStaffModal')?.addEventListener('shown.bs.modal', function () {
-        document.getElementById('staff_assegnato_id')?.focus();
+    // === AUTO-FOCUS SUI MODALS ===
+    const assignModal = document.getElementById('assignStaffModal');
+    const changeModal = document.getElementById('changeStaffModal');
+    
+    if (assignModal) {
+        assignModal.addEventListener('shown.bs.modal', function () {
+            document.getElementById('staff_id')?.focus();
+        });
+    }
+    
+    if (changeModal) {
+        changeModal.addEventListener('shown.bs.modal', function () {
+            document.getElementById('new_staff_id')?.focus();
+        });
+    }
+    
+    // === GESTIONE ERRORI IMMAGINI ===
+    const images = document.querySelectorAll('img[src*="storage"]');
+    images.forEach(img => {
+        img.addEventListener('error', function() {
+            console.warn('🖼️ Immagine non caricata:', this.src);
+            this.src = '{{ asset("images/placeholder-product.png") }}';
+            this.onerror = null; // Previeni loop infinito
+        });
     });
     
-    document.getElementById('changeStaffModal')?.addEventListener('shown.bs.modal', function () {
-        document.getElementById('new_staff_id')?.focus();
+    // === TOOLTIP BOOTSTRAP (se presente) ===
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
     });
+    
+    // === NOTIFICAZIONI SUCCESS/ERROR ===
+    @if(session('success'))
+        showNotification('success', '{{ session('success') }}');
+    @endif
+    
+    @if(session('error'))
+        showNotification('error', '{{ session('error') }}');
+    @endif
+    
+    @if($errors->any())
+        @foreach($errors->all() as $error)
+            showNotification('error', '{{ $error }}');
+        @endforeach
+    @endif
 });
+
+// === FUNZIONI UTILITY ===
+
+/**
+ * Mostra notifiche toast
+ */
+function showNotification(type, message) {
+    // Se Bootstrap Toast è disponibile
+    if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
+        const toastHtml = `
+            <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+        
+        // Container per toast
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            toastContainer.style.zIndex = '9999';
+            document.body.appendChild(toastContainer);
+        }
+        
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+        
+        const toastElement = toastContainer.lastElementChild;
+        const toast = new bootstrap.Toast(toastElement, {
+            autohide: true,
+            delay: 5000
+        });
+        
+        toast.show();
+        
+        // Rimuovi elemento dopo che è stato nascosto
+        toastElement.addEventListener('hidden.bs.toast', function () {
+            this.remove();
+        });
+    } else {
+        // Fallback ad alert
+        alert(`${type.toUpperCase()}: ${message}`);
+    }
+}
+
+/**
+ * Conferma azione con sweet alert (se disponibile) o confirm normale
+ */
+function confirmAction(message, callback) {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: 'Conferma azione',
+            text: message,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Sì, procedi',
+            cancelButtonText: 'Annulla'
+        }).then((result) => {
+            if (result.isConfirmed && typeof callback === 'function') {
+                callback();
+            }
+        });
+    } else {
+        if (confirm(message) && typeof callback === 'function') {
+            callback();
+        }
+    }
+}
+
+/**
+ * Copia testo negli appunti
+ */
+function copyToClipboard(text, successMessage = 'Copiato negli appunti!') {
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+            showNotification('success', successMessage);
+        }).catch(err => {
+            console.error('Errore copia clipboard:', err);
+            fallbackCopyTextToClipboard(text);
+        });
+    } else {
+        fallbackCopyTextToClipboard(text);
+    }
+}
+
+function fallbackCopyTextToClipboard(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.top = "0";
+    textArea.style.left = "0";
+    textArea.style.position = "fixed";
+    
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            showNotification('success', 'Copiato negli appunti!');
+        } else {
+            throw new Error('execCommand fallito');
+        }
+    } catch (err) {
+        console.error('Fallback copy fallito:', err);
+        showNotification('error', 'Impossibile copiare negli appunti');
+    }
+    
+    document.body.removeChild(textArea);
+}
+
+/**
+ * Refresh statistiche via AJAX (opzionale)
+ */
+function refreshStats() {
+    const statsCards = document.querySelectorAll('.card[class*="bg-"]');
+    
+    statsCards.forEach(card => {
+        card.style.opacity = '0.7';
+    });
+    
+    // Simula refresh con delay
+    setTimeout(() => {
+        statsCards.forEach(card => {
+            card.style.opacity = '1';
+        });
+        showNotification('success', 'Statistiche aggiornate');
+    }, 1000);
+}
+
+/**
+ * Controllo connettività e stato server
+ */
+function checkServerStatus() {
+    fetch('{{ route("home") }}', { 
+        method: 'HEAD',
+        cache: 'no-cache'
+    })
+    .then(response => {
+        if (response.ok) {
+            console.log('✅ Server raggiungibile');
+        } else {
+            console.warn('⚠️ Server risponde ma con errori');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Server non raggiungibile:', error);
+        showNotification('error', 'Problemi di connessione al server');
+    });
+}
+
+// Controlla stato server ogni 5 minuti
+setInterval(checkServerStatus, 5 * 60 * 1000);
+
+/**
+ * Debug info per sviluppo (rimuovi in produzione)
+ */
+function showDebugInfo() {
+    if (console && console.table) {
+        const debugData = {
+            'Prodotto ID': '{{ $prodotto->id }}',
+            'Prodotto Nome': '{{ $prodotto->nome }}',
+            'Staff Assegnato': '{{ $prodotto->staffAssegnato ? $prodotto->staffAssegnato->nome_completo : "Nessuno" }}',
+            'Malfunzionamenti': '{{ $prodotto->malfunzionamenti ? $prodotto->malfunzionamenti->count() : 0 }}',
+            'Route Assegna': '{{ Route::has("admin.assegna.prodotto") ? "Disponibile" : "Non trovata" }}',
+            'Laravel Version': '{{ app()->version() }}',
+            'Environment': '{{ app()->environment() }}'
+        };
+        
+        console.table(debugData);
+    }
+}
+
+// Mostra debug info in sviluppo
+@if(app()->environment('local'))
+    console.log('🐛 Debug mode attivo');
+    showDebugInfo();
+@endif
 </script>
+
+{{-- Script aggiuntivi per funzionalità avanzate (opzionali) --}}
+@if(config('app.debug'))
+<script>
+// === PERFORMANCE MONITORING ===
+window.addEventListener('load', function() {
+    if (performance && performance.timing) {
+        const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
+        console.log(`⏱️ Pagina caricata in: ${loadTime}ms`);
+        
+        if (loadTime > 3000) {
+            console.warn('🐌 Caricamento lento rilevato');
+        }
+    }
+});
+
+// === MEMORY USAGE ===
+if (performance && performance.memory) {
+    setInterval(() => {
+        const memory = performance.memory;
+        const used = Math.round(memory.usedJSHeapSize / 1048576);
+        const total = Math.round(memory.totalJSHeapSize / 1048576);
+        
+        console.log(`💾 Memoria JS: ${used}MB / ${total}MB`);
+        
+        if (used > 100) {
+            console.warn('⚠️ Elevato uso di memoria JavaScript');
+        }
+    }, 30000); // Ogni 30 secondi
+}
+</script>
+@endif
+
+{{-- Inclusione librerie esterne se necessarie --}}
+@if(config('app.env') === 'production')
+{{-- Script per analytics, monitoraggio errori, etc. --}}
+@endif
 @endpush
+
+{{-- === SEZIONE MODALI AGGIUNTIVI (se necessari) === --}}
+
+{{-- Modal conferma eliminazione (se implementato) --}}
+@if(false) {{-- Abilitare se serve --}}
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Conferma Eliminazione
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Sei sicuro di voler eliminare questo prodotto?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Attenzione:</strong> Questa azione non può essere annullata.
+                    Tutti i malfunzionamenti associati verranno mantenuti ma il prodotto
+                    non sarà più visibile nel catalogo.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                <form action="{{ route('admin.prodotti.destroy', $prodotto) }}" method="POST" style="display: inline;">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash me-1"></i>Elimina Definitivamente
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
+{{-- Debug panel (solo sviluppo) --}}
+@if(app()->environment('local') && request()->get('debug'))
+<div class="route-debug">
+    <strong>🔧 Debug Panel</strong><br>
+    <small>
+        Route Check: {{ Route::has('admin.assegna.prodotto') ? '✅' : '❌' }}<br>
+        Prodotto ID: {{ $prodotto->id }}<br>
+        Staff: {{ $prodotto->staff_assegnato_id ?? 'NULL' }}<br>
+        Env: {{ app()->environment() }}
+    </small>
+</div>
+@endif
