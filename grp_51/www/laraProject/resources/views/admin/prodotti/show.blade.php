@@ -1,13 +1,12 @@
 {{-- 
-    Vista dettaglio prodotto per amministratori - VERSIONE CORRETTA E COMPLETA
+    Vista dettaglio prodotto per amministratori - VERSIONE SEMPLIFICATA
     Percorso: resources/views/admin/prodotti/show.blade.php
     Accesso: Solo livello 4 (Amministratori)
     
-    CORREZIONI APPLICATE:
-    - Modal riassegnazione staff con route corrette
-    - Form validation e error handling
-    - Gestione immagini con fallback
-    - JavaScript per UX migliorata
+    MODIFICHE APPLICATE:
+    - Rimossi pulsanti "Riassegna Staff" e "Rimuovi Assegnazione"
+    - Rimosse tutte le modal per gestione staff
+    - Mantenute tutte le altre funzionalità
 --}}
 
 @extends('layouts.app')
@@ -448,7 +447,7 @@
         {{-- === SIDEBAR DESTRA === --}}
         <div class="col-lg-4">
             
-            {{-- === CARD STAFF ASSEGNATO === --}}
+            {{-- === CARD STAFF ASSEGNATO (SOLO VISUALIZZAZIONE) === --}}
             <div class="card mb-4 shadow-sm">
                 <div class="card-header bg-light">
                     <h6 class="card-title mb-0">
@@ -457,8 +456,8 @@
                 </div>
                 <div class="card-body">
                     @if($prodotto->staffAssegnato)
-                        {{-- Staff assegnato presente --}}
-                        <div class="d-flex align-items-center mb-3">
+                        {{-- Staff assegnato presente - SOLO VISUALIZZAZIONE --}}
+                        <div class="d-flex align-items-center">
                             <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3" 
                                  style="width: 50px; height: 50px;">
                                 <i class="bi bi-person text-white fs-4"></i>
@@ -468,43 +467,22 @@
                                 <small class="text-muted">
                                     <i class="bi bi-briefcase me-1"></i>Staff Aziendale (Livello 3)
                                 </small>
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <i class="bi bi-calendar me-1"></i>
+                                        Assegnato il: {{ $prodotto->created_at->format('d/m/Y') }}
+                                    </small>
+                                </div>
                             </div>
-                        </div>
-                        
-                        {{-- Pulsanti azione per staff assegnato --}}
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-outline-primary btn-sm" 
-                                    data-bs-toggle="modal" 
-                                    data-bs-target="#changeStaffModal">
-                                <i class="bi bi-arrow-repeat me-1"></i>Riassegna Staff
-                            </button>
-                            
-                            <form action="{{ route('admin.prodotti.update', $prodotto) }}" 
-                                  method="POST" 
-                                  class="d-inline"
-                                  onsubmit="return confirm('Rimuovere l\'assegnazione corrente?')">
-                                @csrf
-                                @method('PUT')
-                                <input type="hidden" name="staff_assegnato_id" value="">
-                                <button type="submit" class="btn btn-outline-danger btn-sm w-100">
-                                    <i class="bi bi-person-x me-1"></i>Rimuovi Assegnazione
-                                </button>
-                            </form>
                         </div>
                     @else
                         {{-- Nessuno staff assegnato --}}
                         <div class="text-center py-4">
                             <i class="bi bi-person-x display-4 text-muted mb-3"></i>
                             <h6 class="text-muted">Nessuno staff assegnato</h6>
-                            <p class="text-muted small mb-3">
+                            <p class="text-muted small mb-0">
                                 Questo prodotto non ha un responsabile tecnico assegnato.
                             </p>
-                            
-                            <button class="btn btn-primary" 
-                                    data-bs-toggle="modal" 
-                                    data-bs-target="#assignStaffModal">
-                                <i class="bi bi-person-plus me-1"></i>Assegna Staff
-                            </button>
                         </div>
                     @endif
                 </div>
@@ -617,214 +595,6 @@
         </div>
     </div>
 </div>
-
-{{-- ========================================= --}}
-{{-- === MODALS PER GESTIONE STAFF === --}}
-{{-- ========================================= --}}
-
-{{-- Modal per assegnazione nuovo staff --}}
-<div class="modal fade" id="assignStaffModal" tabindex="-1" aria-labelledby="assignStaffModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="assignStaffModalLabel">
-                    <i class="bi bi-person-plus text-primary me-2"></i>Assegna Staff al Prodotto
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            
-            {{-- Form assegnazione - ROUTE CORRETTA --}}
-            <form action="{{ route('admin.prodotti.update', $prodotto) }}" method="POST" id="assignStaffForm">
-                @csrf
-                @method('PUT')
-                
-                <div class="modal-body">
-                    {{-- Info prodotto --}}
-                    <div class="alert alert-info">
-                        <div class="d-flex align-items-center">
-                            <i class="bi bi-info-circle me-2"></i>
-                            <div>
-                                <strong>Prodotto:</strong> {{ $prodotto->nome }}<br>
-                                <small class="text-muted">Modello: {{ $prodotto->modello }}</small>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    {{-- Selezione staff --}}
-                    <div class="mb-3">
-                        <label for="staff_assegnato_id" class="form-label">
-                            <i class="bi bi-person me-1"></i>Seleziona Staff da Assegnare:
-                        </label>
-                        <select name="staff_assegnato_id" 
-                                id="staff_assegnato_id" 
-                                class="form-select @error('staff_assegnato_id') is-invalid @enderror" 
-                                required>
-                            <option value="">-- Seleziona uno staff --</option>
-                            @php
-                                // Recupera lista staff disponibili (livello 3)
-                                $staffDisponibili = $staffDisponibili ?? \App\Models\User::where('livello_accesso', '3')
-                                    ->select('id', 'nome', 'cognome')
-                                    ->orderBy('nome')
-                                    ->orderBy('cognome')
-                                    ->get();
-                            @endphp
-                            @forelse($staffDisponibili as $staff)
-                                <option value="{{ $staff->id }}">
-                                    {{ $staff->nome_completo }}
-                                    @php
-                                        $prodottiAssegnati = \App\Models\Prodotto::where('staff_assegnato_id', $staff->id)->count();
-                                    @endphp
-                                    ({{ $prodottiAssegnati }} {{ $prodottiAssegnati === 1 ? 'prodotto' : 'prodotti' }} assegnati)
-                                </option>
-                            @empty
-                                <option value="" disabled>Nessuno staff disponibile</option>
-                            @endforelse
-                        </select>
-                        @error('staff_assegnato_id')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                        <div class="form-text">
-                            <i class="bi bi-lightbulb me-1"></i>
-                            Lo staff assegnato potrà gestire i malfunzionamenti di questo prodotto.
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="bi bi-x me-1"></i>Annulla
-                    </button>
-                    <button type="submit" class="btn btn-primary" id="confirmAssignBtn">
-                        <i class="bi bi-check me-1"></i>Assegna Staff
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-{{-- Modal per riassegnazione staff esistente --}}
-<div class="modal fade" id="changeStaffModal" tabindex="-1" aria-labelledby="changeStaffModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="changeStaffModalLabel">
-                    <i class="bi bi-arrow-repeat text-warning me-2"></i>Riassegna Staff al Prodotto
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            
-            {{-- Form riassegnazione - ROUTE CORRETTA --}}
-            <form action="{{ route('admin.prodotti.update', $prodotto) }}" method="POST" id="changeStaffForm">
-                @csrf
-                @method('PUT')
-                
-                <div class="modal-body">
-                    {{-- Info prodotto e staff attuale --}}
-                    <div class="alert alert-warning">
-                        <div class="d-flex align-items-start">
-                            <i class="bi bi-exclamation-triangle me-2 mt-1"></i>
-                            <div>
-                                <strong>Prodotto:</strong> {{ $prodotto->nome }} - {{ $prodotto->modello }}<br>
-                                <strong>Staff attualmente assegnato:</strong> 
-                                <span class="text-primary">
-                                    {{ $prodotto->staffAssegnato ? $prodotto->staffAssegnato->nome_completo : 'Nessuno' }}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    {{-- Selezione nuovo staff --}}
-                    <div class="mb-3">
-                        <label for="new_staff_assegnato_id" class="form-label">
-                            <i class="bi bi-person-gear me-1"></i>Nuovo Staff da Assegnare:
-                        </label>
-                        <select name="staff_assegnato_id" 
-                                id="new_staff_assegnato_id" 
-                                class="form-select @error('staff_assegnato_id') is-invalid @enderror">
-                            <option value="">-- Rimuovi assegnazione (nessuno staff) --</option>
-                            @php
-                                $staffDisponibili = $staffDisponibili ?? \App\Models\User::where('livello_accesso', '3')
-                                    ->select('id', 'nome', 'cognome')
-                                    ->orderBy('nome')
-                                    ->orderBy('cognome')
-                                    ->get();
-                            @endphp
-                            @foreach($staffDisponibili as $staff)
-                                <option value="{{ $staff->id }}"
-                                        {{ $prodotto->staff_assegnato_id == $staff->id ? 'selected' : '' }}>
-                                    {{ $staff->nome_completo }}
-                                    @if($prodotto->staff_assegnato_id == $staff->id)
-                                        (attualmente assegnato)
-                                    @else
-                                        @php
-                                            $prodottiAssegnati = \App\Models\Prodotto::where('staff_assegnato_id', $staff->id)->count();
-                                        @endphp
-                                        ({{ $prodottiAssegnati }} {{ $prodottiAssegnati === 1 ? 'prodotto' : 'prodotti' }} assegnati)
-                                    @endif
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('staff_assegnato_id')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                        <div class="form-text">
-                            <i class="bi bi-info-circle me-1"></i>
-                            Lascia vuoto per rimuovere completamente l'assegnazione del prodotto.
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="bi bi-x me-1"></i>Annulla
-                    </button>
-                    <button type="submit" class="btn btn-warning" id="confirmChangeBtn">
-                        <i class="bi bi-arrow-repeat me-1"></i>Riassegna
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-{{-- Modal di conferma eliminazione (se necessario) --}}
-@if(false) {{-- Attivare se serve funzionalità di eliminazione --}}
-<div class="modal fade" id="deleteProductModal" tabindex="-1" aria-labelledby="deleteProductModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title" id="deleteProductModalLabel">
-                    <i class="bi bi-exclamation-triangle me-2"></i>Conferma Eliminazione
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    <strong>Attenzione!</strong> Questa azione è irreversibile.
-                </div>
-                <p>Sei sicuro di voler eliminare definitivamente il prodotto <strong>{{ $prodotto->nome }}</strong>?</p>
-                <ul class="text-muted small">
-                    <li>Il prodotto verrà rimosso dal catalogo</li>
-                    <li>Tutti i malfunzionamenti associati verranno mantenuti per storico</li>
-                    <li>Le assegnazioni staff verranno rimosse</li>
-                </ul>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                <form action="{{ route('admin.prodotti.destroy', $prodotto) }}" method="POST" style="display: inline;">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn btn-danger">
-                        <i class="bi bi-trash me-1"></i>Elimina Definitivamente
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-@endif
 
 @endsection
 
@@ -977,40 +747,6 @@
     min-width: 300px;
 }
 
-/* === DEBUG PANEL (solo sviluppo) === */
-.debug-panel {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: rgba(0, 0, 0, 0.9);
-    color: white;
-    padding: 10px 15px;
-    border-radius: 8px;
-    font-family: 'Courier New', monospace;
-    font-size: 11px;
-    z-index: 9998;
-    max-width: 300px;
-    line-height: 1.3;
-}
-
-.debug-panel .debug-title {
-    font-weight: bold;
-    margin-bottom: 5px;
-    color: #ffc107;
-}
-
-.debug-panel .debug-item {
-    margin-bottom: 2px;
-}
-
-.debug-panel .debug-status-ok {
-    color: #28a745;
-}
-
-.debug-panel .debug-status-error {
-    color: #dc3545;
-}
-
 /* === ACCESSIBILITÀ === */
 @media (prefers-reduced-motion: reduce) {
     .card,
@@ -1064,7 +800,6 @@ document.addEventListener('DOMContentLoaded', function() {
             staffAssegnato: @json($prodotto->staffAssegnato ? $prodotto->staffAssegnato->nome_completo : null)
         },
         routes: {
-            update: @json(route('admin.prodotti.update', $prodotto)),
             toggleStatus: @json(Route::has('admin.prodotti.toggle-status') ? route('admin.prodotti.toggle-status', $prodotto) : ''),
             show: @json(route('admin.prodotti.show', $prodotto))
         },
@@ -1093,64 +828,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    log('Inizializzazione pagina dettaglio prodotto', 'info', config.prodotto);
-    
-    // ===== GESTIONE FORM ASSEGNAZIONE =====
-    const assignForm = document.getElementById('assignStaffForm');
-    const changeForm = document.getElementById('changeStaffForm');
-    
-    if (assignForm) {
-        assignForm.addEventListener('submit', function(e) {
-            const formData = new FormData(this);
-            const staffId = formData.get('staff_assegnato_id');
-            
-            log('Invio form assegnazione staff', 'info', {
-                staffId: staffId,
-                prodottoId: config.prodotto.id
-            });
-            
-            if (!staffId) {
-                e.preventDefault();
-                showNotification('error', 'Seleziona uno staff da assegnare al prodotto.');
-                return false;
-            }
-            
-            // Disabilita pulsante e mostra loading
-            const submitBtn = document.getElementById('confirmAssignBtn');
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Assegnando...';
-            }
-        });
-    }
-    
-    if (changeForm) {
-        changeForm.addEventListener('submit', function(e) {
-            const formData = new FormData(this);
-            const newStaffId = formData.get('staff_assegnato_id');
-            
-            log('Invio form riassegnazione staff', 'info', {
-                newStaffId: newStaffId,
-                currentStaff: config.prodotto.staffAssegnato,
-                prodottoId: config.prodotto.id
-            });
-            
-            // Conferma se si sta rimuovendo l'assegnazione
-            if (!newStaffId && config.prodotto.staffAssegnato) {
-                if (!confirm(`Vuoi davvero rimuovere l'assegnazione di ${config.prodotto.staffAssegnato} da questo prodotto?`)) {
-                    e.preventDefault();
-                    return false;
-                }
-            }
-            
-            // Disabilita pulsante e mostra loading
-            const submitBtn = document.getElementById('confirmChangeBtn');
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Riassegnando...';
-            }
-        });
-    }
+    log('Inizializzazione pagina dettaglio prodotto (versione semplificata)', 'info', config.prodotto);
     
     // ===== GESTIONE TOGGLE STATUS =====
     const toggleForms = document.querySelectorAll('form[action*="toggle-status"]');
@@ -1158,14 +836,13 @@ document.addEventListener('DOMContentLoaded', function() {
     toggleForms.forEach(form => {
         form.addEventListener('submit', function(e) {
             const isActive = config.prodotto.attivo;
-            const action = isActive ? 'disattivare' : 'attivare';
             
             if (!confirmToggleStatus(isActive)) {
                 e.preventDefault();
                 return false;
             }
             
-            log(`Toggle status prodotto: ${action}`, 'info', {
+            log(`Toggle status prodotto: ${isActive ? 'disattivare' : 'attivare'}`, 'info', {
                 prodottoId: config.prodotto.id,
                 currentStatus: isActive
             });
@@ -1177,38 +854,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-    
-    // ===== GESTIONE MODALS =====
-    const assignModal = document.getElementById('assignStaffModal');
-    const changeModal = document.getElementById('changeStaffModal');
-    
-    if (assignModal) {
-        assignModal.addEventListener('shown.bs.modal', function () {
-            const staffSelect = document.getElementById('staff_assegnato_id');
-            if (staffSelect) {
-                staffSelect.focus();
-                log('Modal assegnazione staff aperto');
-            }
-        });
-        
-        assignModal.addEventListener('hidden.bs.modal', function () {
-            resetFormState('assignStaffForm');
-        });
-    }
-    
-    if (changeModal) {
-        changeModal.addEventListener('shown.bs.modal', function () {
-            const staffSelect = document.getElementById('new_staff_assegnato_id');
-            if (staffSelect) {
-                staffSelect.focus();
-                log('Modal riassegnazione staff aperto');
-            }
-        });
-        
-        changeModal.addEventListener('hidden.bs.modal', function () {
-            resetFormState('changeStaffForm');
-        });
-    }
     
     // ===== GESTIONE IMMAGINI =====
     const productImages = document.querySelectorAll('.product-image');
@@ -1225,32 +870,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-    
-    // ===== FUNZIONI UTILITY =====
-    
-    function resetFormState(formId) {
-        const form = document.getElementById(formId);
-        if (form) {
-            // Reset pulsanti
-            const submitBtns = form.querySelectorAll('button[type="submit"]');
-            submitBtns.forEach(btn => {
-                btn.disabled = false;
-                if (btn.id === 'confirmAssignBtn') {
-                    btn.innerHTML = '<i class="bi bi-check me-1"></i>Assegna Staff';
-                } else if (btn.id === 'confirmChangeBtn') {
-                    btn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>Riassegna';
-                }
-            });
-            
-            // Reset form
-            form.reset();
-            
-            // Rimuovi classi di errore
-            form.querySelectorAll('.is-invalid').forEach(el => {
-                el.classList.remove('is-invalid');
-            });
-        }
-    }
     
     // ===== NOTIFICAZIONI =====
     @if(session('success'))
@@ -1403,110 +1022,6 @@ function showNotification(type, message, duration = 5000) {
 }
 
 /**
- * Controllo performance pagina (solo debug)
- */
-@if(config('app.debug'))
-window.addEventListener('load', function() {
-    if (performance && performance.timing) {
-        const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
-        console.log(`⏱️ Pagina admin prodotto caricata in: ${loadTime}ms`);
-        
-        if (loadTime > 3000) {
-            console.warn('🐌 Caricamento lento rilevato per pagina admin prodotto');
-        }
-    }
-});
-
-// Monitoraggio memoria JavaScript
-if (performance && performance.memory) {
-    setInterval(() => {
-        const memory = performance.memory;
-        const used = Math.round(memory.usedJSHeapSize / 1048576);
-        const total = Math.round(memory.totalJSHeapSize / 1048576);
-        
-        if (used > 100) {
-            console.warn(`⚠️ Elevato uso di memoria JavaScript: ${used}MB / ${total}MB`);
-        }
-    }, 60000); // Ogni minuto
-}
-
-// Debug panel per sviluppo
-function createDebugPanel() {
-    const panel = document.createElement('div');
-    panel.className = 'debug-panel';
-    panel.innerHTML = `
-        <div class="debug-title">🔧 DEBUG PANEL</div>
-        <div class="debug-item">Prodotto: <span class="debug-status-ok">${config.prodotto.id}</span></div>
-        <div class="debug-item">Staff: <span class="${config.prodotto.staffAssegnato ? 'debug-status-ok' : 'debug-status-error'}">${config.prodotto.staffAssegnato || 'Non assegnato'}</span></div>
-        <div class="debug-item">Route Update: <span class="debug-status-ok">OK</span></div>
-        <div class="debug-item">Bootstrap: <span class="${typeof bootstrap !== 'undefined' ? 'debug-status-ok' : 'debug-status-error'}">${typeof bootstrap !== 'undefined' ? 'Caricato' : 'Mancante'}</span></div>
-        <div class="debug-item">Memory: <span id="memory-usage">--</span></div>
-    `;
-    
-    document.body.appendChild(panel);
-    
-    // Aggiorna memoria ogni 5 secondi
-    if (performance && performance.memory) {
-        setInterval(() => {
-            const used = Math.round(performance.memory.usedJSHeapSize / 1048576);
-            document.getElementById('memory-usage').textContent = `${used}MB`;
-        }, 5000);
-    }
-}
-
-// Mostra debug panel se in modalità debug e URL contiene ?debug=1
-if (config.debug && new URLSearchParams(window.location.search).get('debug') === '1') {
-    createDebugPanel();
-}
-@endif
-
-/**
- * Refresh automatico statistiche (opzionale)
- */
-function refreshStats() {
-    const statsCards = document.querySelectorAll('.card[class*="bg-primary"], .card[class*="bg-danger"], .card[class*="bg-info"], .card[class*="bg-warning"], .card[class*="bg-success"]');
-    
-    // Aggiungi effetto loading
-    statsCards.forEach(card => {
-        card.classList.add('loading');
-    });
-    
-    // Simula refresh con timeout (sostituire con chiamata AJAX reale se necessario)
-    setTimeout(() => {
-        statsCards.forEach(card => {
-            card.classList.remove('loading');
-        });
-        showNotification('success', 'Statistiche aggiornate con successo');
-    }, 1500);
-}
-
-/**
- * Controllo connettività server
- */
-function checkServerConnectivity() {
-    fetch(config.routes.show, { 
-        method: 'HEAD',
-        cache: 'no-cache'
-    })
-    .then(response => {
-        if (response.ok) {
-            console.log('✅ Server raggiungibile');
-            document.body.classList.remove('server-offline');
-        } else {
-            console.warn('⚠️ Server risponde ma con errori:', response.status);
-        }
-    })
-    .catch(error => {
-        console.error('❌ Server non raggiungibile:', error);
-        document.body.classList.add('server-offline');
-        showNotification('error', 'Problemi di connessione al server. Alcune funzionalità potrebbero non funzionare.');
-    });
-}
-
-// Controlla connettività ogni 2 minuti
-setInterval(checkServerConnectivity, 2 * 60 * 1000);
-
-/**
  * Gestione keyboard shortcuts
  */
 document.addEventListener('keydown', function(e) {
@@ -1517,39 +1032,12 @@ document.addEventListener('keydown', function(e) {
         return false;
     }
     
-    // Escape per chiudere modals
-    if (e.key === 'Escape') {
-        const openModals = document.querySelectorAll('.modal.show');
-        openModals.forEach(modal => {
-            const bsModal = bootstrap.Modal.getInstance(modal);
-            if (bsModal) {
-                bsModal.hide();
-            }
-        });
-    }
-    
     // Alt + E per modificare prodotto
     if (e.altKey && e.key === 'e') {
         e.preventDefault();
         const editBtn = document.querySelector('a[href*="edit"]');
         if (editBtn) {
             editBtn.click();
-        }
-    }
-    
-    // Alt + S per assegnare staff (se non già assegnato)
-    if (e.altKey && e.key === 's') {
-        e.preventDefault();
-        if (!config.prodotto.staffAssegnato) {
-            const assignBtn = document.querySelector('[data-bs-target="#assignStaffModal"]');
-            if (assignBtn) {
-                assignBtn.click();
-            }
-        } else {
-            const changeBtn = document.querySelector('[data-bs-target="#changeStaffModal"]');
-            if (changeBtn) {
-                changeBtn.click();
-            }
         }
     }
 });
@@ -1559,9 +1047,7 @@ document.addEventListener('keydown', function(e) {
  */
 function initKeyboardTooltips() {
     const tooltips = [
-        { selector: 'a[href*="edit"]', title: 'Modifica prodotto (Alt+E)' },
-        { selector: '[data-bs-target="#assignStaffModal"]', title: 'Assegna staff (Alt+S)' },
-        { selector: '[data-bs-target="#changeStaffModal"]', title: 'Riassegna staff (Alt+S)' }
+        { selector: 'a[href*="edit"]', title: 'Modifica prodotto (Alt+E)' }
     ];
     
     tooltips.forEach(item => {
@@ -1579,100 +1065,6 @@ function initKeyboardTooltips() {
 initKeyboardTooltips();
 
 /**
- * Auto-save form data (localStorage fallback)
- */
-function setupAutoSave() {
-    const forms = document.querySelectorAll('form[id]');
-    
-    forms.forEach(form => {
-        const formId = form.id;
-        const inputs = form.querySelectorAll('input, select, textarea');
-        
-        // Carica dati salvati
-        inputs.forEach(input => {
-            const savedValue = sessionStorage.getItem(`${formId}_${input.name}`);
-            if (savedValue && input.type !== 'hidden') {
-                input.value = savedValue;
-            }
-        });
-        
-        // Salva ad ogni cambio
-        inputs.forEach(input => {
-            input.addEventListener('change', function() {
-                if (this.type !== 'hidden') {
-                    sessionStorage.setItem(`${formId}_${this.name}`, this.value);
-                }
-            });
-        });
-        
-        // Pulisci al submit
-        form.addEventListener('submit', function() {
-            inputs.forEach(input => {
-                sessionStorage.removeItem(`${formId}_${input.name}`);
-            });
-        });
-    });
-}
-
-setupAutoSave();
-
-/**
- * Prevenzione perdita dati
- */
-let hasUnsavedChanges = false;
-
-document.querySelectorAll('form input, form select, form textarea').forEach(input => {
-    if (input.type !== 'hidden') {
-        input.addEventListener('change', function() {
-            hasUnsavedChanges = true;
-        });
-    }
-});
-
-window.addEventListener('beforeunload', function(e) {
-    if (hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = 'Hai modifiche non salvate. Sei sicuro di voler uscire?';
-        return e.returnValue;
-    }
-});
-
-// Reset flag quando si submittano i form
-document.querySelectorAll('form').forEach(form => {
-    form.addEventListener('submit', function() {
-        hasUnsavedChanges = false;
-    });
-});
-
-/**
- * Lazy loading per immagini (se supportato)
- */
-if ('loading' in HTMLImageElement.prototype) {
-    console.log('✅ Native lazy loading supportato');
-} else {
-    // Fallback per browser che non supportano lazy loading
-    const images = document.querySelectorAll('img[loading="lazy"]');
-    
-    if ('IntersectionObserver' in window) {
-        const imageObserver = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const img = entry.target;
-                    img.src = img.dataset.src || img.src;
-                    img.classList.remove('lazy');
-                    imageObserver.unobserve(img);
-                }
-            });
-        });
-        
-        images.forEach(img => {
-            img.classList.add('lazy');
-            imageObserver.observe(img);
-        });
-    }
-}
-
-/**
  * Accessibilità migliorata
  */
 function improveAccessibility() {
@@ -1682,11 +1074,6 @@ function improveAccessibility() {
         if (text) {
             btn.setAttribute('aria-label', text);
         }
-    });
-    
-    // Aggiungi role ai pulsanti che sembrano link
-    document.querySelectorAll('button[onclick*="location"]').forEach(btn => {
-        btn.setAttribute('role', 'link');
     });
     
     // Miglioramento focus per keyboard navigation
@@ -1706,32 +1093,62 @@ function improveAccessibility() {
 improveAccessibility();
 
 // ===== INIZIALIZZAZIONE FINALE =====
-console.log('🎉 Pagina admin prodotto completamente inizializzata');
+console.log('🎉 Pagina admin prodotto (versione semplificata) completamente inizializzata');
 
 // Notifica ready per altri script
 window.dispatchEvent(new CustomEvent('adminProductPageReady', {
     detail: {
         prodotto: config.prodotto,
         routes: config.routes,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        version: 'simplified'
     }
 }));
-</script>
 
-{{-- Script aggiuntivi per funzionalità avanzate --}}
-@if(config('app.env') === 'production')
-{{-- Analytics, monitoring, etc. per produzione --}}
-<script>
-// Tracking eventi amministrazione (sostituire con il tuo sistema di analytics)
-if (typeof gtag !== 'undefined') {
-    gtag('event', 'admin_product_view', {
-        'product_id': {{ $prodotto->id }},
-        'product_name': @json($prodotto->nome),
-        'user_role': 'admin'
-    });
+@if(config('app.debug'))
+/**
+ * Controllo performance pagina (solo debug)
+ */
+window.addEventListener('load', function() {
+    if (performance && performance.timing) {
+        const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
+        console.log(`⏱️ Pagina admin prodotto caricata in: ${loadTime}ms`);
+        
+        if (loadTime > 3000) {
+            console.warn('🐌 Caricamento lento rilevato per pagina admin prodotto');
+        }
+    }
+});
+
+// Debug panel per sviluppo (versione ridotta)
+if (new URLSearchParams(window.location.search).get('debug') === '1') {
+    const panel = document.createElement('div');
+    panel.className = 'debug-panel';
+    panel.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 10px 15px;
+        border-radius: 8px;
+        font-family: 'Courier New', monospace;
+        font-size: 11px;
+        z-index: 9998;
+        max-width: 300px;
+        line-height: 1.3;
+    `;
+    panel.innerHTML = `
+        <div style="font-weight: bold; margin-bottom: 5px; color: #ffc107;">🔧 DEBUG PANEL (Simplified)</div>
+        <div>Prodotto: <span style="color: #28a745;">${config.prodotto.id}</span></div>
+        <div>Staff: <span style="color: ${config.prodotto.staffAssegnato ? '#28a745' : '#dc3545'};">${config.prodotto.staffAssegnato || 'Non assegnato'}</span></div>
+        <div>Bootstrap: <span style="color: ${typeof bootstrap !== 'undefined' ? '#28a745' : '#dc3545'};">${typeof bootstrap !== 'undefined' ? 'Caricato' : 'Mancante'}</span></div>
+    `;
+    document.body.appendChild(panel);
 }
-</script>
 @endif
+
+</script>
 
 {{-- Script di sicurezza aggiuntivi --}}
 <script>
@@ -1767,7 +1184,7 @@ document.addEventListener('securitypolicyviolation', function(e) {
                 <div class="card-header bg-warning bg-opacity-25">
                     <h6 class="mb-0">
                         <i class="bi bi-bug text-warning me-2"></i>
-                        Debug Information (Solo Sviluppo)
+                        Debug Information - Versione Semplificata
                     </h6>
                 </div>
                 <div class="card-body">
@@ -1785,34 +1202,21 @@ document.addEventListener('securitypolicyviolation', function(e) {
                             </table>
                         </div>
                         <div class="col-md-6">
-                            <h6>Informazioni Sistema:</h6>
-                            <table class="table table-sm table-borderless">
-                                <tr><th>Laravel:</th><td>{{ app()->version() }}</td></tr>
-                                <tr><th>PHP:</th><td>{{ PHP_VERSION }}</td></tr>
-                                <tr><th>Environment:</th><td>{{ app()->environment() }}</td></tr>
-                                <tr><th>Debug Mode:</th><td>{{ config('app.debug') ? 'Attivo' : 'Disattivo' }}</td></tr>
-                                <tr><th>User ID:</th><td>{{ auth()->id() }}</td></tr>
-                                <tr><th>User Livello:</th><td>{{ auth()->user()->livello_accesso }}</td></tr>
-                                <tr><th>Timestamp:</th><td>{{ now()->format('Y-m-d H:i:s') }}</td></tr>
-                            </table>
-                        </div>
-                    </div>
-                    
-                    <h6 class="mt-3">Route Disponibili:</h6>
-                    <div class="row">
-                        <div class="col-md-6">
+                            <h6>Funzionalità Attive:</h6>
                             <ul class="list-unstyled small">
-                                <li><i class="bi bi-{{ Route::has('admin.prodotti.index') ? 'check-circle text-success' : 'x-circle text-danger' }}"></i> admin.prodotti.index</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Visualizzazione prodotto</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Toggle stato attivo/inattivo</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Vista pubblica</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Modifica prodotto</li>
+                                <li><i class="bi bi-x-circle text-danger"></i> Riassegnazione staff (rimossa)</li>
+                                <li><i class="bi bi-x-circle text-danger"></i> Rimozione assegnazione (rimossa)</li>
+                            </ul>
+                            
+                            <h6 class="mt-3">Route Disponibili:</h6>
+                            <ul class="list-unstyled small">
                                 <li><i class="bi bi-{{ Route::has('admin.prodotti.show') ? 'check-circle text-success' : 'x-circle text-danger' }}"></i> admin.prodotti.show</li>
                                 <li><i class="bi bi-{{ Route::has('admin.prodotti.edit') ? 'check-circle text-success' : 'x-circle text-danger' }}"></i> admin.prodotti.edit</li>
-                                <li><i class="bi bi-{{ Route::has('admin.prodotti.update') ? 'check-circle text-success' : 'x-circle text-danger' }}"></i> admin.prodotti.update</li>
-                            </ul>
-                        </div>
-                        <div class="col-md-6">
-                            <ul class="list-unstyled small">
                                 <li><i class="bi bi-{{ Route::has('admin.prodotti.toggle-status') ? 'check-circle text-success' : 'x-circle text-danger' }}"></i> admin.prodotti.toggle-status</li>
-                                <li><i class="bi bi-{{ Route::has('admin.assegna.prodotto') ? 'check-circle text-success' : 'x-circle text-danger' }}"></i> admin.assegna.prodotto</li>
-                                <li><i class="bi bi-{{ Route::has('admin.dashboard') ? 'check-circle text-success' : 'x-circle text-danger' }}"></i> admin.dashboard</li>
                                 <li><i class="bi bi-{{ Route::has('prodotti.show') ? 'check-circle text-success' : 'x-circle text-danger' }}"></i> prodotti.show</li>
                             </ul>
                         </div>
