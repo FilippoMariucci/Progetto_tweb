@@ -654,55 +654,56 @@ public function adminIndex(Request $request)
         return view('admin.prodotti.edit', compact('prodotto', 'staffMembers'));
     }
 
-    /**
-     * Aggiorna prodotto esistente
-     */
-    public function update(Request $request, Prodotto $prodotto)
-    {
-        if (!Auth::check() || !Auth::user()->canManageProdotti()) {
-            abort(403, 'Non autorizzato');
-        }
-
-        $validated = $request->validate([
-            'nome' => 'required|string|max:255',
-            'modello' => 'required|string|max:255|unique:prodotti,modello,' . $prodotto->id,
-            'descrizione' => 'required|string',
-            'categoria' => 'required|string|max:100',
-            'note_tecniche' => 'required|string',
-            'modalita_installazione' => 'required|string',
-            'modalita_uso' => 'nullable|string',
-            'prezzo' => 'nullable|numeric|min:0',
-            'foto' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'staff_assegnato_id' => 'nullable|exists:users,id',
-            'attivo' => 'boolean',
-        ]);
-
-        // Gestione upload nuova foto
-        if ($request->hasFile('foto')) {
-            // Elimina vecchia foto
-            if ($prodotto->foto) {
-                Storage::disk('public')->delete($prodotto->foto);
-            }
-            $validated['foto'] = $request->file('foto')->store('prodotti', 'public');
-        }
-
-        $prodotto->update($validated);
-
-        Log::info('Prodotto aggiornato', [
-            'prodotto_id' => $prodotto->id,
-            'modello' => $prodotto->modello,
-            'updated_by' => Auth::id()
-        ]);
-
-        return redirect()->route('prodotti.show', $prodotto)
-            ->with('success', 'Prodotto "' . $prodotto->nome . '" aggiornato con successo');
+   /**
+ * Aggiorna prodotto esistente
+ */
+public function update(Request $request, Prodotto $prodotto)
+{
+    if (!Auth::check() || !Auth::user()->canManageProdotti()) {
+        abort(403, 'Non autorizzato');
     }
 
-    /**
-     * Disattiva prodotto (soft delete)
-     */
-    public function destroy(Prodotto $prodotto)
-    {
+    $validated = $request->validate([
+        'nome' => 'required|string|max:255',
+        'modello' => 'required|string|max:255|unique:prodotti,modello,' . $prodotto->id,
+        'descrizione' => 'required|string',
+        'categoria' => 'required|string|max:100',
+        'note_tecniche' => 'required|string',
+        'modalita_installazione' => 'required|string',
+        'modalita_uso' => 'nullable|string',
+        'prezzo' => 'nullable|numeric|min:0',
+        'foto' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+        'staff_assegnato_id' => 'nullable|exists:users,id',
+        'attivo' => 'boolean',
+    ]);
+
+    // Gestione upload nuova foto
+    if ($request->hasFile('foto')) {
+        // Elimina vecchia foto
+        if ($prodotto->foto) {
+            Storage::disk('public')->delete($prodotto->foto);
+        }
+        $validated['foto'] = $request->file('foto')->store('prodotti', 'public');
+    }
+
+    $prodotto->update($validated);
+
+    Log::info('Prodotto aggiornato', [
+        'prodotto_id' => $prodotto->id,
+        'modello' => $prodotto->modello,
+        'updated_by' => Auth::id()
+    ]);
+
+    // CORREZIONE: Redirect alla vista admin invece che pubblica
+    return redirect()->route('admin.prodotti.show', $prodotto)
+        ->with('success', 'Prodotto "' . $prodotto->nome . '" aggiornato con successo');
+}
+
+/**
+ * Disattiva prodotto (soft delete)
+ */
+public function destroy(Prodotto $prodotto)
+{
         if (!Auth::check() || !Auth::user()->canManageProdotti()) {
             abort(403, 'Non autorizzato');
         }
