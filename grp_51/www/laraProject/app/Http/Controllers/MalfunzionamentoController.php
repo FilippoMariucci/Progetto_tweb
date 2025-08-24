@@ -81,6 +81,145 @@ class MalfunzionamentoController extends Controller
     }
 
     /**
+     * Ricerca globale nei malfunzionamenti (per tecnici)
+     * Route: GET /malfunzionamenti/ricerca
+     * Name: malfunzionamenti.ricerca
+     */
+    public function ricercaGlobale(Request $request)
+    {
+        // Verifica autorizzazioni - solo tecnici (livello 2+)
+        if (!Auth::check() || !Auth::user()->canViewMalfunzionamenti()) {
+            abort(403, 'Accesso riservato a tecnici e staff');
+        }
+
+        // Query base per tutti i malfunzionamenti
+        $query = Malfunzionamento::query();
+
+        // === RICERCA NEL TITOLO E DESCRIZIONE ===
+        if ($request->filled('q')) {
+            $searchTerm = $request->input('q');
+            
+            // Ricerca full-text o LIKE se full-text non disponibile
+            try {
+                $query->whereRaw(
+                    "MATCH(titolo, descrizione) AGAINST(? IN BOOLEAN MODE)", 
+                    [$searchTerm . '*']
+                );
+            } catch (\Exception $e) {
+                // Fallback a LIKE se MATCH non supportato
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('titolo', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('descrizione', 'LIKE', '%' . $searchTerm . '%');
+                });
+            }
+        }
+
+        // === FILTRI AVANZATI ===
+        
+        // Filtro per gravità
+        if ($request->filled('gravita')) {
+            $query->where('gravita', $request->input('gravita'));
+        }
+
+        // Filtro per difficoltà
+        if ($request->filled('difficolta')) {
+            $query->where('difficolta', $request->input('difficolta'));
+        }
+
+        // Filtro per categoria prodotto
+        if ($request->filled('categoria_prodotto')) {
+            $query->whereHas('prodotto', function($q) use ($request) {
+                $q->where('categoria', $request->input('categoria_prodotto'));
+            });
+        }
+
+        // Filtro per prodotto specifico
+        if ($request->filled('prodotto_id')) {
+            $query->where('prodotto_id', $request->input('prodotto_id'));
+        }
+
+        // === ORDINAMENTO ===
+        $orderBy = $request->input('order', 'gravita');
+        
+        switch ($orderBy) {
+            case 'gravita':
+                $query->orderByRaw("FIELD(gravita, 'critica', 'alta', 'media', 'bassa')");
+                break;
+            case 'frequenza':
+                $query->orderBy('numero_segnalazioni', 'desc');
+                break;
+            case 'recente':
+                $query->orderBy('ultima_segnalazione', 'desc');
+                break;
+            case 'difficolta':
+                $query->orderByRaw("FIELD(difficolta, 'esperto', 'difficile', 'media', 'facile')");
+                break;
+            case 'alfabetico':
+                $query->orderBy('titolo', 'asc');
+                break;
+            default:
+                $query->orderBy('created_at', 'desc');
+        }
+
+        // === ESECUZIONE QUERY ===
+        $malfunzionamenti = $query->with([
+                'prodotto:id,nome,modello,categoria,foto',
+                'creatoBy:id,nome,cognome'
+            ])
+            ->paginate(15)
+            ->withQueryString();
+
+        // === STATISTICHE PER LA VISTA ===
+        $stats = [
+            'totale_trovati' => $malfunzionamenti->total(),
+            'critici' => $query->getQuery()->where('gravita', 'critica')->count(),
+            'alta_priorita' => $query->getQuery()->where('gravita', 'alta')->count(),
+        ];
+
+        // === DATI PER I FILTRI ===
+        
+        // Liste per i select dei filtri
+        $categorieProdotti = \App\Models\Prodotto::select('categoria')
+            ->distinct()
+            ->whereNotNull('categoria')
+            ->orderBy('categoria')
+            ->pluck('categoria')
+            ->mapWithKeys(function($categoria) {
+                return [$categoria => ucfirst(str_replace('_', ' ', $categoria))];
+            });
+
+        // Prodotti per filtro (solo se c'è già una ricerca)
+        $prodotti = collect();
+        if ($request->filled('q') || $request->filled('categoria_prodotto')) {
+            $prodotti = \App\Models\Prodotto::select('id', 'nome', 'modello')
+                ->when($request->filled('categoria_prodotto'), function($q) use ($request) {
+                    $q->where('categoria', $request->input('categoria_prodotto'));
+                })
+                ->orderBy('nome')
+                ->limit(50)
+                ->get();
+        }
+
+        // Log della ricerca per analytics
+        if ($request->filled('q')) {
+            \Log::info('Ricerca globale malfunzionamenti', [
+                'search_term' => $request->input('q'),
+                'user_id' => Auth::id(),
+                'results_count' => $malfunzionamenti->total(),
+                'filters' => $request->only(['gravita', 'difficolta', 'categoria_prodotto', 'order'])
+            ]);
+        }
+
+        return view('malfunzionamenti.ricerca', compact(
+            'malfunzionamenti', 
+            'stats', 
+            'categorieProdotti', 
+            'prodotti'
+        ));
+    }
+
+
+    /**
      * Visualizza un singolo malfunzionamento con soluzione completa
      */
     public function show(Prodotto $prodotto, Malfunzionamento $malfunzionamento)
@@ -111,6 +250,61 @@ class MalfunzionamentoController extends Controller
             ->get();
 
         return view('malfunzionamenti.show', compact('prodotto', 'malfunzionamento', 'correlati'));
+    }
+
+    /**
+     * Segnala problema per un malfunzionamento (non API)
+     * Route: POST /malfunzionamenti/{malfunzionamento}/segnala
+     */
+    public function segnalaProblema(Request $request, Malfunzionamento $malfunzionamento)
+    {
+        // Verifica autorizzazioni
+        if (!Auth::check() || !Auth::user()->canViewMalfunzionamenti()) {
+            abort(403, 'Non autorizzato');
+        }
+
+        try {
+            // Incrementa segnalazioni e aggiorna data
+            $malfunzionamento->increment('numero_segnalazioni');
+            $malfunzionamento->update(['ultima_segnalazione' => now()->toDateString()]);
+
+            // Log dell'azione
+            \Log::info('Segnalazione malfunzionamento', [
+                'malfunzionamento_id' => $malfunzionamento->id,
+                'nuovo_count' => $malfunzionamento->numero_segnalazioni,
+                'segnalato_da' => Auth::id(),
+                'ip' => $request->ip()
+            ]);
+
+            // Risposta appropriata
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'nuovo_count' => $malfunzionamento->numero_segnalazioni,
+                    'message' => 'Segnalazione registrata con successo'
+                ]);
+            }
+
+            return back()->with('success', 
+                'Segnalazione registrata con successo! Totale segnalazioni: ' . $malfunzionamento->numero_segnalazioni
+            );
+
+        } catch (\Exception $e) {
+            \Log::error('Errore segnalazione malfunzionamento', [
+                'malfunzionamento_id' => $malfunzionamento->id,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage()
+            ]);
+
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Errore durante la segnalazione'
+                ], 500);
+            }
+
+            return back()->with('error', 'Errore durante la segnalazione del problema.');
+        }
     }
 
     /**
