@@ -7,1201 +7,156 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 use App\Models\CentroAssistenza;
 use App\Models\User;
+use Carbon\Carbon;
 
 /**
  * Controller completo per la gestione dei Centri di Assistenza
+ * Include TUTTI i metodi Web e API necessari per il funzionamento del sistema
  * 
- * Gestisce:
- * - Visualizzazione pubblica centri (tutti i livelli)
- * - CRUD completo centri (solo admin - livello 4)
- * - Assegnazione/rimozione tecnici (solo admin)
- * - API per chiamate AJAX
- * - Export/Import dati
- * 
- * LIVELLI DI ACCESSO:
- * - Livello 1 (Pubblico): Visualizzazione elenco e dettagli base
- * - Livello 2+ (Tecnici+): Visualizzazione dettagli completi
- * - Livello 4 (Admin): Gestione completa + assegnazione tecnici
+ * STRUTTURA COMPLETA:
+ * 1. Metodi pubblici (Livello 1 - accesso libero)
+ * 2. API pubbliche (per AJAX senza autenticazione)
+ * 3. Metodi amministrativi (Livello 4)
+ * 4. Gestione tecnici nei centri
+ * 5. API amministrative avanzate
+ * 6. Metodi utility
  */
 class CentroAssistenzaController extends Controller
 {
-    // ========================================
-    // METODI PUBBLICI - Accessibili a tutti
-    // ========================================
+    // ================================================
+    // SEZIONE 1: METODI PUBBLICI (Livello 1)
+    // ================================================
 
     /**
-     * Mostra l'elenco pubblico dei centri di assistenza
-     * Accessibile a tutti gli utenti (anche non autenticati - Livello 1)
-     * 
-     * @param Request $request Parametri di filtro e ricerca
-     * @return \Illuminate\View\View
+     * Vista pubblica: Lista centri di assistenza
+     * Route: GET /centri-assistenza
+     * Accessibile a tutti gli utenti senza autenticazione
      */
     public function index(Request $request)
     {
         try {
-            // Query base per i centri con conteggio tecnici
-            $query = CentroAssistenza::withCount('tecnici');
+            // Query base per recuperare i centri
+            $query = CentroAssistenza::query();
 
-            // === FILTRI DI RICERCA ===
-            
-            // Filtro per provincia (dropdown)
-            if ($request->filled('provincia')) {
-                $provincia = strtoupper(trim($request->provincia));
-                $query->where('provincia', $provincia);
-            }
-
-            // Filtro per città (input text)
-            if ($request->filled('citta')) {
-                $citta = trim($request->citta);
-                $query->where('citta', 'LIKE', "%{$citta}%");
-            }
-
-            // Ricerca testuale globale (nome del centro)
+            // FILTRO: Ricerca per termine generico
             if ($request->filled('search')) {
-                $searchTerm = trim($request->search);
+                $searchTerm = $request->search;
                 $query->where(function($q) use ($searchTerm) {
                     $q->where('nome', 'LIKE', "%{$searchTerm}%")
                       ->orWhere('citta', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('provincia', 'LIKE', "%{$searchTerm}%")
                       ->orWhere('indirizzo', 'LIKE', "%{$searchTerm}%");
                 });
             }
 
-            // Filtro per stato (con/senza tecnici)
-            if ($request->filled('stato')) {
-                $stato = $request->stato;
-                if ($stato === 'attivi') {
-                    $query->whereHas('tecnici');
-                } elseif ($stato === 'inattivi') {
-                    $query->whereDoesntHave('tecnici');
-                }
-            }
-
-            // === ORDINAMENTO ===
-            $sortBy = $request->get('sort', 'nome'); // Default: ordina per nome
-            $sortDirection = $request->get('direction', 'asc'); // Default: crescente
-
-            // Campi di ordinamento permessi (sicurezza)
-            $allowedSorts = ['nome', 'citta', 'provincia', 'tecnici_count'];
-            if (!in_array($sortBy, $allowedSorts)) {
-                $sortBy = 'nome';
-            }
-
-            // Direzione ordinamento permessa
-            if (!in_array($sortDirection, ['asc', 'desc'])) {
-                $sortDirection = 'asc';
-            }
-
-            // Applica ordinamento
-            $query->orderBy($sortBy, $sortDirection);
-
-            // === PAGINAZIONE ===
-            $centri = $query->paginate(12); // 12 centri per pagina
-
-            // Mantieni i parametri di ricerca nella paginazione
-            $centri->appends($request->query());
-
-            // === STATISTICHE PER LA VISTA ===
-            $statistiche = [
-                'totale_centri' => CentroAssistenza::count(),
-                'centri_attivi' => CentroAssistenza::whereHas('tecnici')->count(),
-                'centri_inattivi' => CentroAssistenza::whereDoesntHave('tecnici')->count(),
-                'province_coperte' => CentroAssistenza::distinct('provincia')->count(),
-                'totale_tecnici' => User::where('livello_accesso', 2)->whereNotNull('centro_assistenza_id')->count()
-            ];
-
-            // Lista province per il filtro dropdown
-            $province = CentroAssistenza::distinct('provincia')
-                ->whereNotNull('provincia')
-                ->orderBy('provincia')
-                ->pluck('provincia');
-
-            return view('centri.index', compact('centri', 'statistiche', 'province'));
-
-        } catch (\Exception $e) {
-            // Log dell'errore per debugging
-            Log::error('Errore caricamento centri pubblici', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'user_id' => Auth::id(),
-                'request_data' => $request->all()
-            ]);
-
-            return view('centri.index')
-                ->with('error', 'Errore nel caricamento dei centri di assistenza. Riprova più tardi.');
-        }
-    }
-
-    /**
-     * Mostra i dettagli di un singolo centro
-     * Accessibile a tutti, ma con informazioni diverse basate sul livello di accesso
-     * 
-     * @param CentroAssistenza $centro
-     * @return \Illuminate\View\View
-     */
-    public function show(CentroAssistenza $centro)
-    {
-        try {
-            // Carica il centro con le relazioni necessarie
-            $centro->load([
-                'tecnici' => function($query) {
-                    // Ordina i tecnici per cognome e includi solo dati necessari
-                    $query->select('id', 'nome', 'cognome', 'specializzazione', 'data_nascita', 'centro_assistenza_id')
-                          ->orderBy('cognome')
-                          ->orderBy('nome');
-                }
-            ]);
-
-            // === DATI AGGIUNTIVI PER LA VISTA ===
-            
-            // Centri nelle vicinanze (stessa provincia, escluso quello corrente)
-            $centriVicini = CentroAssistenza::where('id', '!=', $centro->id)
-                ->where('provincia', $centro->provincia)
-                ->whereHas('tecnici') // Solo centri con tecnici attivi
-                ->withCount('tecnici')
-                ->orderBy('tecnici_count', 'desc')
-                ->limit(3)
-                ->get();
-
-            // Statistiche del centro
-            $statisticheCentro = [
-                'totale_tecnici' => $centro->tecnici->count(),
-                'specializzazioni' => $centro->tecnici->groupBy('specializzazione')->map->count(),
-                'eta_media' => $centro->tecnici->where('data_nascita', '!=', null)->avg(function($tecnico) {
-                    return $tecnico->data_nascita ? $tecnico->data_nascita->age : 0;
-                }),
-                'ultimo_aggiornamento' => $centro->updated_at->diffForHumans()
-            ];
-
-            // === SCELTA DELLA VISTA BASATA SU AUTORIZZAZIONI ===
-            
-            // Se è un admin, mostra la vista amministrativa con funzionalità CRUD
-            if (Auth::check() && Auth::user()->isAdmin()) {
-                return view('admin.centri.show', compact('centro', 'centriVicini', 'statisticheCentro'));
-            }
-
-            // Altrimenti mostra la vista pubblica/standard
-            return view('centri.show', compact('centro', 'centriVicini', 'statisticheCentro'));
-
-        } catch (\Exception $e) {
-            Log::error('Errore visualizzazione centro', [
-                'centro_id' => $centro->id,
-                'error' => $e->getMessage(),
-                'user_id' => Auth::id()
-            ]);
-
-            return redirect()->route('centri.index')
-                ->with('error', 'Impossibile visualizzare i dettagli del centro richiesto.');
-        }
-    }
-
-    // ========================================
-    // METODI AMMINISTRATIVI - Solo Admin (Livello 4)
-    // ========================================
-
-    /**
-     * Dashboard amministrativa per la gestione dei centri
-     * Solo per amministratori (livello 4)
-     * 
-     * @param Request $request
-     * @return \Illuminate\View\View
-     */
-    public function adminIndex(Request $request)
-    {
-        // Verifica autorizzazione admin
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            abort(403, 'Accesso riservato agli amministratori');
-        }
-
-        try {
-            // Query con conteggi e relazioni per la vista admin
-            $query = CentroAssistenza::withCount('tecnici')
-                ->with(['tecnici' => function($q) {
-                    $q->select('id', 'nome', 'cognome', 'specializzazione', 'centro_assistenza_id');
-                }]);
-
-            // === FILTRI AMMINISTRATIVI ===
-            
+            // FILTRO: Provincia specifica
             if ($request->filled('provincia')) {
                 $query->where('provincia', strtoupper($request->provincia));
             }
 
-            if ($request->filled('search')) {
-                $searchTerm = trim($request->search);
-                $query->where(function($q) use ($searchTerm) {
-                    $q->where('nome', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('citta', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('indirizzo', 'LIKE', "%{$searchTerm}%");
-                });
+            // FILTRO: Città specifica
+            if ($request->filled('citta')) {
+                $query->where('citta', 'LIKE', '%' . $request->citta . '%');
             }
 
-            // Filtro per centri con/senza tecnici
-            if ($request->filled('stato_tecnici')) {
-                $stato = $request->stato_tecnici;
-                if ($stato === 'con_tecnici') {
-                    $query->whereHas('tecnici');
-                } elseif ($stato === 'senza_tecnici') {
-                    $query->whereDoesntHave('tecnici');
-                }
-            }
+            // Esecuzione query con paginazione
+            $centri = $query->withCount('tecnici') // Conta tecnici per ogni centro
+                ->orderBy('provincia')
+                ->orderBy('citta')
+                ->orderBy('nome')
+                ->paginate(12) // 12 centri per pagina
+                ->withQueryString(); // Mantiene parametri URL
 
-            // Ordinamento per vista admin
-            $query->orderBy('nome');
-
-            $centri = $query->paginate(15);
-            $centri->appends($request->query());
-
-            // === STATISTICHE AMMINISTRATIVE ===
-            $stats = [
-                'totale' => CentroAssistenza::count(),
-                'con_tecnici' => CentroAssistenza::whereHas('tecnici')->count(),
-                'senza_tecnici' => CentroAssistenza::whereDoesntHave('tecnici')->count(),
-                'tecnici_non_assegnati' => User::where('livello_accesso', 2)
-                    ->whereNull('centro_assistenza_id')->count(),
-                'province_attive' => CentroAssistenza::distinct('provincia')->count()
-            ];
-
-            // Province per filtro
-            $province = CentroAssistenza::distinct('provincia')
+            // Recupera tutte le province disponibili per il filtro
+            $province = CentroAssistenza::distinct()
                 ->whereNotNull('provincia')
                 ->orderBy('provincia')
-                ->pluck('provincia');
-
-            return view('admin.centri.index', compact('centri', 'stats', 'province'));
-
-        } catch (\Exception $e) {
-            Log::error('Errore dashboard admin centri', [
-                'error' => $e->getMessage(),
-                'admin_id' => Auth::id()
-            ]);
-
-            return redirect()->route('admin.dashboard')
-                ->with('error', 'Errore nel caricamento della dashboard centri');
-        }
-    }
-
-    /**
-     * Mostra il form per creare un nuovo centro
-     * Solo per amministratori
-     * 
-     * @return \Illuminate\View\View
-     */
-    public function create()
-    {
-        // Verifica autorizzazione
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            abort(403, 'Non autorizzato');
-        }
-
-        return view('admin.centri.create');
-    }
-
-    /**
-     * Salva un nuovo centro nel database
-     * Solo per amministratori
-     * 
-     * @param Request $request
-     * @return \Illuminate\Http\RedirectResponse
-     */
-    public function store(Request $request)
-    {
-        // Verifica autorizzazione
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            abort(403, 'Non autorizzato');
-        }
-
-        // === VALIDAZIONE DATI ===
-        $validator = Validator::make($request->all(), [
-            'nome' => [
-                'required',
-                'string',
-                'max:255',
-                'unique:centri_assistenza,nome' // Nome univoco
-            ],
-            'indirizzo' => 'required|string|max:255',
-            'citta' => 'required|string|max:100',
-            'provincia' => 'required|string|size:2', // Codice provincia (es. AN, MI)
-            'cap' => 'nullable|string|regex:/^[0-9]{5}$/', // CAP italiano 5 cifre
-            'telefono' => 'nullable|string|max:20',
-            'email' => 'nullable|email|max:255|unique:centri_assistenza,email'
-        ], [
-            // Messaggi di errore personalizzati
-            'nome.required' => 'Il nome del centro è obbligatorio',
-            'nome.unique' => 'Esiste già un centro con questo nome',
-            'indirizzo.required' => 'L\'indirizzo è obbligatorio',
-            'citta.required' => 'La città è obbligatoria',
-            'provincia.required' => 'La provincia è obbligatoria',
-            'provincia.size' => 'La provincia deve essere di 2 caratteri (es. AN)',
-            'cap.regex' => 'Il CAP deve essere di 5 cifre',
-            'email.email' => 'Formato email non valido',
-            'email.unique' => 'Questa email è già utilizzata da un altro centro'
-        ]);
-
-        if ($validator->fails()) {
-            return redirect()->back()
-                ->withErrors($validator)
-                ->withInput();
-        }
-
-        try {
-            // === CREAZIONE CENTRO ===
-            DB::beginTransaction();
-
-            $centro = CentroAssistenza::create([
-                'nome' => trim($request->nome),
-                'indirizzo' => trim($request->indirizzo),
-                'citta' => trim($request->citta),
-                'provincia' => strtoupper(trim($request->provincia)), // Sempre maiuscolo
-                'cap' => $request->cap ? trim($request->cap) : null,
-                'telefono' => $request->telefono ? trim($request->telefono) : null,
-                'email' => $request->email ? trim(strtolower($request->email)) : null // Sempre minuscolo
-            ]);
-
-            DB::commit();
-
-            // Log dell'operazione
-            Log::info('Nuovo centro creato', [
-                'centro_id' => $centro->id,
-                'centro_nome' => $centro->nome,
-                'created_by' => Auth::id()
-            ]);
-
-            return redirect()->route('admin.centri.show', $centro)
-                ->with('success', "Centro \"{$centro->nome}\" creato con successo!");
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            
-            Log::error('Errore creazione centro', [
-                'error' => $e->getMessage(),
-                'admin_id' => Auth::id(),
-                'request_data' => $request->all()
-            ]);
-
-            return redirect()->back()
-                ->withInput()
-                ->with('error', 'Errore nella creazione del centro. Riprova.');
-        }
-    }
-
-    /**
-     * Mostra il form per modificare un centro esistente
-     * Solo per amministratori
-     * 
-     * @param CentroAssistenza $centro
-     * @return \Illuminate\View\View
-     */
-    public function edit(CentroAssistenza $centro)
-    {
-        // Verifica autorizzazione
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            abort(403, 'Non autorizzato');
-        }
-
-        return view('admin.centri.edit', compact('centro'));
-    }
-
-    /**
-     * Aggiorna i dati di un centro esistente
-     * Solo per amministratori
-     * 
-     * @param Request $request
-     * @param CentroAssistenza $centro
-     * @return \Illuminate\Http\RedirectResponse
-     */
-    public function update(Request $request, CentroAssistenza $centro)
-    {
-        // Verifica autorizzazione
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            abort(403, 'Non autorizzato');
-        }
-
-        // === VALIDAZIONE CON ESCLUSIONE CENTRO CORRENTE ===
-        $validator = Validator::make($request->all(), [
-            'nome' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('centri_assistenza', 'nome')->ignore($centro->id) // Ignora il centro corrente per l'unicità
-            ],
-            'indirizzo' => 'required|string|max:255',
-            'citta' => 'required|string|max:100',
-            'provincia' => 'required|string|size:2',
-            'cap' => 'nullable|string|regex:/^[0-9]{5}$/',
-            'telefono' => 'nullable|string|max:20',
-            'email' => [
-                'nullable',
-                'email',
-                'max:255',
-                Rule::unique('centri_assistenza', 'email')->ignore($centro->id) // Ignora il centro corrente
-            ]
-        ]);
-
-        if ($validator->fails()) {
-            return redirect()->back()
-                ->withErrors($validator)
-                ->withInput();
-        }
-
-        try {
-            // === AGGIORNAMENTO CENTRO ===
-            DB::beginTransaction();
-
-            $centro->update([
-                'nome' => trim($request->nome),
-                'indirizzo' => trim($request->indirizzo),
-                'citta' => trim($request->citta),
-                'provincia' => strtoupper(trim($request->provincia)),
-                'cap' => $request->cap ? trim($request->cap) : null,
-                'telefono' => $request->telefono ? trim($request->telefono) : null,
-                'email' => $request->email ? trim(strtolower($request->email)) : null,
-            ]);
-
-            DB::commit();
-
-            Log::info('Centro aggiornato', [
-                'centro_id' => $centro->id,
-                'updated_by' => Auth::id()
-            ]);
-
-            return redirect()->route('admin.centri.show', $centro)
-                ->with('success', "Centro \"{$centro->nome}\" aggiornato con successo!");
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            
-            Log::error('Errore aggiornamento centro', [
-                'centro_id' => $centro->id,
-                'error' => $e->getMessage(),
-                'admin_id' => Auth::id()
-            ]);
-
-            return redirect()->back()
-                ->withInput()
-                ->with('error', 'Errore nell\'aggiornamento del centro');
-        }
-    }
-
-    /**
-     * Elimina un centro dal database
-     * Solo per amministratori - con controllo tecnici assegnati
-     * 
-     * @param CentroAssistenza $centro
-     * @return \Illuminate\Http\RedirectResponse
-     */
-    public function destroy(CentroAssistenza $centro)
-    {
-        // Verifica autorizzazione
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            abort(403, 'Non autorizzato');
-        }
-
-        try {
-            DB::beginTransaction();
-
-            // === CONTROLLO VINCOLI ===
-            // Verifica se ci sono tecnici assegnati a questo centro
-            $tecnici = $centro->tecnici()->count();
-            if ($tecnici > 0) {
-                return redirect()->back()
-                    ->with('error', "Impossibile eliminare il centro: ci sono {$tecnici} tecnici assegnati. Riassegnali prima di eliminare il centro.");
-            }
-
-            $nomeCentro = $centro->nome;
-            $centro->delete();
-
-            DB::commit();
-
-            Log::warning('Centro eliminato', [
-                'centro_eliminato' => $nomeCentro,
-                'deleted_by' => Auth::id()
-            ]);
-
-            return redirect()->route('admin.centri.index')
-                ->with('success', "Centro \"{$nomeCentro}\" eliminato con successo");
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            
-            Log::error('Errore eliminazione centro', [
-                'centro_id' => $centro->id,
-                'error' => $e->getMessage(),
-                'admin_id' => Auth::id()
-            ]);
-
-            return redirect()->back()
-                ->with('error', 'Errore nell\'eliminazione del centro');
-        }
-    }
-
-    // ========================================
-    // GESTIONE TECNICI NEI CENTRI
-    // ========================================
-
-    /**
-     * Assegna un tecnico a un centro di assistenza
-     * Gestisce sia nuove assegnazioni che riassegnazioni da altri centri
-     * Supporta richieste AJAX e form standard
-     * 
-     * @param Request $request
-     * @param CentroAssistenza $centro
-     * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
-     */
-    public function assegnaTecnico(Request $request, CentroAssistenza $centro)
-    {
-        // Verifica autorizzazione admin
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            $message = 'Non autorizzato';
-            
-            if ($request->expectsJson()) {
-                return response()->json(['success' => false, 'message' => $message], 403);
-            }
-            
-            return redirect()->back()->with('error', $message);
-        }
-
-        // === VALIDAZIONE INPUT ===
-        $validator = Validator::make($request->all(), [
-            'tecnico_id' => [
-                'required',
-                'integer',
-                'exists:users,id',
-                Rule::exists('users', 'id')->where('livello_accesso', 2)
-            ]
-        ], [
-            'tecnico_id.required' => 'Seleziona un tecnico',
-            'tecnico_id.exists' => 'Tecnico non valido'
-        ]);
-
-        if ($validator->fails()) {
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => false, 
-                    'message' => $validator->errors()->first()
-                ], 422);
-            }
-            
-            return redirect()->back()->withErrors($validator);
-        }
-
-        try {
-            DB::beginTransaction();
-
-            $tecnico = User::findOrFail($request->tecnico_id);
-            
-            // Verifica che non sia già assegnato a QUESTO centro
-            if ($tecnico->centro_assistenza_id == $centro->id) {
-                $message = "Il tecnico è già assegnato a questo centro";
-                
-                if ($request->expectsJson()) {
-                    return response()->json(['success' => false, 'message' => $message], 422);
-                }
-                
-                return redirect()->back()->with('error', $message);
-            }
-
-            // Salva info centro precedente
-            $centroPrecedente = $tecnico->centroAssistenza;
-            $centroPrecedenteNome = $centroPrecedente ? $centroPrecedente->nome : 'Nessuno';
-
-            // === ASSEGNAZIONE CON TIMESTAMP ===
-            $tecnico->update([
-                'centro_assistenza_id' => $centro->id,
-                'assigned_at' => now() // Timestamp di assegnazione
-            ]);
-
-            DB::commit();
-
-            // Log dell'operazione
-            Log::info('Tecnico assegnato/riassegnato', [
-                'tecnico_id' => $tecnico->id,
-                'tecnico_nome' => $tecnico->nome_completo,
-                'centro_precedente' => $centroPrecedenteNome,
-                'centro_nuovo' => $centro->nome,
-                'centro_nuovo_id' => $centro->id,
-                'assigned_at' => $tecnico->assigned_at->toISOString(),
-                'tipo_operazione' => $centroPrecedente ? 'riassegnazione' : 'prima_assegnazione',
-                'assigned_by' => Auth::id()
-            ]);
-
-            // Messaggio di successo
-            if ($centroPrecedente) {
-                $successMessage = "Tecnico \"{$tecnico->nome_completo}\" riassegnato da \"{$centroPrecedenteNome}\" a \"{$centro->nome}\"";
-            } else {
-                $successMessage = "Tecnico \"{$tecnico->nome_completo}\" assegnato al centro \"{$centro->nome}\"";
-            }
-
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => $successMessage,
-                    'tecnico' => [
-                        'id' => $tecnico->id,
-                        'nome_completo' => $tecnico->nome_completo,
-                        'specializzazione' => $tecnico->specializzazione ?? 'Non specificata',
-                        'assigned_at' => $tecnico->assigned_at->toISOString()
-                    ]
-                ]);
-            }
-
-            return redirect()->route('admin.centri.show', $centro)
-                ->with('success', $successMessage);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            
-            Log::error('Errore assegnazione tecnico', [
-                'centro_id' => $centro->id,
-                'tecnico_id' => $request->tecnico_id,
-                'error' => $e->getMessage(),
-                'admin_id' => Auth::id()
-            ]);
-
-            $errorMessage = 'Errore nell\'assegnazione del tecnico';
-
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $errorMessage
-                ], 500);
-            }
-
-            return redirect()->back()->with('error', $errorMessage);
-        }
-    }
-
-    /**
-     * Rimuove un tecnico da un centro (lo rende non assegnato)
-     * Supporta richieste AJAX e form standard
-     * 
-     * @param Request $request
-     * @param CentroAssistenza $centro
-     * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
-     */
-    public function rimuoviTecnico(Request $request, CentroAssistenza $centro)
-    {
-        // Verifica autorizzazione admin
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            $message = 'Non autorizzato';
-            
-            if ($request->expectsJson()) {
-                return response()->json(['success' => false, 'message' => $message], 403);
-            }
-            
-            return redirect()->back()->with('error', $message);
-        }
-
-        // === VALIDAZIONE ===
-        $validator = Validator::make($request->all(), [
-            'tecnico_id' => [
-                'required',
-                'integer',
-                'exists:users,id'
-            ]
-        ]);
-
-        if ($validator->fails()) {
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => false, 
-                    'message' => $validator->errors()->first()
-                ], 422);
-            }
-            
-            return redirect()->back()->withErrors($validator);
-        }
-
-        try {
-            DB::beginTransaction();
-
-            $tecnico = User::findOrFail($request->tecnico_id);
-
-            // Verifica che sia effettivamente assegnato a questo centro
-            if ($tecnico->centro_assistenza_id != $centro->id) {
-                $message = "Il tecnico non è assegnato a questo centro";
-                
-                if ($request->expectsJson()) {
-                    return response()->json(['success' => false, 'message' => $message], 422);
-                }
-                
-                return redirect()->back()->with('error', $message);
-            }
-
-            // === RIMOZIONE CON RESET TIMESTAMP ===
-            $tecnico->update([
-                'centro_assistenza_id' => null,
-                'assigned_at' => null // Reset timestamp
-            ]);
-
-            DB::commit();
-
-            Log::info('Tecnico rimosso da centro', [
-                'tecnico_id' => $tecnico->id,
-                'tecnico_nome' => $tecnico->nome_completo,
-                'centro_id' => $centro->id,
-                'centro_nome' => $centro->nome,
-                'removed_at' => now()->toISOString(),
-                'removed_by' => Auth::id()
-            ]);
-
-            $successMessage = "Tecnico \"{$tecnico->nome_completo}\" rimosso dal centro \"{$centro->nome}\"";
-
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => $successMessage
-                ]);
-            }
-
-            return redirect()->route('admin.centri.show', $centro)
-                ->with('success', $successMessage);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            
-            Log::error('Errore rimozione tecnico', [
-                'centro_id' => $centro->id,
-                'tecnico_id' => $request->tecnico_id,
-                'error' => $e->getMessage(),
-                'admin_id' => Auth::id()
-            ]);
-
-            $errorMessage = 'Errore nella rimozione del tecnico';
-
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $errorMessage
-                ], 500);
-            }
-
-            return redirect()->back()->with('error', $errorMessage);
-        }
-    }
-
-    // ========================================
-    // API ENDPOINTS PER AJAX - METODI MANCANTI CRITICI!
-    // ========================================
-
-    /**
-     * API: Lista di TUTTI i tecnici disponibili nel sistema
-     * ROUTE: GET /api/admin/tecnici-disponibili
-     * 
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function getTecniciDisponibili(Request $request)
-    {
-        // Verifica autorizzazione admin
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            return response()->json([
-                'success' => false, 
-                'message' => 'Non autorizzato'
-            ], 403);
-        }
-
-        try {
-            // === QUERY TUTTI I TECNICI ===
-            // Ottiene TUTTI i tecnici del sistema (livello_accesso = 2)
-            $query = User::where('livello_accesso', 2) // Solo tecnici
-                ->select('id', 'nome', 'cognome', 'specializzazione', 'centro_assistenza_id', 'data_nascita')
-                ->with(['centroAssistenza:id,nome']) // Include info centro attuale
-                ->orderBy('cognome')
-                ->orderBy('nome');
-
-            // === FILTRO DI RICERCA (opzionale) ===
-            if ($request->filled('search')) {
-                $searchTerm = trim($request->input('search'));
-                $query->where(function($q) use ($searchTerm) {
-                    $q->where('nome', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('cognome', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('specializzazione', 'LIKE', "%{$searchTerm}%");
-                });
-            }
-
-            // === FILTRO PER STATO ASSEGNAZIONE ===
-            if ($request->filled('stato')) {
-                $stato = $request->input('stato');
-                if ($stato === 'assegnati') {
-                    $query->whereNotNull('centro_assistenza_id');
-                } elseif ($stato === 'non_assegnati') {
-                    $query->whereNull('centro_assistenza_id');
-                }
-                // Se $stato === 'tutti', non aggiungiamo filtri
-            }
-
-            $tecnici = $query->get();
-
-            // === FORMATTAZIONE DATI PER LA RISPOSTA ===
-            $tecniciFormatted = $tecnici->map(function($tecnico) {
-                return [
-                    'id' => $tecnico->id,
-                    'nome' => $tecnico->nome,
-                    'cognome' => $tecnico->cognome,
-                    'nome_completo' => "{$tecnico->nome} {$tecnico->cognome}",
-                    'specializzazione' => $tecnico->specializzazione ?? 'Non specificata',
-                    'data_nascita' => $tecnico->data_nascita ? $tecnico->data_nascita->format('d/m/Y') : 'Non specificata',
-                    'eta' => $tecnico->data_nascita ? $tecnico->data_nascita->age : null,
-                    // Info centro attuale (se presente)
-                    'centro_attuale' => $tecnico->centroAssistenza ? [
-                        'id' => $tecnico->centroAssistenza->id,
-                        'nome' => $tecnico->centroAssistenza->nome,
-                        'status' => 'assigned' // Indica che è già assegnato
-                    ] : [
-                        'status' => 'unassigned' // Non assegnato a nessun centro
-                    ],
-                    'created_at' => $tecnico->created_at->diffForHumans()
-                ];
-            });
-
-            return response()->json([
-                'success' => true,
-                'tecnici' => $tecniciFormatted,
-                'total' => $tecniciFormatted->count(),
-                'message' => 'Lista tecnici caricata con successo'
-            ]);
+                ->pluck('provincia')
+                ->map(function($provincia) {
+                    return strtoupper($provincia);
+                })
+                ->unique()
+                ->values();
+
+            // Statistiche per la distribuzione geografica
+            $distribuzioneCentri = CentroAssistenza::select('provincia', DB::raw('COUNT(*) as totale'))
+                ->groupBy('provincia')
+                ->orderBy('totale', 'DESC')
+                ->get();
+
+            // Statistiche generali per il dashboard
+            $statistiche = [
+                'totale_centri' => CentroAssistenza::count(),
+                'province_coperte' => $province->count(),
+                'centri_con_tecnici' => CentroAssistenza::has('tecnici')->count(),
+                'tecnici_totali' => User::where('livello_accesso', '2')
+                    ->whereNotNull('centro_assistenza_id')->count()
+            ];
+
+            return view('centri.index', compact(
+                'centri', 
+                'province', 
+                'distribuzioneCentri', 
+                'statistiche'
+            ));
 
         } catch (\Exception $e) {
             // Log dell'errore per debugging
-            Log::error('Errore caricamento tecnici disponibili', [
+            Log::error('Errore nella vista centri', [
                 'error' => $e->getMessage(),
-                'admin_id' => Auth::id()
+                'request_data' => $request->all(),
+                'trace' => $e->getTraceAsString()
             ]);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Errore nel caricamento dei tecnici disponibili'
-            ], 500);
+            // Redirect con messaggio di errore
+            return redirect()->route('home')
+                ->with('error', 'Errore nel caricamento dei centri di assistenza');
         }
     }
 
     /**
-     * API: Lista tecnici disponibili per assegnazione a UN CENTRO SPECIFICO
-     * Restituisce tecnici non assegnati + tecnici assegnati ad altri centri
-     * ROUTE: GET /api/admin/centri/{centro}/tecnici-disponibili
-     * 
-     * @param Request $request
-     * @param CentroAssistenza $centro
-     * @return \Illuminate\Http\JsonResponse
+     * Vista pubblica: Dettagli singolo centro
+     * Route: GET /centri-assistenza/{centro}
      */
-    public function getAvailableTecnici(Request $request, CentroAssistenza $centro)
-    {
-        // Log per debug
-        Log::info('API getAvailableTecnici chiamata', [
-            'centro_id' => $centro->id,
-            'user_id' => Auth::id(),
-            'user_level' => Auth::user()->livello_accesso ?? 'non_autenticato'
-        ]);
-
-        // Verifica autorizzazione admin
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            Log::warning('Accesso negato API tecnici', [
-                'centro_id' => $centro->id,
-                'user_id' => Auth::id(),
-                'user_level' => Auth::user()->livello_accesso ?? 'non_autenticato'
-            ]);
-            
-            return response()->json([
-                'success' => false, 
-                'message' => 'Non autorizzato - Solo gli amministratori possono accedere a questa API'
-            ], 403);
-        }
-
-        try {
-            // === QUERY TECNICI DISPONIBILI PER QUESTO CENTRO ===
-            $query = User::where('livello_accesso', 2) // Solo tecnici
-                ->select('id', 'nome', 'cognome', 'specializzazione', 'centro_assistenza_id')
-                ->with(['centroAssistenza:id,nome']) // Include info centro attuale
-                ->orderBy('cognome')
-                ->orderBy('nome');
-
-            // Escludiamo solo i tecnici GIÀ ASSEGNATI A QUESTO SPECIFICO CENTRO
-            $query->where(function($q) use ($centro) {
-                $q->where('centro_assistenza_id', '!=', $centro->id)
-                  ->orWhereNull('centro_assistenza_id');
-            });
-
-            // === FILTRO DI RICERCA (opzionale) ===
-            if ($request->filled('search')) {
-                $searchTerm = trim($request->input('search'));
-                $query->where(function($q) use ($searchTerm) {
-                    $q->where('nome', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('cognome', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('specializzazione', 'LIKE', "%{$searchTerm}%");
-                });
-            }
-
-            $tecnici = $query->get();
-
-            Log::info('Tecnici trovati', [
-                'centro_id' => $centro->id,
-                'count' => $tecnici->count()
-            ]);
-
-            // === FORMATTAZIONE DATI PER LA RISPOSTA ===
-            $tecniciFormatted = $tecnici->map(function($tecnico) {
-                return [
-                    'id' => $tecnico->id,
-                    'nome' => $tecnico->nome,
-                    'cognome' => $tecnico->cognome,
-                    'nome_completo' => "{$tecnico->nome} {$tecnico->cognome}",
-                    'specializzazione' => $tecnico->specializzazione ?? 'Non specificata',
-                    // Info centro attuale
-                    'centro_attuale' => $tecnico->centroAssistenza ? [
-                        'id' => $tecnico->centroAssistenza->id,
-                        'nome' => $tecnico->centroAssistenza->nome,
-                        'status' => 'assigned'
-                    ] : [
-                        'status' => 'unassigned'
-                    ]
-                ];
-            });
-
-            return response()->json([
-                'success' => true,
-                'tecnici' => $tecniciFormatted,
-                'total' => $tecniciFormatted->count(),
-                'centro' => [
-                    'id' => $centro->id,
-                    'nome' => $centro->nome
-                ],
-                'message' => 'Lista tecnici disponibili caricata con successo'
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Errore API tecnici disponibili', [
-                'centro_id' => $centro->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'admin_id' => Auth::id()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Errore nel caricamento dei tecnici disponibili',
-                'error' => $e->getMessage() // Solo per debug, rimuovi in produzione
-            ], 500);
-        }
-    } 
-
-    /**
-     * API: Dettagli di un tecnico specifico
-     * ROUTE: GET /api/admin/tecnici/{user}
-     * 
-     * @param User $user
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function getDettagliTecnico(User $user)
-    {
-        // Verifica autorizzazione admin
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            return response()->json([
-                'success' => false, 
-                'message' => 'Non autorizzato'
-            ], 403);
-        }
-
-        // Verifica che sia effettivamente un tecnico
-        if (!$user->isTecnico()) {
-            return response()->json([
-                'success' => false, 
-                'message' => 'L\'utente selezionato non è un tecnico'
-            ], 422);
-        }
-
-        try {
-            // Carica le relazioni necessarie
-            $user->load('centroAssistenza');
-
-            // === FORMATTAZIONE DETTAGLI TECNICO ===
-            $tecnico = [
-                'id' => $user->id,
-                'nome' => $user->nome,
-                'cognome' => $user->cognome,
-                'nome_completo' => $user->nome_completo,
-                'username' => $user->username,
-                'specializzazione' => $user->specializzazione ?? 'Non specificata',
-                'data_nascita' => $user->data_nascita ? $user->data_nascita->format('d/m/Y') : 'Non specificata',
-                'eta' => $user->data_nascita ? $user->data_nascita->age . ' anni' : 'N/A',
-                'centro_attuale' => [
-                    'id' => $user->centroAssistenza ? $user->centroAssistenza->id : null,
-                    'nome' => $user->centroAssistenza ? $user->centroAssistenza->nome : 'Nessuno',
-                    'status' => $user->centroAssistenza ? 'assigned' : 'unassigned'
-                ],
-                'account_info' => [
-                    'created_at' => $user->created_at->format('d/m/Y H:i'),
-                    'last_login' => $user->last_login_at ? $user->last_login_at->format('d/m/Y H:i') : 'Mai',
-                    'attivo' => true // Puoi aggiungere logica per stato account
-                ]
-            ];
-
-            return response()->json([
-                'success' => true,
-                'tecnico' => $tecnico
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Errore caricamento dettagli tecnico', [
-                'user_id' => $user->id,
-                'error' => $e->getMessage(),
-                'admin_id' => Auth::id()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Errore nel caricamento dettagli tecnico'
-            ], 500);
-        }
-    }
-
-    /**
-     * API: Statistiche di un centro specifico
-     * ROUTE: GET /api/admin/centri/{centro}/statistiche
-     * 
-     * @param CentroAssistenza $centro
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function getStatisticheCentro(CentroAssistenza $centro)
-    {
-        // Verifica autorizzazione admin
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            return response()->json([
-                'success' => false, 
-                'message' => 'Non autorizzato'
-            ], 403);
-        }
-
-        try {
-            // === CARICAMENTO DATI CON RELAZIONI ===
-            $centro->load(['tecnici' => function($query) {
-                $query->select('id', 'nome', 'cognome', 'specializzazione', 'centro_assistenza_id', 'created_at', 'data_nascita');
-            }]);
-
-            // === CALCOLO STATISTICHE ===
-            $stats = [
-                'centro' => [
-                    'id' => $centro->id,
-                    'nome' => $centro->nome,
-                    'citta' => $centro->citta,
-                    'provincia' => $centro->provincia
-                ],
-                'tecnici' => [
-                    'totale' => $centro->tecnici->count(),
-                    'per_specializzazione' => $centro->tecnici->groupBy('specializzazione')->map->count(),
-                    'ultimo_assegnato' => $centro->tecnici->sortByDesc('created_at')->first() ? 
-                        $centro->tecnici->sortByDesc('created_at')->first()->created_at->diffForHumans() : 'Mai',
-                    'eta_media' => $centro->tecnici->where('data_nascita', '!=', null)->avg(function($tecnico) {
-                        return $tecnico->data_nascita->age ?? 0;
-                    })
-                ],
-                'attivita' => [
-                    'data_creazione' => $centro->created_at->format('d/m/Y'),
-                    'ultimo_aggiornamento' => $centro->updated_at->diffForHumans(),
-                    'giorni_attivita' => $centro->created_at->diffInDays(now())
-                ]
-            ];
-
-            // === CONFRONTO CON ALTRI CENTRI NELLA STESSA PROVINCIA ===
-            $centriStessaProvincia = CentroAssistenza::where('provincia', $centro->provincia)
-                ->where('id', '!=', $centro->id)
-                ->withCount('tecnici')
-                ->get();
-
-            if ($centriStessaProvincia->isNotEmpty()) {
-                $mediaTecniciProvincia = $centriStessaProvincia->avg('tecnici_count');
-                $stats['confronti'] = [
-                    'media_tecnici_provincia' => round($mediaTecniciProvincia, 1),
-                    'posizione_in_provincia' => $centriStessaProvincia->where('tecnici_count', '>', $centro->tecnici->count())->count() + 1,
-                    'totale_centri_provincia' => $centriStessaProvincia->count() + 1
-                ];
-            }
-
-            return response()->json([
-                'success' => true,
-                'statistiche' => $stats,
-                'generated_at' => now()->toISOString()
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Errore caricamento statistiche centro', [
-                'centro_id' => $centro->id,
-                'error' => $e->getMessage(),
-                'admin_id' => Auth::id()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Errore nel caricamento delle statistiche del centro'
-            ], 500);
-        }
-    }
-
-    /**
-     * API: Informazioni dettagliate di un centro per richieste AJAX
-     * Utile per modal o aggiornamenti dinamici
-     * ROUTE: GET /api/admin/centri/{centro}/dettagli
-     * 
-     * @param CentroAssistenza $centro
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function getCentroDetails(CentroAssistenza $centro)
+    public function show(CentroAssistenza $centro)
     {
         try {
-            // Carica il centro con tutti i tecnici associati
+            // Carica i tecnici associati al centro
             $centro->load(['tecnici' => function($query) {
                 $query->select('id', 'nome', 'cognome', 'specializzazione', 'centro_assistenza_id')
-                      ->orderBy('cognome');
+                      ->orderBy('nome');
             }]);
 
-            // Formatta i dati per la risposta JSON
-            $centroData = [
-                'id' => $centro->id,
-                'nome' => $centro->nome,
-                'indirizzo' => $centro->indirizzo,
-                'citta' => $centro->citta,
-                'provincia' => $centro->provincia,
-                'cap' => $centro->cap,
-                'telefono' => $centro->telefono,
-                'email' => $centro->email,
-                'indirizzo_completo' => $centro->indirizzo_completo,
-                'tecnici' => $centro->tecnici->map(function($tecnico) {
-                    return [
-                        'id' => $tecnico->id,
-                        'nome_completo' => $tecnico->nome_completo,
-                        'specializzazione' => $tecnico->specializzazione ?? 'Non specificata'
-                    ];
-                }),
-                'numero_tecnici' => $centro->tecnici->count(),
-                'stato' => $centro->tecnici->count() > 0 ? 'attivo' : 'inattivo'
-            ];
+            // Centri vicini nella stessa provincia
+            $centriVicini = CentroAssistenza::where('provincia', $centro->provincia)
+                ->where('id', '!=', $centro->id)
+                ->withCount('tecnici')
+                ->limit(4)
+                ->get();
 
-            return response()->json([
-                'success' => true,
-                'centro' => $centroData
-            ]);
+            return view('centri.show', compact('centro', 'centriVicini'));
 
         } catch (\Exception $e) {
-            Log::error('Errore caricamento dettagli centro', [
+            Log::error('Errore visualizzazione centro', [
                 'centro_id' => $centro->id,
                 'error' => $e->getMessage()
             ]);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Errore nel caricamento dei dettagli del centro'
-            ], 500);
+            return redirect()->route('centri.index')
+                ->with('error', 'Centro non trovato');
         }
     }
 
-    // ========================================
-    // API PUBBLICHE PER AJAX
-    // ========================================
+    // ================================================
+    // SEZIONE 2: API PUBBLICHE (senza autenticazione)
+    // ================================================
 
     /**
-     * API: Lista centri (AJAX pubblico)
-     * ROUTE: GET /api/centri
+     * API: Lista centri assistenza
+     * Route: GET /api/centri
+     * Utilizzata per caricamenti AJAX dinamici
      */
     public function apiIndex()
     {
@@ -1217,11 +172,11 @@ class CentroAssistenzaController extends Controller
                         'nome' => $centro->nome,
                         'citta' => $centro->citta,
                         'provincia' => strtoupper($centro->provincia),
-                        'indirizzo_completo' => $centro->indirizzo_completo,
+                        'indirizzo_completo' => $centro->indirizzo_completo ?? $centro->indirizzo,
                         'telefono' => $centro->telefono,
                         'email' => $centro->email,
-                        'numero_tecnici' => $centro->tecnici_count,
-                        'ha_tecnici' => $centro->tecnici_count > 0
+                        'numero_tecnici' => $centro->tecnici_count ?? 0,
+                        'ha_tecnici' => ($centro->tecnici_count ?? 0) > 0
                     ];
                 });
 
@@ -1233,7 +188,8 @@ class CentroAssistenzaController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Errore API lista centri', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
 
             return response()->json([
@@ -1244,30 +200,32 @@ class CentroAssistenzaController extends Controller
     }
 
     /**
-     * API: Ricerca centri (AJAX pubblico)
-     * ROUTE: GET /api/centri/search
+     * API: Ricerca centri
+     * Route: GET /api/centri/search?q={termine}
+     * Ricerca in tempo reale per autocompletamento
      */
     public function apiSearch(Request $request)
     {
         $termine = trim($request->get('q', ''));
         
+        // Validazione lunghezza minima termine
         if (strlen($termine) < 2) {
             return response()->json([
                 'success' => false,
-                'message' => 'Termine di ricerca troppo breve (minimo 2 caratteri)'
+                'message' => 'Termine di ricerca troppo corto (minimo 2 caratteri)'
             ], 422);
         }
 
         try {
-            $centri = CentroAssistenza::withCount('tecnici')
-                ->where(function($query) use ($termine) {
-                    $query->where('nome', 'LIKE', "%{$termine}%")
-                          ->orWhere('citta', 'LIKE', "%{$termine}%")
-                          ->orWhere('provincia', 'LIKE', "%{$termine}%")
-                          ->orWhere('indirizzo', 'LIKE', "%{$termine}%");
+            // Query di ricerca su multipli campi
+            $centri = CentroAssistenza::where(function($q) use ($termine) {
+                    $q->where('nome', 'LIKE', "%{$termine}%")
+                      ->orWhere('citta', 'LIKE', "%{$termine}%")
+                      ->orWhere('provincia', 'LIKE', "%{$termine}%")
+                      ->orWhere('indirizzo', 'LIKE', "%{$termine}%");
                 })
-                ->orderBy('nome')
-                ->limit(20)
+                ->withCount('tecnici')
+                ->limit(10) // Limita risultati per performance
                 ->get(['id', 'nome', 'citta', 'provincia', 'indirizzo'])
                 ->map(function($centro) {
                     return [
@@ -1275,8 +233,8 @@ class CentroAssistenzaController extends Controller
                         'nome' => $centro->nome,
                         'citta' => $centro->citta,
                         'provincia' => strtoupper($centro->provincia),
-                        'indirizzo' => $centro->indirizzo,
-                        'numero_tecnici' => $centro->tecnici_count
+                        'indirizzo_completo' => $centro->indirizzo_completo ?? $centro->indirizzo,
+                        'numero_tecnici' => $centro->tecnici_count ?? 0
                     ];
                 });
 
@@ -1301,131 +259,963 @@ class CentroAssistenzaController extends Controller
     }
 
     /**
-     * API: Città per provincia (per form dinamici)
-     * ROUTE: GET /api/centri/citta-per-provincia
+     * API: Città per provincia - METODO CRITICO CHE MANCAVA!
+     * Route: GET /api/centri/citta-per-provincia?provincia={provincia}
+     * Utilizzata per popolare dinamicamente le select delle città
      */
     public function apiCittaPerProvincia(Request $request)
     {
+        // Recupera e normalizza la provincia
         $provincia = strtoupper(trim($request->get('provincia', '')));
         
+        // Validazione parametro provincia
         if (!$provincia) {
             return response()->json([
                 'success' => false,
-                'message' => 'Provincia non specificata'
+                'message' => 'Parametro provincia obbligatorio',
+                'esempio' => 'GET /api/centri/citta-per-provincia?provincia=AN'
             ], 422);
         }
 
         try {
+            // Query per recuperare città distinte nella provincia
             $citta = CentroAssistenza::where('provincia', $provincia)
                 ->distinct()
+                ->whereNotNull('citta')
+                ->where('citta', '!=', '')
                 ->orderBy('citta')
                 ->pluck('citta')
-                ->filter()
-                ->values()
+                ->filter() // Rimuove valori falsy
+                ->values() // Re-indicizza array
                 ->toArray();
+
+            // Log per debugging (utile in sviluppo)
+            Log::info('API città per provincia richiesta', [
+                'provincia' => $provincia,
+                'citta_trovate' => count($citta),
+                'user_ip' => $request->ip()
+            ]);
 
             return response()->json([
                 'success' => true,
                 'citta' => $citta,
                 'provincia' => $provincia,
-                'total' => count($citta)
+                'total' => count($citta),
+                'timestamp' => now()->toISOString()
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Errore caricamento città per provincia', [
+            Log::error('Errore API città per provincia', [
                 'provincia' => $provincia,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Errore nel caricamento delle città per la provincia ' . $provincia
+            ], 500);
+        }
+    }
+
+    // ================================================
+    // SEZIONE 3: METODI AMMINISTRATIVI (Livello 4 - Solo Admin)
+    // ================================================
+
+    /**
+     * Vista amministrativa: Lista centri per gestione
+     * Route: GET /admin/centri
+     * Solo per amministratori del sistema
+     */
+    public function adminIndex(Request $request)
+    {
+        // Controllo autorizzazioni amministratore
+        if (!Auth::check() || !Auth::user()->isAdmin()) {
+            return redirect()->route('home')
+                ->with('error', 'Accesso non autorizzato');
+        }
+
+        try {
+            $query = CentroAssistenza::query();
+
+            // Filtri amministrativi avanzati
+            if ($request->filled('filtro_tecnici')) {
+                switch ($request->filtro_tecnici) {
+                    case 'con_tecnici':
+                        $query->has('tecnici');
+                        break;
+                    case 'senza_tecnici':
+                        $query->doesntHave('tecnici');
+                        break;
+                }
+            }
+
+            // Ricerca amministrativa
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('nome', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('citta', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('provincia', 'LIKE', "%{$searchTerm}%");
+                });
+            }
+
+            $centri = $query->withCount(['tecnici'])
+                ->orderBy('provincia')
+                ->orderBy('nome')
+                ->paginate(15)
+                ->withQueryString();
+
+            // Statistiche per dashboard admin
+            $statistiche = [
+                'totale_centri' => CentroAssistenza::count(),
+                'centri_attivi' => CentroAssistenza::has('tecnici')->count(),
+                'centri_vuoti' => CentroAssistenza::doesntHave('tecnici')->count(),
+                'tecnici_assegnati' => User::where('livello_accesso', '2')
+                    ->whereNotNull('centro_assistenza_id')->count(),
+                'tecnici_disponibili' => User::where('livello_accesso', '2')
+                    ->whereNull('centro_assistenza_id')->count()
+            ];
+
+            return view('admin.centri.index', compact('centri', 'statistiche'));
+
+        } catch (\Exception $e) {
+            Log::error('Errore vista admin centri', [
+                'admin_id' => Auth::id(),
+                'error' => $e->getMessage()
+            ]);
+
+            return redirect()->route('admin.dashboard')
+                ->with('error', 'Errore nel caricamento centri');
+        }
+    }
+
+    /**
+     * Vista amministrativa: Creazione nuovo centro
+     * Route: GET /admin/centri/create
+     */
+    public function create()
+    {
+        if (!Auth::check() || !Auth::user()->isAdmin()) {
+            return redirect()->route('home')
+                ->with('error', 'Accesso non autorizzato');
+        }
+
+        // Province italiane per select (completa)
+        $province = collect([
+            'AG', 'AL', 'AN', 'AO', 'AR', 'AP', 'AT', 'AV', 'BA', 'BT', 'BL', 'BN', 'BG', 'BI', 'BO', 'BZ',
+            'BS', 'BR', 'CA', 'CL', 'CB', 'CI', 'CE', 'CT', 'CZ', 'CH', 'CO', 'CS', 'CR', 'KR', 'CN', 'EN',
+            'FM', 'FE', 'FI', 'FG', 'FC', 'FR', 'GE', 'GO', 'GR', 'IM', 'IS', 'SP', 'AQ', 'LT', 'LE', 'LC',
+            'LI', 'LO', 'LU', 'MC', 'MN', 'MS', 'MT', 'VS', 'ME', 'MI', 'MO', 'MB', 'NA', 'NO', 'NU', 'OG',
+            'OT', 'OR', 'PD', 'PA', 'PR', 'PV', 'PG', 'PU', 'PE', 'PC', 'PI', 'PT', 'PN', 'PZ', 'PO', 'RG',
+            'RA', 'RC', 'RE', 'RI', 'RN', 'RM', 'RO', 'SA', 'SS', 'SV', 'SI', 'SR', 'SO', 'TA', 'TE', 'TR',
+            'TO', 'TP', 'TN', 'TV', 'TS', 'UD', 'VA', 'VE', 'VB', 'VC', 'VR', 'VV', 'VI', 'VT'
+        ])->sort()->values();
+
+        return view('admin.centri.create', compact('province'));
+    }
+
+    /**
+     * Salvataggio nuovo centro
+     * Route: POST /admin/centri
+     */
+    public function store(Request $request)
+    {
+        if (!Auth::check() || !Auth::user()->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Non autorizzato'
+            ], 403);
+        }
+
+        // Validazione dati centro
+        $validator = Validator::make($request->all(), [
+            'nome' => 'required|string|max:255|unique:centri_assistenza,nome',
+            'indirizzo' => 'required|string|max:500',
+            'citta' => 'required|string|max:100',
+            'provincia' => 'required|string|size:2',
+            'cap' => 'required|string|regex:/^[0-9]{5}$/',
+            'telefono' => 'required|string|max:20',
+            'email' => 'required|email|max:255|unique:centri_assistenza,email'
+        ], [
+            'nome.unique' => 'Esiste già un centro con questo nome',
+            'email.unique' => 'Email già utilizzata da un altro centro',
+            'cap.regex' => 'Il CAP deve essere di 5 cifre',
+            'provincia.size' => 'La provincia deve essere di 2 caratteri (es: AN)'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dati non validi',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Creazione nuovo centro
+            $centro = CentroAssistenza::create([
+                'nome' => $request->nome,
+                'indirizzo' => $request->indirizzo,
+                'citta' => $request->citta,
+                'provincia' => strtoupper($request->provincia),
+                'cap' => $request->cap,
+                'telefono' => $request->telefono,
+                'email' => $request->email,
+            ]);
+
+            DB::commit();
+
+            Log::info('Nuovo centro creato', [
+                'centro_id' => $centro->id,
+                'nome' => $centro->nome,
+                'admin_id' => Auth::id()
+            ]);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Centro creato con successo',
+                    'centro' => $centro,
+                    'redirect' => route('admin.centri.show', $centro)
+                ]);
+            }
+
+            return redirect()->route('admin.centri.show', $centro)
+                ->with('success', 'Centro creato con successo!');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+
+            Log::error('Errore creazione centro', [
+                'admin_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'data' => $request->all()
+            ]);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Errore nella creazione del centro'
+                ], 500);
+            }
+
+            return back()
+                ->withInput()
+                ->with('error', 'Errore nella creazione del centro');
+        }
+    }
+
+    /**
+     * Vista amministrativa: Modifica centro esistente
+     * Route: GET /admin/centri/{centro}/edit
+     */
+    public function edit(CentroAssistenza $centro)
+    {
+        if (!Auth::check() || !Auth::user()->isAdmin()) {
+            return redirect()->route('home')
+                ->with('error', 'Accesso non autorizzato');
+        }
+
+        // Province complete per select
+        $province = collect([
+            'AG', 'AL', 'AN', 'AO', 'AR', 'AP', 'AT', 'AV', 'BA', 'BT', 'BL', 'BN', 'BG', 'BI', 'BO', 'BZ',
+            'BS', 'BR', 'CA', 'CL', 'CB', 'CI', 'CE', 'CT', 'CZ', 'CH', 'CO', 'CS', 'CR', 'KR', 'CN', 'EN',
+            'FM', 'FE', 'FI', 'FG', 'FC', 'FR', 'GE', 'GO', 'GR', 'IM', 'IS', 'SP', 'AQ', 'LT', 'LE', 'LC',
+            'LI', 'LO', 'LU', 'MC', 'MN', 'MS', 'MT', 'VS', 'ME', 'MI', 'MO', 'MB', 'NA', 'NO', 'NU', 'OG',
+            'OT', 'OR', 'PD', 'PA', 'PR', 'PV', 'PG', 'PU', 'PE', 'PC', 'PI', 'PT', 'PN', 'PZ', 'PO', 'RG',
+            'RA', 'RC', 'RE', 'RI', 'RN', 'RM', 'RO', 'SA', 'SS', 'SV', 'SI', 'SR', 'SO', 'TA', 'TE', 'TR',
+            'TO', 'TP', 'TN', 'TV', 'TS', 'UD', 'VA', 'VE', 'VB', 'VC', 'VR', 'VV', 'VI', 'VT'
+        ])->sort()->values();
+
+        return view('admin.centri.edit', compact('centro', 'province'));
+    }
+
+    /**
+     * Aggiornamento centro esistente
+     * Route: PUT /admin/centri/{centro}
+     */
+    public function update(Request $request, CentroAssistenza $centro)
+    {
+        if (!Auth::check() || !Auth::user()->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Non autorizzato'
+            ], 403);
+        }
+
+        // Validazione con eccezione per il centro corrente
+        $validator = Validator::make($request->all(), [
+            'nome' => 'required|string|max:255|unique:centri_assistenza,nome,' . $centro->id,
+            'indirizzo' => 'required|string|max:500',
+            'citta' => 'required|string|max:100',
+            'provincia' => 'required|string|size:2',
+            'cap' => 'required|string|regex:/^[0-9]{5}$/',
+            'telefono' => 'required|string|max:20',
+            'email' => 'required|email|max:255|unique:centri_assistenza,email,' . $centro->id
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dati non validi',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Aggiornamento dati centro
+            $centro->update([
+                'nome' => $request->nome,
+                'indirizzo' => $request->indirizzo,
+                'citta' => $request->citta,
+                'provincia' => strtoupper($request->provincia),
+                'cap' => $request->cap,
+                'telefono' => $request->telefono,
+                'email' => $request->email,
+            ]);
+
+            DB::commit();
+
+            Log::info('Centro aggiornato', [
+                'centro_id' => $centro->id,
+                'nome' => $centro->nome,
+                'admin_id' => Auth::id()
+            ]);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Centro aggiornato con successo',
+                    'centro' => $centro
+                ]);
+            }
+
+            return redirect()->route('admin.centri.show', $centro)
+                ->with('success', 'Centro aggiornato con successo!');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+
+            Log::error('Errore aggiornamento centro', [
+                'centro_id' => $centro->id,
+                'admin_id' => Auth::id(),
+                'error' => $e->getMessage()
+            ]);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Errore nell\'aggiornamento'
+                ], 500);
+            }
+
+            return back()
+                ->withInput()
+                ->with('error', 'Errore nell\'aggiornamento');
+        }
+    }
+
+    /**
+     * Eliminazione centro
+     * Route: DELETE /admin/centri/{centro}
+     */
+    public function destroy(CentroAssistenza $centro)
+    {
+        if (!Auth::check() || !Auth::user()->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Non autorizzato'
+            ], 403);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Controlla se il centro ha tecnici assegnati
+            $tecniciAssegnati = $centro->tecnici()->count();
+            
+            if ($tecniciAssegnati > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Impossibile eliminare il centro: ha {$tecniciAssegnati} tecnici assegnati"
+                ], 422);
+            }
+
+            // Backup dati per log
+            $centroData = $centro->toArray();
+            $centro->delete();
+
+            DB::commit();
+
+            Log::warning('Centro eliminato', [
+                'centro_data' => $centroData,
+                'admin_id' => Auth::id()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Centro eliminato con successo'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+
+            Log::error('Errore eliminazione centro', [
+                'centro_id' => $centro->id,
+                'admin_id' => Auth::id(),
                 'error' => $e->getMessage()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Errore nel caricamento città'
+                'message' => 'Errore nell\'eliminazione'
             ], 500);
         }
     }
 
-    // ========================================
-    // EXPORT DATI
-    // ========================================
+    // ================================================
+    // SEZIONE 4: GESTIONE TECNICI NEI CENTRI (Solo Admin)
+    // ================================================
 
     /**
-     * Esporta i dati dei centri in formato CSV
-     * Solo per amministratori
-     * 
-     * @param Request $request
-     * @return \Symfony\Component\HttpFoundation\StreamedResponse
+     * Assegna tecnico a centro
+     * Route: POST /admin/centri/{centro}/assegna-tecnico
      */
-    public function export(Request $request)
+    public function assegnaTecnico(Request $request, CentroAssistenza $centro)
     {
-        // Verifica autorizzazione admin
         if (!Auth::check() || !Auth::user()->isAdmin()) {
-            abort(403, 'Non autorizzato');
+            return response()->json([
+                'success' => false,
+                'message' => 'Non autorizzato'
+            ], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'tecnico_id' => 'required|exists:users,id'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tecnico non valido',
+                'errors' => $validator->errors()
+            ], 422);
         }
 
         try {
-            // Query per l'export
-            $centri = CentroAssistenza::with(['tecnici' => function($query) {
-                $query->select('id', 'nome', 'cognome', 'centro_assistenza_id');
-            }])->get();
+            DB::beginTransaction();
 
-            // Preparazione dati per export
-            $dataExport = $centri->map(function($centro) {
-                return [
-                    'ID' => $centro->id,
-                    'Nome Centro' => $centro->nome,
-                    'Indirizzo' => $centro->indirizzo,
-                    'Città' => $centro->citta,
-                    'Provincia' => $centro->provincia,
-                    'CAP' => $centro->cap,
-                    'Telefono' => $centro->telefono,
-                    'Email' => $centro->email,
-                    'Numero Tecnici' => $centro->tecnici->count(),
-                    'Tecnici' => $centro->tecnici->pluck('nome_completo')->join(', '),
-                    'Data Creazione' => $centro->created_at->format('d/m/Y H:i')
-                ];
-            });
+            $tecnico = User::findOrFail($request->tecnico_id);
 
-            // Headers per download CSV
-            $headers = [
-                'Content-Type' => 'text/csv; charset=UTF-8',
-                'Content-Disposition' => 'attachment; filename="centri_assistenza_' . date('Y-m-d') . '.csv"',
-            ];
+            // Verifica che sia effettivamente un tecnico
+            if ($tecnico->livello_accesso != '2') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'L\'utente selezionato non è un tecnico'
+                ], 422);
+            }
 
-            // Generazione CSV
-            $callback = function() use ($dataExport) {
-                $file = fopen('php://output', 'w');
-                
-                // BOM per Excel UTF-8
-                fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
-                
-                // Header CSV
-                if ($dataExport->isNotEmpty()) {
-                    fputcsv($file, array_keys($dataExport->first()), ';');
-                    
-                    // Dati
-                    foreach ($dataExport as $row) {
-                        fputcsv($file, $row, ';');
-                    }
-                }
-                
-                fclose($file);
-            };
+            // Verifica che non sia già assegnato
+            if ($tecnico->centro_assistenza_id) {
+                $centroAttuale = CentroAssistenza::find($tecnico->centro_assistenza_id);
+                return response()->json([
+                    'success' => false,
+                    'message' => "Il tecnico è già assegnato al centro: {$centroAttuale->nome}"
+                ], 422);
+            }
 
-            Log::info('Export centri generato', [
-                'total_records' => $dataExport->count(),
+            // Assegnazione
+            $tecnico->centro_assistenza_id = $centro->id;
+            $tecnico->save();
+
+            DB::commit();
+
+            Log::info('Tecnico assegnato a centro', [
+                'tecnico_id' => $tecnico->id,
+                'centro_id' => $centro->id,
                 'admin_id' => Auth::id()
             ]);
 
-            return response()->stream($callback, 200, $headers);
+            return response()->json([
+                'success' => true,
+                'message' => "Tecnico {$tecnico->nome_completo} assegnato con successo",
+                'tecnico' => [
+                    'id' => $tecnico->id,
+                    'nome_completo' => $tecnico->nome_completo,
+                    'specializzazione' => $tecnico->specializzazione
+                ]
+            ]);
 
         } catch (\Exception $e) {
-            Log::error('Errore export centri', [
-                'error' => $e->getMessage(),
+            DB::rollback();
+
+            Log::error('Errore assegnazione tecnico', [
+                'tecnico_id' => $request->tecnico_id,
+                'centro_id' => $centro->id,
+                'admin_id' => Auth::id(),
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Errore nell\'assegnazione del tecnico'
+            ], 500);
+        }
+    }
+
+    /**
+     * Rimuovi tecnico da centro
+     * Route: POST /admin/centri/{centro}/rimuovi-tecnico
+     */
+    public function rimuoviTecnico(Request $request, CentroAssistenza $centro)
+    {
+        if (!Auth::check() || !Auth::user()->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Non autorizzato'
+            ], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'tecnico_id' => 'required|exists:users,id'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tecnico non valido',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $tecnico = User::findOrFail($request->tecnico_id);
+
+            // Verifica che il tecnico sia effettivamente assegnato a questo centro
+            if ($tecnico->centro_assistenza_id != $centro->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Il tecnico non è assegnato a questo centro'
+                ], 422);
+            }
+
+            // Rimozione assegnazione
+            $tecnico->centro_assistenza_id = null;
+            $tecnico->save();
+
+            DB::commit();
+
+            Log::info('Tecnico rimosso da centro', [
+                'tecnico_id' => $tecnico->id,
+                'centro_id' => $centro->id,
                 'admin_id' => Auth::id()
             ]);
 
-            return redirect()->back()
-                ->with('error', 'Errore nella generazione dell\'export');
+            return response()->json([
+                'success' => true,
+                'message' => "Tecnico {$tecnico->nome_completo} rimosso dal centro",
+                'tecnico_id' => $tecnico->id
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+
+            Log::error('Errore rimozione tecnico', [
+                'tecnico_id' => $request->tecnico_id,
+                'centro_id' => $centro->id,
+                'admin_id' => Auth::id(),
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Errore nella rimozione del tecnico'
+            ], 500);
         }
+    }
+
+    // ================================================
+    // SEZIONE 5: API AMMINISTRATIVE AVANZATE (Solo Admin)
+    // ================================================
+
+    /**
+     * API: Lista tecnici disponibili per assegnazione
+     * Route: GET /api/admin/tecnici-disponibili
+     * Utilizzata nelle interfacce di gestione centri
+     */
+    public function getTecniciDisponibili()
+    {
+        if (!Auth::check() || !Auth::user()->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Accesso non autorizzato'
+            ], 403);
+        }
+
+        try {
+            // Tecnici non ancora assegnati a nessun centro
+            $tecnici = User::where('livello_accesso', '2')
+                ->whereNull('centro_assistenza_id')
+                ->orderBy('nome')
+                ->orderBy('cognome')
+                ->get(['id', 'nome', 'cognome', 'username', 'specializzazione', 'data_nascita', 'created_at'])
+                ->map(function($tecnico) {
+                    return [
+                        'id' => $tecnico->id,
+                        'nome_completo' => $tecnico->nome_completo,
+                        'username' => $tecnico->username,
+                        'specializzazione' => $tecnico->specializzazione ?? 'Non specificata',
+                        'data_nascita' => $tecnico->data_nascita ? 
+                            $tecnico->data_nascita->format('d/m/Y') : 'Non specificata',
+                        'registrato_da' => $tecnico->created_at->diffForHumans(),
+                        'eta' => $tecnico->data_nascita ? 
+                            $tecnico->data_nascita->age : null
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'tecnici' => $tecnici,
+                'total' => $tecnici->count(),
+                'timestamp' => now()->toISOString()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Errore API tecnici disponibili', [
+                'admin_id' => Auth::id(),
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Errore nel caricamento dei tecnici disponibili'
+            ], 500);
+        }
+    }
+
+    /**
+     * API: Dettagli tecnico specifico
+     * Route: GET /api/admin/tecnici/{user}
+     * Informazioni dettagliate per amministratori
+     */
+    public function getDettagliTecnico(User $user)
+    {
+        if (!Auth::check() || !Auth::user()->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Non autorizzato'
+            ], 403);
+        }
+
+        // Verifica che sia un tecnico
+        if ($user->livello_accesso != '2') {
+            return response()->json([
+                'success' => false,
+                'message' => 'L\'utente selezionato non è un tecnico'
+            ], 422);
+        }
+
+        try {
+            // Carica relazioni
+            $user->load('centroAssistenza');
+
+            // Prepara dati dettagliati
+            $dettagli = [
+                'id' => $user->id,
+                'nome_completo' => $user->nome_completo,
+                'username' => $user->username,
+                'specializzazione' => $user->specializzazione ?? 'Non specificata',
+                'data_nascita' => $user->data_nascita ? $user->data_nascita->format('d/m/Y') : null,
+                'eta' => $user->data_nascita ? $user->data_nascita->age : null,
+                'email' => $user->email,
+                'ultimo_accesso' => $user->last_login_at ? 
+                    $user->last_login_at->diffForHumans() : 'Mai',
+                'registrato_il' => $user->created_at->format('d/m/Y H:i'),
+                'centro_assegnato' => $user->centroAssistenza ? [
+                    'id' => $user->centroAssistenza->id,
+                    'nome' => $user->centroAssistenza->nome,
+                    'citta' => $user->centroAssistenza->citta,
+                    'provincia' => $user->centroAssistenza->provincia
+                ] : null,
+                'stato' => $user->centro_assistenza_id ? 'Assegnato' : 'Disponibile'
+            ];
+
+            return response()->json([
+                'success' => true,
+                'tecnico' => $dettagli
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Errore dettagli tecnico', [
+                'tecnico_id' => $user->id,
+                'admin_id' => Auth::id(),
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Errore nel caricamento dei dettagli'
+            ], 500);
+        }
+    }
+
+    /**
+     * API: Statistiche centro specifico
+     * Route: GET /api/admin/centri/{centro}/statistiche
+     * Dati avanzati per dashboard amministrative
+     */
+    public function getStatisticheCentro(CentroAssistenza $centro)
+    {
+        if (!Auth::check() || !Auth::user()->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Non autorizzato'
+            ], 403);
+        }
+
+        try {
+            // Carica relazioni necessarie
+            $centro->load('tecnici');
+
+            // Calcolo statistiche avanzate
+            $tecniciProvincia = User::whereHas('centroAssistenza', function($q) use ($centro) {
+                $q->where('provincia', $centro->provincia);
+            })->where('livello_accesso', '2')->count();
+
+            $centriStessaProvincia = CentroAssistenza::where('provincia', $centro->provincia)
+                ->where('id', '!=', $centro->id)
+                ->count();
+
+            // Statistiche temporali
+            $giorniAttivita = $centro->created_at->diffInDays(now());
+            $settimaneAttivita = max(1, floor($giorniAttivita / 7));
+
+            $stats = [
+                // Dati base centro
+                'info_centro' => [
+                    'nome' => $centro->nome,
+                    'citta' => $centro->citta,
+                    'provincia' => $centro->provincia,
+                    'creato_il' => $centro->created_at->format('d/m/Y')
+                ],
+                
+                // Statistiche tecnici
+                'tecnici' => [
+                    'assegnati_centro' => $centro->tecnici->count(),
+                    'totale_provincia' => $tecniciProvincia,
+                    'media_per_centro_provincia' => $centriStessaProvincia > 0 ? 
+                        round($tecniciProvincia / ($centriStessaProvincia + 1), 1) : $centro->tecnici->count(),
+                    'specializzazioni' => $centro->tecnici->whereNotNull('specializzazione')
+                        ->pluck('specializzazione')
+                        ->countBy()
+                        ->toArray()
+                ],
+                
+                // Contesto geografico
+                'contesto_geografico' => [
+                    'centri_stessa_provincia' => $centriStessaProvincia,
+                    'posizione_in_provincia' => CentroAssistenza::where('provincia', $centro->provincia)
+                        ->where('created_at', '<=', $centro->created_at)
+                        ->count()
+                ],
+                
+                // Metriche temporali
+                'metriche_temporali' => [
+                    'giorni_attivo' => $giorniAttivita,
+                    'settimane_attivo' => $settimaneAttivita,
+                    'ultimo_aggiornamento' => $centro->updated_at->diffForHumans()
+                ]
+            ];
+
+            return response()->json([
+                'success' => true,
+                'statistiche' => $stats,
+                'generato_il' => now()->toISOString()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Errore statistiche centro', [
+                'centro_id' => $centro->id,
+                'admin_id' => Auth::id(),
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Errore nel caricamento delle statistiche'
+            ], 500);
+        }
+    }
+
+    /**
+     * API: Tecnici disponibili per un centro specifico
+     * Route: GET /api/admin/centri/{centro}/tecnici-disponibili
+     * Utilizzata per popolare select di assegnazione
+     */
+    public function getAvailableTecnici(CentroAssistenza $centro)
+    {
+        if (!Auth::check() || !Auth::user()->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Non autorizzato'
+            ], 403);
+        }
+
+        try {
+            // Tecnici non assegnati + eventuali filtri geografici
+            $query = User::where('livello_accesso', '2')
+                ->whereNull('centro_assistenza_id');
+
+            // Priorità a tecnici nella stessa provincia (opzionale)
+            $tecnici = $query->orderByRaw("
+                CASE 
+                    WHEN ? IS NOT NULL THEN 0 
+                    ELSE 1 
+                END, nome, cognome
+            ", [$centro->provincia])
+                ->get(['id', 'nome', 'cognome', 'username', 'specializzazione'])
+                ->map(function($tecnico) {
+                    return [
+                        'id' => $tecnico->id,
+                        'nome_completo' => $tecnico->nome_completo,
+                        'username' => $tecnico->username,
+                        'specializzazione' => $tecnico->specializzazione ?? 'Non specificata'
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'tecnici' => $tecnici,
+                'centro' => [
+                    'id' => $centro->id,
+                    'nome' => $centro->nome,
+                    'provincia' => $centro->provincia
+                ],
+                'total' => $tecnici->count()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Errore tecnici disponibili per centro', [
+                'centro_id' => $centro->id,
+                'admin_id' => Auth::id(),
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Errore nel caricamento dei tecnici disponibili'
+            ], 500);
+        }
+    }
+
+    // ================================================
+    // SEZIONE 6: METODI UTILITY E HELPER
+    // ================================================
+
+    /**
+     * Metodo helper: Validazione dati centro
+     * Utilizzato in create e update per evitare duplicazione codice
+     */
+    private function validazioneCentro($request, $centroId = null)
+    {
+        $rules = [
+            'nome' => 'required|string|max:255|unique:centri_assistenza,nome' . ($centroId ? ",$centroId" : ''),
+            'indirizzo' => 'required|string|max:500',
+            'citta' => 'required|string|max:100',
+            'provincia' => 'required|string|size:2',
+            'cap' => 'required|string|regex:/^[0-9]{5}$/',
+            'telefono' => 'required|string|max:20',
+            'email' => 'required|email|max:255|unique:centri_assistenza,email' . ($centroId ? ",$centroId" : '')
+        ];
+
+        $messages = [
+            'nome.unique' => 'Esiste già un centro con questo nome',
+            'email.unique' => 'Email già utilizzata da un altro centro',
+            'cap.regex' => 'Il CAP deve essere di 5 cifre numeriche',
+            'provincia.size' => 'La provincia deve essere di 2 caratteri (es: AN)',
+            'telefono.max' => 'Il numero di telefono è troppo lungo'
+        ];
+
+        return Validator::make($request->all(), $rules, $messages);
+    }
+
+    /**
+     * Metodo helper: Log attività amministrative
+     * Centralizza il logging delle operazioni admin per audit trail
+     */
+    private function logAttivitaAdmin($azione, $dettagli = [])
+    {
+        if (Auth::check()) {
+            Log::info("Admin: $azione", array_merge([
+                'admin_id' => Auth::id(),
+                'admin_username' => Auth::user()->username,
+                'timestamp' => now()->toISOString()
+            ], $dettagli));
+        }
+    }
+
+    /**
+     * Metodo helper: Formatta response JSON standard
+     * Assicura consistenza nelle risposte API
+     */
+    private function jsonResponse($success, $message, $data = [], $statusCode = 200)
+    {
+        $response = [
+            'success' => $success,
+            'message' => $message,
+            'timestamp' => now()->toISOString()
+        ];
+
+        if (!empty($data)) {
+            $response = array_merge($response, $data);
+        }
+
+        return response()->json($response, $statusCode);
+    }
+
+    /**
+     * Metodo helper: Controllo autorizzazioni amministratore
+     * Verifica rapida per metodi admin
+     */
+    private function verificaAdmin()
+    {
+        return Auth::check() && Auth::user()->isAdmin();
+    }
+
+    /**
+     * Metodo helper: Statistiche rapide centro
+     * Calcola metriche base per dashboard
+     */
+    private function calcolaStatisticheCentro(CentroAssistenza $centro)
+    {
+        return [
+            'tecnici_assegnati' => $centro->tecnici()->count(),
+            'giorni_attivo' => $centro->created_at->diffInDays(now()),
+            'ultima_modifica' => $centro->updated_at->diffForHumans(),
+            'ha_contatti_completi' => !empty($centro->telefono) && !empty($centro->email)
+        ];
+    }
+
+    /**
+     * Metodo helper: Formatta indirizzo completo
+     * Crea stringa indirizzo user-friendly
+     */
+    private function formatIndirizzoCompleto($centro)
+    {
+        $parti = [];
+        
+        if ($centro->indirizzo) $parti[] = $centro->indirizzo;
+        if ($centro->citta) $parti[] = $centro->citta;
+        if ($centro->cap) $parti[] = $centro->cap;
+        if ($centro->provincia) $parti[] = "({$centro->provincia})";
+        
+        return implode(', ', $parti);
     }
 }

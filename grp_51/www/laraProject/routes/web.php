@@ -48,7 +48,7 @@ Route::get('/ricerca-prodotti', [ProdottoController::class, 'searchPubblico'])->
 
 // === CENTRI DI ASSISTENZA PUBBLICI ===
 // Lista di tutti i centri di assistenza sul territorio
-Route::get('/centri-assistenza', [CentroAssistenzaController::class, 'indexPubblico'])->name('centri.index');
+Route::get('/centri-assistenza', [CentroAssistenzaController::class, 'index'])->name('centri.index');
 
 // Dettaglio singolo centro assistenza
 Route::get('/centri-assistenza/{centro}', [CentroAssistenzaController::class, 'show'])->name('centri.show');
