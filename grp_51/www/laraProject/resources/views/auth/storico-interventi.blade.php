@@ -349,17 +349,34 @@
                                             {{-- Azioni disponibili --}}
                                             <td>
                                                 <div class="btn-group-vertical btn-group-sm" role="group">
-                                                    {{-- Visualizza dettagli completi --}}
+                                                    {{-- Visualizza dettagli malfunzionamento --}}
                                                     <a href="{{ route('malfunzionamenti.show', [$intervento->prodotto, $intervento]) }}" 
                                                        class="btn btn-outline-primary btn-sm">
                                                         <i class="bi bi-eye me-1"></i>Dettagli
                                                     </a>
                                                     
-                                                    {{-- Vedi prodotto completo --}}
-                                                    <a href="{{ route('prodotti.show', $intervento->prodotto) }}" 
-                                                       class="btn btn-outline-info btn-sm">
-                                                        <i class="bi bi-box me-1"></i>Prodotto
-                                                    </a>
+                                                    {{-- Vedi prodotto - ROUTING INTELLIGENTE BASATO SU AUTENTICAZIONE --}}
+                                                    @auth
+                                                        @if(auth()->user()->canViewMalfunzionamenti())
+                                                            {{-- Per tecnici: vista completa con malfunzionamenti --}}
+                                                            <a href="{{ route('prodotti.completo.show', $intervento->prodotto) }}" 
+                                                               class="btn btn-outline-info btn-sm">
+                                                                <i class="bi bi-box me-1"></i>Vista Tecnica
+                                                            </a>
+                                                        @else
+                                                            {{-- Per utenti autenticati ma senza permessi: vista pubblica --}}
+                                                            <a href="{{ route('prodotti.show', $intervento->prodotto) }}" 
+                                                               class="btn btn-outline-info btn-sm">
+                                                                <i class="bi bi-box me-1"></i>Prodotto
+                                                            </a>
+                                                        @endif
+                                                    @else
+                                                        {{-- Per utenti non autenticati: vista pubblica --}}
+                                                        <a href="{{ route('prodotti.show', $intervento->prodotto) }}" 
+                                                           class="btn btn-outline-info btn-sm">
+                                                            <i class="bi bi-box me-1"></i>Prodotto
+                                                        </a>
+                                                    @endauth
                                                     
                                                     {{-- Modifica (solo per staff/admin) --}}
                                                     @if(auth()->user()->isStaff() || auth()->user()->isAdmin())
@@ -493,7 +510,7 @@
                                     <div class="text-end">
                                         <span class="badge bg-danger">{{ $prodotto->malfunzionamenti_count }} problemi</span>
                                         <div class="mt-1">
-                                            <a href="{{ route('prodotti.show', $prodotto) }}" 
+                                            <a href="{{ route('prodotti.completo.show', $prodotto) }}" 
                                                class="btn btn-outline-primary btn-sm">
                                                 <i class="bi bi-eye"></i>
                                             </a>
