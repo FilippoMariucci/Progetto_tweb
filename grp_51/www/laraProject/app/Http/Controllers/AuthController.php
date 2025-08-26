@@ -1021,16 +1021,7 @@ private function calcolaTrendSettimanale()
     ];
 }
 
-/**
- * PASSO 2: AGGIUNGI QUESTA ROUTE in routes/web.php
- * Nella sezione Route::middleware(['check.level:2'])->group(function () {
- */
-
-// Vista HTML per statistiche complete tecnico
-Route::get('/tecnico/le-mie-statistiche', [AuthController::class, 'statisticheTecnicoView'])
-    ->name('tecnico.statistiche.view');
-
-/**
+ /**
  * PASSO 3: MODIFICA IL LINK NELLA DASHBOARD
  * Nel file resources/views/tecnico/dashboard.blade.php
  * Cerca il bottone "Le mie Stats" e cambia il link da:
