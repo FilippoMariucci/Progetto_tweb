@@ -395,7 +395,7 @@ $(document).ready(function() {
         if (provincia) {
             console.log('Provincia selezionata:', provincia);
             // Potresti caricare le città per la provincia selezionata via AJAX
-            // $.get('{{ route("api.centri.citta-per-provincia") }}', {provincia: provincia}, function(data) { ... });
+            // $.get('{{ route("api.centri.citta-provincia") }}', {provincia: provincia}, function(data) { ... });
         }
     });
     
