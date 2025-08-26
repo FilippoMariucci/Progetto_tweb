@@ -38,7 +38,7 @@
             <div class="card card-custom">
                 <div class="card-body">
                     {{-- Form di ricerca con metodo GET per mantenere i parametri nell'URL --}}
-                    <form method="GET" action="{{ route('centri.index') }}" class="row g-3">
+                    <form method="GET" action="{{ route('centri.index') }}" class="row g-3" id="searchForm">
                         
                         {{-- Campo ricerca generale --}}
                         <div class="col-md-4">
@@ -60,14 +60,19 @@
                             </label>
                             <select name="provincia" id="provincia" class="form-select">
                                 <option value="">Tutte le province</option>
-                                {{-- Popola dinamicamente le province disponibili dal controller --}}
-                                @if(isset($province))
-                                    @foreach($province as $sigla => $nome)
-                                        <option value="{{ $sigla }}" {{ request('provincia') == $sigla ? 'selected' : '' }}>
-                                            {{ $sigla }} - {{ $nome }}
-                                        </option>
-                                    @endforeach
-                                @endif
+                                {{-- Le province dovrebbero essere passate dal controller --}}
+                                @php
+                                    $province_italiane = [
+                                        'AN' => 'Ancona', 'RM' => 'Roma', 'MI' => 'Milano', 'NA' => 'Napoli', 
+                                        'TO' => 'Torino', 'FI' => 'Firenze', 'BA' => 'Bari', 'PA' => 'Palermo',
+                                        'GE' => 'Genova', 'BO' => 'Bologna', 'VE' => 'Venezia', 'CT' => 'Catania'
+                                    ];
+                                @endphp
+                                @foreach($province_italiane as $sigla => $nome)
+                                    <option value="{{ $sigla }}" {{ request('provincia') == $sigla ? 'selected' : '' }}>
+                                        {{ $sigla }} - {{ $nome }}
+                                    </option>
+                                @endforeach
                             </select>
                         </div>
                         
@@ -426,6 +431,36 @@ $(document).ready(function() {
     console.log('Pagina centri di assistenza caricata');
     console.log('Centri trovati: {{ isset($centri) ? $centri->count() : 0 }}');
     
+    // === GESTIONE FORM DI RICERCA ===
+    // Previene il submit accidentale e aggiunge validazioni
+    $('#searchForm').on('submit', function(e) {
+        const searchTerm = $('#search').val().trim();
+        const provincia = $('#provincia').val();
+        const citta = $('#citta').val().trim();
+        
+        // Verifica se almeno un campo è compilato
+        if (!searchTerm && !provincia && !citta) {
+            e.preventDefault();
+            alert('Inserisci almeno un criterio di ricerca');
+            return false;
+        }
+        
+        // Log per debug
+        console.log('Form sottomesso con parametri:', {
+            search: searchTerm,
+            provincia: provincia,
+            citta: citta
+        });
+    });
+    // === DEBUGGING E VALIDAZIONE ===
+    // Verifica che tutti gli elementi necessari siano presenti
+    console.log('Elementi form presenti:', {
+        form: $('#searchForm').length,
+        searchInput: $('#search').length,
+        provinciaSelect: $('#provincia').length,
+        cittaInput: $('#citta').length
+    });
+    
     // === RICERCA IN TEMPO REALE (OPZIONALE) ===
     // Implementa una ricerca con delay per evitare troppe chiamate
     let searchTimer;
@@ -438,24 +473,9 @@ $(document).ready(function() {
         if (searchTerm.length >= 3) {
             searchTimer = setTimeout(function() {
                 console.log('Ricerca per:', searchTerm);
-                // Qui potresti implementare una ricerca AJAX per risultati istantanei
-                // $.get('{{ route("api.centri.search") }}', {q: searchTerm}, function(data) { 
-                //     // Aggiorna risultati senza ricaricare la pagina
-                // });
-            }, 500); // Aspetta 500ms prima di eseguire la ricerca
-        }
-    });
-    
-    // === GESTIONE SELEZIONE PROVINCIA ===
-    // Quando cambia la provincia, potrebbe caricare dinamicamente le città
-    $('#provincia').on('change', function() {
-        const provincia = $(this).val();
-        if (provincia) {
-            console.log('Provincia selezionata:', provincia);
-            // Implementazione opzionale: carica le città per la provincia selezionata
-            // $.get('{{ route("api.centri.citta-provincia") }}', {provincia: provincia}, function(data) { 
-            //     // Popola dinamicamente il campo città
-            // });
+                // Esempio di ricerca automatica (commentato per ora):
+                // $('#searchForm').submit();
+            }, 1000); // Aspetta 1 secondo prima di eseguire la ricerca
         }
     });
     
