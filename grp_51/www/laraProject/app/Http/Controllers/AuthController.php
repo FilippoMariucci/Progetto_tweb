@@ -857,4 +857,191 @@ public function malfunzionamentiCritici()
  * 3. Ordinamento corretto per urgenza basato su numero_segnalazioni
  * 4. Tutti i riferimenti alla colonna ora usano il nome corretto
  */
+
+/**
+ * PASSO 1: AGGIUNGI QUESTO METODO in AuthController.php
+ * Crea una vista HTML per le statistiche tecnico invece di restituire JSON
+ */
+
+/**
+ * Vista HTML per le statistiche complete del tecnico
+ * Questo metodo restituisce una pagina web invece di JSON
+ * @return \Illuminate\View\View - Vista Blade con statistiche
+ */
+public function statisticheTecnicoView()
+{
+    try {
+        // === CONTROLLO AUTORIZZAZIONI ===
+        if (!Auth::check() || !Auth::user()->isTecnico()) {
+            abort(403, 'Accesso riservato ai tecnici');
+        }
+
+        $user = Auth::user();
+        
+        // === CALCOLO STATISTICHE PER LA VISTA ===
+        $statistiche = [
+            // Statistiche generali
+            'generale' => [
+                'total_prodotti' => Prodotto::count(),
+                'total_malfunzionamenti' => Malfunzionamento::count(),
+                'total_centri' => CentroAssistenza::count(),
+                'prodotti_attivi' => Prodotto::where('attivo', true)->count()
+            ],
+
+            // Malfunzionamenti per gravità
+            'malfunzionamenti' => [
+                'totali' => Malfunzionamento::count(),
+                'critici' => Malfunzionamento::where('gravita', 'critica')->count(),
+                'media' => Malfunzionamento::where('gravita', 'media')->count(),
+                'bassa' => Malfunzionamento::where('gravita', 'bassa')->count(),
+                
+                // Per il grafico a torta
+                'per_gravita' => Malfunzionamento::selectRaw('gravita, COUNT(*) as count')
+                    ->whereNotNull('gravita')
+                    ->groupBy('gravita')
+                    ->get()
+                    ->pluck('count', 'gravita')
+                    ->toArray(),
+                    
+                // Andamento ultimo mese
+                'questo_mese' => Malfunzionamento::whereMonth('created_at', now()->month)
+                    ->whereYear('created_at', now()->year)
+                    ->count(),
+                'mese_precedente' => Malfunzionamento::whereMonth('created_at', now()->subMonth()->month)
+                    ->whereYear('created_at', now()->subMonth()->year)
+                    ->count()
+            ],
+
+            // Centro di appartenenza
+            'centro_assistenza' => $user->centroAssistenza ? [
+                'id' => $user->centroAssistenza->id,
+                'nome' => $user->centroAssistenza->nome,
+                'citta' => $user->centroAssistenza->citta,
+                'provincia' => $user->centroAssistenza->provincia,
+                'indirizzo' => $user->centroAssistenza->indirizzo,
+                'telefono' => $user->centroAssistenza->telefono,
+                'altri_tecnici' => User::where('centro_assistenza_id', $user->centro_assistenza_id)
+                    ->where('id', '!=', $user->id)
+                    ->where('livello_accesso', 2)
+                    ->count(),
+                // Tecnici colleghi nel centro
+                'colleghi' => User::where('centro_assistenza_id', $user->centro_assistenza_id)
+                    ->where('id', '!=', $user->id)
+                    ->where('livello_accesso', 2)
+                    ->get(['id', 'nome', 'cognome', 'specializzazione'])
+            ] : null,
+
+            // Top 10 malfunzionamenti critici recenti
+            'critici_recenti' => Malfunzionamento::where('gravita', 'critica')
+                ->with(['prodotto:id,nome,modello,categoria'])
+                ->orderBy('numero_segnalazioni', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->take(10)
+                ->get(),
+
+            // Prodotti più problematici
+            'prodotti_problematici' => Prodotto::whereHas('malfunzionamenti', function($q) {
+                    $q->where('gravita', 'critica');
+                })
+                ->withCount(['malfunzionamenti as critici_count' => function($q) {
+                    $q->where('gravita', 'critica');
+                }])
+                ->orderBy('critici_count', 'desc')
+                ->take(10)
+                ->get(),
+
+            // Statistiche per categoria
+            'per_categoria' => Prodotto::selectRaw('categoria, COUNT(*) as count')
+                ->where('attivo', true)
+                ->groupBy('categoria')
+                ->get()
+                ->pluck('count', 'categoria')
+                ->toArray(),
+
+            // Trend settimanale (ultimi 7 giorni)
+            'trend_settimanale' => $this->calcolaTrendSettimanale(),
+
+            // Statistiche personali
+            'personali' => [
+                'data_registrazione' => $user->created_at,
+                'specializzazione' => $user->specializzazione,
+                'giorni_attivo' => $user->created_at->diffInDays(now()),
+                'ultimo_accesso' => now() // Potresti aggiungere un campo last_login_at
+            ]
+        ];
+
+        // === LOG DELLA VISUALIZZAZIONE ===
+        Log::info('Vista statistiche tecnico caricata', [
+            'user_id' => $user->id,
+            'username' => $user->username,
+            'centro' => $user->centroAssistenza->nome ?? 'Non assegnato'
+        ]);
+
+        // === RESTITUISCI VISTA BLADE ===
+        return view('tecnico.statistiche', [
+            'user' => $user,
+            'stats' => $statistiche,
+            'pageTitle' => 'Le mie Statistiche - Tecnico'
+        ]);
+
+    } catch (\Exception $e) {
+        // === GESTIONE ERRORI ===
+        Log::error('Errore vista statistiche tecnico', [
+            'user_id' => Auth::id(),
+            'error' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ]);
+
+        return redirect()->route('tecnico.dashboard')
+            ->with('error', 'Errore nel caricamento delle statistiche. Riprova più tardi.');
+    }
+}
+
+/**
+ * METODO HELPER per calcolare il trend settimanale
+ * Restituisce dati per grafico lineare degli ultimi 7 giorni
+ */
+private function calcolaTrendSettimanale()
+{
+    $giorni = [];
+    $conteggi = [];
+    
+    for ($i = 6; $i >= 0; $i--) {
+        $data = now()->subDays($i);
+        $giorni[] = $data->format('d/m');
+        
+        $conteggi[] = Malfunzionamento::whereDate('created_at', $data->format('Y-m-d'))
+            ->count();
+    }
+    
+    return [
+        'giorni' => $giorni,
+        'conteggi' => $conteggi
+    ];
+}
+
+/**
+ * PASSO 2: AGGIUNGI QUESTA ROUTE in routes/web.php
+ * Nella sezione Route::middleware(['check.level:2'])->group(function () {
+ */
+
+// Vista HTML per statistiche complete tecnico
+Route::get('/tecnico/le-mie-statistiche', [AuthController::class, 'statisticheTecnicoView'])
+    ->name('tecnico.statistiche.view');
+
+/**
+ * PASSO 3: MODIFICA IL LINK NELLA DASHBOARD
+ * Nel file resources/views/tecnico/dashboard.blade.php
+ * Cerca il bottone "Le mie Stats" e cambia il link da:
+ * href="{{ route('api.tecnico.statistiche') }}"
+ * a:
+ * href="{{ route('tecnico.statistiche.view') }}"
+ */
+
+/**
+ * PASSO 4: CREA IL FILE VISTA
+ * Crea il file: resources/views/tecnico/statistiche.blade.php
+ * Vedi il prossimo artifact per il contenuto completo della vista
+ */
 }
