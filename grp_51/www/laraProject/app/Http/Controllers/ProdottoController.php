@@ -241,6 +241,372 @@ class ProdottoController extends Controller
         return view('prodotti.completo.show', compact('prodotto', 'showMalfunzionamenti'));
     }
 
+    /**
+ * Ricerca avanzata nei prodotti per tecnici (Livello 2+)
+ * Route: GET /prodotti-completi/ricerca
+ * Name: prodotti.completo.ricerca
+ * 
+ * Supporta ricerca wildcard "*" e filtri avanzati
+ * per tecnici e superiori
+ */
+public function ricercaAvanzata(Request $request)
+{
+    // Verifica autorizzazioni - solo tecnici e superiori
+    if (!Auth::check() || !Auth::user()->canViewMalfunzionamenti()) {
+        abort(403, 'Accesso riservato ai tecnici e staff');
+    }
+
+    // Validazione parametri di ricerca
+    $request->validate([
+        'search' => 'nullable|string|min:1|max:100',
+        'categoria' => 'nullable|string|max:50',
+        'gravita_min' => 'nullable|in:bassa,media,alta,critica',
+        'has_critici' => 'nullable|boolean',
+        'staff_assegnato' => 'nullable|exists:users,id',
+        'order_by' => 'nullable|in:nome,categoria,malfunzionamenti_count,critici_count,updated_at',
+        'order_dir' => 'nullable|in:asc,desc'
+    ]);
+
+    try {
+        // Query base per prodotti attivi
+        $query = Prodotto::where('attivo', true);
+
+        // === RICERCA CON WILDCARD (come specificato nel progetto) ===
+        if ($request->filled('search')) {
+            $searchTerm = trim($request->input('search'));
+            
+            // Log per debugging
+            Log::info('Ricerca avanzata prodotti tecnici', [
+                'search_term' => $searchTerm,
+                'user_id' => Auth::id(),
+                'user_level' => Auth::user()->livello_accesso
+            ]);
+            
+            if (str_ends_with($searchTerm, '*')) {
+                // Ricerca wildcard: "lav*" trova lavatrici, lavastoviglie, etc.
+                $baseTerm = rtrim($searchTerm, '*');
+                $query->where(function($q) use ($baseTerm) {
+                    $q->where('nome', 'LIKE', $baseTerm . '%')
+                      ->orWhere('descrizione', 'LIKE', $baseTerm . '%')
+                      ->orWhere('modello', 'LIKE', $baseTerm . '%')
+                      ->orWhere('categoria', 'LIKE', $baseTerm . '%');
+                });
+            } else {
+                // Ricerca normale full-text
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('nome', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('descrizione', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('modello', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('categoria', 'LIKE', '%' . $searchTerm . '%');
+                });
+            }
+        }
+
+        // === FILTRI AVANZATI ===
+
+        // Filtro per categoria
+        if ($request->filled('categoria')) {
+            $query->where('categoria', $request->input('categoria'));
+        }
+
+        // Filtro per prodotti con malfunzionamenti critici
+        if ($request->boolean('has_critici')) {
+            $query->whereHas('malfunzionamenti', function($q) {
+                $q->where('gravita', 'critica');
+            });
+        }
+
+        // Filtro per staff assegnato
+        if ($request->filled('staff_assegnato')) {
+            $query->where('staff_assegnato_id', $request->input('staff_assegnato'));
+        }
+
+        // Filtro per gravità minima dei malfunzionamenti
+        if ($request->filled('gravita_min')) {
+            $gravitaMin = $request->input('gravita_min');
+            $gravitaOrder = ['bassa' => 1, 'media' => 2, 'alta' => 3, 'critica' => 4];
+            $minLevel = $gravitaOrder[$gravitaMin] ?? 1;
+            
+            $query->whereHas('malfunzionamenti', function($q) use ($minLevel) {
+                $q->whereRaw("CASE 
+                    WHEN gravita = 'bassa' THEN 1
+                    WHEN gravita = 'media' THEN 2  
+                    WHEN gravita = 'alta' THEN 3
+                    WHEN gravita = 'critica' THEN 4
+                    ELSE 0
+                END >= ?", [$minLevel]);
+            });
+        }
+
+        // === CARICAMENTO DATI CON CONTEGGI ===
+        $query->withCount([
+            'malfunzionamenti',
+            'malfunzionamenti as critici_count' => function($query) {
+                $query->where('gravita', 'critica');
+            },
+            'malfunzionamenti as alta_count' => function($query) {
+                $query->where('gravita', 'alta');
+            }
+        ])->with([
+            'staffAssegnato:id,nome,cognome',
+            // Carica solo i malfunzionamenti più critici per anteprima
+            'malfunzionamenti' => function($query) {
+                $query->select('id', 'prodotto_id', 'titolo', 'gravita', 'numero_segnalazioni')
+                      ->orderByRaw("FIELD(gravita, 'critica', 'alta', 'media', 'bassa')")
+                      ->orderBy('numero_segnalazioni', 'desc')
+                      ->limit(3);
+            }
+        ]);
+
+        // === ORDINAMENTO ===
+        $orderBy = $request->input('order_by', 'critici_count');
+        $orderDir = $request->input('order_dir', 'desc');
+
+        switch ($orderBy) {
+            case 'nome':
+                $query->orderBy('nome', $orderDir);
+                break;
+            case 'categoria':
+                $query->orderBy('categoria', $orderDir)->orderBy('nome', 'asc');
+                break;
+            case 'malfunzionamenti_count':
+                $query->orderBy('malfunzionamenti_count', $orderDir)->orderBy('nome', 'asc');
+                break;
+            case 'critici_count':
+                $query->orderBy('critici_count', $orderDir)->orderBy('malfunzionamenti_count', 'desc');
+                break;
+            case 'updated_at':
+                $query->orderBy('updated_at', $orderDir);
+                break;
+            default:
+                // Default: prima i prodotti con più problemi critici
+                $query->orderBy('critici_count', 'desc')
+                      ->orderBy('malfunzionamenti_count', 'desc')
+                      ->orderBy('nome', 'asc');
+        }
+
+        // === ESECUZIONE QUERY CON PAGINAZIONE ===
+        $prodotti = $query->paginate(15)->withQueryString();
+
+        // === STATISTICHE PER LA VISTA ===
+        $stats = [
+            'risultati_trovati' => $prodotti->total(),
+            'con_critici' => $prodotti->where('critici_count', '>', 0)->count(),
+            'senza_problemi' => $prodotti->where('malfunzionamenti_count', 0)->count(),
+            'termine_ricerca' => $request->input('search'),
+            'filtri_applicati' => $request->only(['categoria', 'gravita_min', 'has_critici', 'staff_assegnato'])
+        ];
+
+        // === DATI PER I FILTRI NELLA VISTA ===
+        
+        // Categorie disponibili per il filtro
+        $categorie = Prodotto::getCategorie();
+        
+        // Staff disponibili per il filtro (solo se admin o per il proprio staff)
+        $user = Auth::user();
+        $staffDisponibili = collect();
+        
+        if ($user->livello_accesso >= 4) {
+            // Admin vede tutto lo staff
+            $staffDisponibili = User::where('livello_accesso', 3)
+                ->select('id', 'nome', 'cognome')
+                ->orderBy('nome')
+                ->get();
+        } elseif ($user->livello_accesso == 3) {
+            // Staff vede solo se stesso
+            $staffDisponibili = collect([$user]);
+        }
+
+        // === SUGGERIMENTI PER RICERCA WILDCARD ===
+        $suggerimentiWildcard = [
+            'lav*' => 'Trova lavatrici, lavastoviglie, lavelli...',
+            'frigo*' => 'Trova frigoriferi, frigocongelatori...',
+            'condiz*' => 'Trova condizionatori, climatizzatori...',
+            'cucin*' => 'Trova cucine, piani cottura...',
+            'asciug*' => 'Trova asciugatrici, asciugacapelli...'
+        ];
+
+        // === PRODOTTI CORRELATI (se c'è una ricerca) ===
+        $prodottiCorrelati = collect();
+        if ($request->filled('search') && $prodotti->count() > 0) {
+            // Trova prodotti simili per categoria o nome
+            $searchTerm = trim($request->input('search'), '*');
+            $categorieTrovate = $prodotti->pluck('categoria')->unique();
+            
+            $prodottiCorrelati = Prodotto::where('attivo', true)
+                ->whereNotIn('id', $prodotti->pluck('id'))
+                ->where(function($q) use ($categorieTrovate, $searchTerm) {
+                    $q->whereIn('categoria', $categorieTrovate->toArray())
+                      ->orWhere('nome', 'LIKE', '%' . $searchTerm . '%');
+                })
+                ->withCount(['malfunzionamenti', 'malfunzionamenti as critici_count' => function($query) {
+                    $query->where('gravita', 'critica');
+                }])
+                ->orderBy('critici_count', 'desc')
+                ->limit(5)
+                ->get();
+        }
+
+        // === LOG PER ANALYTICS ===
+        if ($request->filled('search')) {
+            Log::info('Ricerca avanzata completata', [
+                'search_term' => $request->input('search'),
+                'is_wildcard' => str_ends_with($request->input('search'), '*'),
+                'results_count' => $prodotti->total(),
+                'filters' => $request->only(['categoria', 'gravita_min', 'has_critici']),
+                'user_id' => Auth::id(),
+                'execution_time' => microtime(true) - LARAVEL_START
+            ]);
+        }
+
+        // === RETURN VISTA ===
+        return view('prodotti.completo.ricerca', compact(
+            'prodotti',
+            'stats', 
+            'categorie',
+            'staffDisponibili',
+            'suggerimentiWildcard',
+            'prodottiCorrelati'
+        ));
+
+    } catch (\Exception $e) {
+        // Log dell'errore per debugging
+        Log::error('Errore nella ricerca avanzata prodotti', [
+            'error' => $e->getMessage(),
+            'line' => $e->getLine(),
+            'file' => $e->getFile(),
+            'search_params' => $request->all(),
+            'user_id' => Auth::id(),
+            'trace' => $e->getTraceAsString()
+        ]);
+
+        // Redirect con messaggio di errore
+        return redirect()->route('prodotti.completo.index')
+            ->with('error', 'Errore durante la ricerca. Riprova più tardi.');
+    }
+}
+
+/**
+ * API per ricerca avanzata prodotti (AJAX)
+ * Supporta le stesse funzionalità della ricerca web ma restituisce JSON
+ */
+public function apiRicercaAvanzata(Request $request)
+{
+    // Verifica autorizzazioni
+    if (!Auth::check() || !Auth::user()->canViewMalfunzionamenti()) {
+        return response()->json([
+            'success' => false,
+            'error' => 'Accesso riservato ai tecnici'
+        ], 403);
+    }
+
+    try {
+        // Riusa la stessa logica della ricerca avanzata
+        $query = Prodotto::where('attivo', true);
+        
+        // Applica gli stessi filtri
+        if ($request->filled('search')) {
+            $searchTerm = trim($request->input('search'));
+            
+            if (str_ends_with($searchTerm, '*')) {
+                $baseTerm = rtrim($searchTerm, '*');
+                $query->where(function($q) use ($baseTerm) {
+                    $q->where('nome', 'LIKE', $baseTerm . '%')
+                      ->orWhere('descrizione', 'LIKE', $baseTerm . '%')
+                      ->orWhere('modello', 'LIKE', $baseTerm . '%');
+                });
+            } else {
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('nome', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('descrizione', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('modello', 'LIKE', '%' . $searchTerm . '%');
+                });
+            }
+        }
+
+        // Applica altri filtri se presenti
+        if ($request->filled('categoria')) {
+            $query->where('categoria', $request->input('categoria'));
+        }
+
+        if ($request->boolean('has_critici')) {
+            $query->whereHas('malfunzionamenti', function($q) {
+                $q->where('gravita', 'critica');
+            });
+        }
+
+        // Carica dati con conteggi
+        $prodotti = $query->withCount([
+                'malfunzionamenti',
+                'malfunzionamenti as critici_count' => function($query) {
+                    $query->where('gravita', 'critica');
+                }
+            ])
+            ->with('staffAssegnato:id,nome,cognome')
+            ->orderBy('critici_count', 'desc')
+            ->limit($request->input('limit', 20))
+            ->get();
+
+        // Formatta risultati per API
+        $results = $prodotti->map(function($prodotto) {
+            return [
+                'id' => $prodotto->id,
+                'nome' => $prodotto->nome,
+                'modello' => $prodotto->modello,
+                'categoria' => $prodotto->categoria,
+                'descrizione' => \Illuminate\Support\Str::limit($prodotto->descrizione, 100),
+                'malfunzionamenti_count' => $prodotto->malfunzionamenti_count,
+                'critici_count' => $prodotto->critici_count,
+                'staff_assegnato' => $prodotto->staffAssegnato ? $prodotto->staffAssegnato->nome_completo : null,
+                'url' => route('prodotti.completo.show', $prodotto),
+                'foto_url' => $prodotto->foto ? asset('storage/' . $prodotto->foto) : null,
+                'has_critici' => $prodotto->critici_count > 0,
+                'priority_level' => $this->calculatePriorityLevel($prodotto->critici_count, $prodotto->malfunzionamenti_count)
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $results,
+            'total' => $results->count(),
+            'search_info' => [
+                'term' => $request->input('search'),
+                'is_wildcard' => str_ends_with($request->input('search', ''), '*'),
+                'filters_applied' => $request->only(['categoria', 'has_critici'])
+            ],
+            'timestamp' => now()->toISOString()
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Errore API ricerca avanzata', [
+            'error' => $e->getMessage(),
+            'request' => $request->all(),
+            'user_id' => Auth::id()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'error' => 'Errore durante la ricerca avanzata'
+        ], 500);
+    }
+}
+
+/**
+ * Helper per calcolare il livello di priorità
+ */
+private function calculatePriorityLevel(int $critici, int $totali): string
+{
+    if ($critici > 0) {
+        return $critici > 3 ? 'critical' : 'high';
+    } elseif ($totali > 10) {
+        return 'medium';
+    } elseif ($totali > 0) {
+        return 'low';
+    } else {
+        return 'none';
+    }
+}
+
     // ================================================
     // GESTIONE AMMINISTRATIVA PRODOTTI (Livello 4)
     // ================================================
