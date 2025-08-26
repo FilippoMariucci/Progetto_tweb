@@ -14,7 +14,7 @@ use App\Models\CentroAssistenza;
 
 /**
  * Controller per la gestione dell'autenticazione e delle dashboard
- * Gestisce login, logout, registrazione e le dashboard specifiche per ogni livello utente
+ * VERSIONE PULITA - Eliminati tutti i duplicati di metodi
  */
 class AuthController extends Controller
 {
@@ -42,8 +42,8 @@ class AuthController extends Controller
     {
         // Validazione dei dati in input
         $request->validate([
-            'username' => 'required|string', // Username obbligatorio
-            'password' => 'required|string', // Password obbligatoria
+            'username' => 'required|string',
+            'password' => 'required|string',
         ], [
             'username.required' => 'Il campo username è obbligatorio',
             'password.required' => 'Il campo password è obbligatorio',
@@ -56,18 +56,12 @@ class AuthController extends Controller
             // Rigenerazione della sessione per prevenire session fixation
             $request->session()->regenerate();
             
-            // Aggiorna timestamp ultimo accesso se il campo esiste
-            if (Auth::user()->hasAttribute('last_login_at')) {
-                Auth::user()->update(['last_login_at' => now()]);
-            }
-            
             // Log dell'accesso riuscito
             Log::info('Login riuscito', [
                 'user_id' => Auth::id(),
                 'username' => Auth::user()->username,
                 'livello_accesso' => Auth::user()->livello_accesso,
-                'ip' => $request->ip(),
-                'user_agent' => substr($request->userAgent(), 0, 100) // Limita lunghezza
+                'ip' => $request->ip()
             ]);
 
             // Reindirizzamento AUTOMATICO basato sul livello di accesso
@@ -89,8 +83,7 @@ class AuthController extends Controller
         if (Auth::check()) {
             Log::info('Logout utente', [
                 'user_id' => Auth::id(),
-                'username' => Auth::user()->username,
-                'livello_accesso' => Auth::user()->livello_accesso
+                'username' => Auth::user()->username
             ]);
         }
 
@@ -105,39 +98,314 @@ class AuthController extends Controller
     }
 
     // ================================================
+    // DASHBOARD SPECIFICHE (UNA SOLA VERSIONE PER OGNI METODO)
+    // ================================================
+
+    /**
+     * Dashboard amministratori (Livello 4) - VERSIONE DEFINITIVA
+     */
+    public function adminDashboard()
+    {
+        // Verifica autorizzazioni
+        if (!Auth::check() || !Auth::user()->isAdmin()) {
+            abort(403, 'Accesso riservato agli amministratori');
+        }
+
+        $user = Auth::user();
+
+        try {
+            // === STATISTICHE COMPLETE PER ADMIN ===
+            $stats = [
+                // Contatori principali
+                'total_utenti' => User::count(),
+                'total_prodotti' => Prodotto::count(),
+                'total_centri' => CentroAssistenza::count(),
+                'total_soluzioni' => Malfunzionamento::count(),
+
+                // Prodotti non assegnati allo staff
+                'prodotti_non_assegnati_count' => Prodotto::whereNull('staff_assegnato_id')->count(),
+                'prodotti_non_assegnati' => Prodotto::whereNull('staff_assegnato_id')
+                    ->select('id', 'nome', 'modello', 'categoria', 'created_at')
+                    ->orderBy('created_at', 'desc')
+                    ->limit(5)
+                    ->get(),
+
+                // Distribuzione utenti per livello
+                'utenti_per_livello' => User::selectRaw('livello_accesso, COUNT(*) as count')
+                    ->groupBy('livello_accesso')
+                    ->pluck('count', 'livello_accesso')
+                    ->toArray(),
+
+                // Utenti registrati di recente
+                'utenti_recenti' => User::where('created_at', '>=', now()->subMonth())
+                    ->latest()
+                    ->take(5)
+                    ->get(['id', 'nome', 'cognome', 'username', 'livello_accesso', 'created_at']),
+
+                // Malfunzionamenti critici
+                'soluzioni_critiche' => Malfunzionamento::where('gravita', 'critica')->count(),
+                
+                // Centri senza tecnici
+                'centri_senza_tecnici' => CentroAssistenza::whereDoesntHave('tecnici')->count(),
+            ];
+
+            return view('admin.dashboard', compact('user', 'stats'));
+
+        } catch (\Exception $e) {
+            Log::error('Errore dashboard admin', [
+                'admin_id' => $user->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return view('admin.dashboard', compact('user'))
+                ->with('error', 'Errore nel caricamento delle statistiche');
+        }
+    }
+
+    /**
+     * Dashboard staff aziendale (Livello 3)
+     */
+    public function staffDashboard()
+    {
+        if (!Auth::check() || !Auth::user()->isStaff()) {
+            abort(403, 'Accesso riservato allo staff aziendale');
+        }
+
+        $user = Auth::user();
+
+        // Prodotti assegnati al membro dello staff corrente
+        $prodottiAssegnati = Prodotto::where('staff_assegnato_id', $user->id)
+            ->withCount('malfunzionamenti')
+            ->orderBy('nome')
+            ->paginate(10);
+
+        // Statistiche specifiche per il membro dello staff
+        $stats = [
+            'prodotti_gestiti' => $prodottiAssegnati->total(),
+            'malfunzionamenti_totali' => Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
+                $q->where('staff_assegnato_id', $user->id);
+            })->count(),
+            'soluzioni_aggiunte_mese' => Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
+                $q->where('staff_assegnato_id', $user->id);
+            })->where('created_at', '>=', now()->subMonth())->count(),
+        ];
+
+        return view('staff.dashboard', compact('user', 'prodottiAssegnati', 'stats'));
+    }
+
+    /**
+     * Dashboard tecnici centri assistenza (Livello 2)
+     */
+    public function tecnicoDashboard()
+    {
+        if (!Auth::check() || !Auth::user()->isTecnico()) {
+            abort(403, 'Accesso riservato ai tecnici');
+        }
+
+        $user = Auth::user();
+        
+        // Centro di appartenenza del tecnico
+        $centro = $user->centroAssistenza;
+
+        // Prodotti più consultati
+        $prodottiConsultati = Prodotto::withCount('malfunzionamenti')
+            ->where('attivo', true)
+            ->orderBy('malfunzionamenti_count', 'desc')
+            ->limit(8)
+            ->get();
+
+        // Statistiche specifiche per il tecnico
+        $stats = [
+            'centro_appartenenza' => $centro ? $centro->nome : 'Non assegnato',
+            'prodotti_disponibili' => Prodotto::where('attivo', true)->count(),
+            'soluzioni_disponibili' => Malfunzionamento::count(),
+            'categorie_prodotti' => Prodotto::distinct()->count('categoria'),
+        ];
+
+        return view('tecnico.dashboard', compact('user', 'centro', 'prodottiConsultati', 'stats'));
+    }
+
+    /**
+     * Dashboard generale - Fallback per utenti pubblici
+     */
+    public function dashboard()
+    {
+        if (!Auth::check()) {
+            return redirect()->route('login');
+        }
+
+        $user = Auth::user();
+        
+        // Se l'utente ha un livello specifico, reindirizza alla sua dashboard
+        if ($user->livello_accesso >= 2) {
+            return $this->redirectBasedOnRole();
+        }
+        
+        // Dashboard base per utenti pubblici
+        $stats = [
+            'total_prodotti' => Prodotto::count(),
+            'total_centri' => CentroAssistenza::count(),
+        ];
+
+        return view('dashboard', compact('user', 'stats'));
+    }
+
+    // ================================================
+    // STORICO INTERVENTI (METODO MANCANTE - CAUSA ERRORE)
+    // ================================================
+
+    /**
+     * Visualizza lo storico degli interventi tecnici
+     * QUESTO METODO ERA MANCANTE E CAUSAVA L'ERRORE 404!
+     */
+    public function storicoInterventi(Request $request)
+    {
+        // Verifica autorizzazioni - accessibile a tecnici, staff e admin
+        if (!Auth::check() || (!Auth::user()->isTecnico() && !Auth::user()->isStaff() && !Auth::user()->isAdmin())) {
+            abort(403, 'Accesso riservato ai tecnici e staff aziendale');
+        }
+
+        $user = Auth::user();
+
+        try {
+            // Query base per gli interventi (usando i malfunzionamenti come storico)
+            $query = Malfunzionamento::with(['prodotto:id,nome,modello,categoria'])
+                ->orderBy('updated_at', 'desc');
+
+            // === FILTRI BASATI SUL RUOLO ===
+            if ($user->isTecnico() && $user->centro_assistenza_id) {
+                // I tecnici vedono gli interventi degli ultimi 6 mesi
+                $query->where('updated_at', '>=', now()->subMonths(6));
+            } elseif ($user->isStaff()) {
+                // Lo staff vede solo i malfunzionamenti dei prodotti che gestisce
+                $query->whereHas('prodotto', function($q) use ($user) {
+                    $q->where('staff_assegnato_id', $user->id);
+                });
+            }
+            // Admin vede tutto senza filtri aggiuntivi
+
+            // === FILTRI DALLA RICHIESTA ===
+            
+            // Filtro per prodotto specifico
+            if ($request->filled('prodotto_id')) {
+                $query->where('prodotto_id', $request->input('prodotto_id'));
+            }
+
+            // Filtro per gravità del problema
+            if ($request->filled('gravita')) {
+                $query->where('gravita', $request->input('gravita'));
+            }
+
+            // Filtro temporale
+            if ($request->filled('periodo')) {
+                switch($request->input('periodo')) {
+                    case 'settimana':
+                        $query->where('updated_at', '>=', now()->subWeek());
+                        break;
+                    case 'mese':
+                        $query->where('updated_at', '>=', now()->subMonth());
+                        break;
+                    case 'trimestre':
+                        $query->where('updated_at', '>=', now()->subMonths(3));
+                        break;
+                    case 'anno':
+                        $query->where('updated_at', '>=', now()->subYear());
+                        break;
+                }
+            }
+
+            // Ricerca testuale
+            if ($request->filled('search')) {
+                $searchTerm = $request->input('search');
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('descrizione', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('titolo', 'LIKE', "%{$searchTerm}%")
+                      ->orWhereHas('prodotto', function($q2) use ($searchTerm) {
+                          $q2->where('nome', 'LIKE', "%{$searchTerm}%")
+                             ->orWhere('modello', 'LIKE', "%{$searchTerm}%");
+                      });
+                });
+            }
+
+            // Paginazione risultati
+            $interventi = $query->paginate(15);
+
+            // === STATISTICHE STORICO ===
+            $statisticheStorico = [
+                'totale_interventi' => $interventi->total(),
+                'interventi_settimana' => Malfunzionamento::where('updated_at', '>=', now()->subWeek())->count(),
+                'per_gravita' => Malfunzionamento::selectRaw('gravita, COUNT(*) as count')
+                    ->groupBy('gravita')
+                    ->pluck('count', 'gravita')
+                    ->toArray(),
+                'prodotti_problematici' => Prodotto::withCount('malfunzionamenti')
+                    ->orderBy('malfunzionamenti_count', 'desc')
+                    ->limit(5)
+                    ->get(['id', 'nome', 'modello']),
+            ];
+
+            // Lista prodotti per dropdown filtro
+            $prodotti = Prodotto::select('id', 'nome', 'modello')
+                ->where('attivo', true)
+                ->orderBy('nome')
+                ->get();
+
+            return view('auth.storico-interventi', compact(
+                'user', 
+                'interventi', 
+                'statisticheStorico', 
+                'prodotti'
+            ));
+
+        } catch (\Exception $e) {
+            Log::error('Errore storico interventi', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return redirect()->back()
+                ->with('error', 'Errore nel caricamento dello storico interventi');
+        }
+    }
+
+    // ================================================
     // REINDIRIZZAMENTO AUTOMATICO
     // ================================================
 
     /**
-     * Reindirizza l'utente basandosi sul suo livello di accesso - AUTOMATICO
-     * Questo metodo viene chiamato dopo il login per portare ogni utente alla sua dashboard
+     * Reindirizza l'utente basandosi sul suo livello di accesso
      */
     private function redirectBasedOnRole()
     {
         $user = Auth::user();
         
-        // Reindirizzamento DIRETTO alle dashboard specifiche per livello
+        // Reindirizzamento alle dashboard specifiche per livello
         switch ((int) $user->livello_accesso) {
-            case 4: // Admin -> Dashboard Admin
+            case 4: // Admin
                 return redirect()->route('admin.dashboard')
                     ->with('success', 'Benvenuto, Amministratore ' . $user->nome . '!');
                     
-            case 3: // Staff -> Dashboard Staff
+            case 3: // Staff
                 return redirect()->route('staff.dashboard')
-                    ->with('success', 'Benvenuto, ' . $user->nome_completo . '!');
+                    ->with('success', 'Benvenuto, ' . $user->nome . '!');
                     
-            case 2: // Tecnico -> Dashboard Tecnico
+            case 2: // Tecnico
                 return redirect()->route('tecnico.dashboard')
                     ->with('success', 'Benvenuto, Tecnico ' . $user->nome . '!');
                     
-            default: // Utente pubblico -> Dashboard generale
-                return redirect()->route('dashboard')
-                    ->with('success', 'Accesso effettuato con successo');
+            default: // Livello non riconosciuto
+                Log::warning('Livello accesso non riconosciuto', [
+                    'user_id' => $user->id,
+                    'livello_accesso' => $user->livello_accesso
+                ]);
+                
+                return redirect()->route('home')
+                    ->with('warning', 'Livello di accesso non riconosciuto.');
         }
     }
 
     /**
-     * Route helper per reindirizzamento manuale alla dashboard appropriata
+     * Helper per reindirizzamento manuale alla dashboard appropriata
      */
     public function autoRedirectDashboard()
     {
@@ -149,7 +417,100 @@ class AuthController extends Controller
     }
 
     // ================================================
-    // REGISTRAZIONE (Solo Admin)
+    // GESTIONE PROFILO UTENTE
+    // ================================================
+
+    /**
+     * Mostra il profilo dell'utente corrente
+     */
+    public function showProfile()
+    {
+        if (!Auth::check()) {
+            return redirect()->route('login');
+        }
+
+        $user = Auth::user();
+        $user->load('centroAssistenza'); // Carica il centro se è un tecnico
+
+        return view('auth.profile', compact('user'));
+    }
+
+    /**
+     * Aggiorna il profilo dell'utente corrente
+     */
+    public function updateProfile(Request $request)
+    {
+        if (!Auth::check()) {
+            return redirect()->route('login');
+        }
+
+        $user = Auth::user();
+
+        // Validazione dati modificabili dal profilo
+        $validated = $request->validate([
+            'nome' => 'required|string|max:255',
+            'cognome' => 'required|string|max:255',
+            'email' => 'nullable|email|max:255|unique:users,email,' . $user->id,
+            'specializzazione' => 'nullable|string|max:255', // Solo per tecnici
+        ]);
+
+        // Aggiorna i dati
+        $user->update($validated);
+
+        Log::info('Profilo utente aggiornato', [
+            'user_id' => $user->id,
+            'updated_fields' => array_keys($validated)
+        ]);
+
+        return redirect()->route('auth.profile')
+            ->with('success', 'Profilo aggiornato con successo');
+    }
+
+    /**
+     * Cambia la password dell'utente corrente
+     */
+    public function changePassword(Request $request)
+    {
+        if (!Auth::check()) {
+            return redirect()->route('login');
+        }
+
+        $user = Auth::user();
+
+        // Validazione password
+        $request->validate([
+            'current_password' => 'required',
+            'new_password' => 'required|string|min:8|confirmed',
+        ], [
+            'current_password.required' => 'La password attuale è obbligatoria',
+            'new_password.required' => 'La nuova password è obbligatoria',
+            'new_password.min' => 'La password deve essere di almeno 8 caratteri',
+            'new_password.confirmed' => 'La conferma password non corrisponde',
+        ]);
+
+        // Verifica password attuale
+        if (!Hash::check($request->current_password, $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => 'La password attuale non è corretta.',
+            ]);
+        }
+
+        // Aggiorna la password
+        $user->update([
+            'password' => Hash::make($request->new_password),
+        ]);
+
+        Log::info('Password cambiata', [
+            'user_id' => $user->id,
+            'username' => $user->username
+        ]);
+
+        return redirect()->route('auth.profile')
+            ->with('success', 'Password modificata con successo');
+    }
+
+    // ================================================
+    // REGISTRAZIONE (Solo per Admin)
     // ================================================
 
     /**
@@ -186,7 +547,7 @@ class AuthController extends Controller
             'cognome' => 'required|string|max:255',
             'livello_accesso' => 'required|in:1,2,3,4',
             
-            // Campi condizionali per i tecnici (livello 2)
+            // Campi specifici per tecnici (livello 2)
             'data_nascita' => 'required_if:livello_accesso,2|nullable|date|before:today',
             'specializzazione' => 'required_if:livello_accesso,2|nullable|string|max:255',
             'centro_assistenza_id' => 'required_if:livello_accesso,2|nullable|exists:centri_assistenza,id',
@@ -195,7 +556,6 @@ class AuthController extends Controller
             'username.unique' => 'Questo username è già in uso',
             'password.min' => 'La password deve essere di almeno 8 caratteri',
             'password.confirmed' => 'La conferma password non corrisponde',
-            'livello_accesso.in' => 'Livello di accesso non valido',
             'data_nascita.required_if' => 'La data di nascita è obbligatoria per i tecnici',
             'specializzazione.required_if' => 'La specializzazione è obbligatoria per i tecnici',
             'centro_assistenza_id.required_if' => 'Il centro di assistenza è obbligatorio per i tecnici',
@@ -213,567 +573,13 @@ class AuthController extends Controller
             'centro_assistenza_id' => $validated['centro_assistenza_id'] ?? null,
         ]);
 
-        // Log della creazione utente
         Log::info('Nuovo utente registrato', [
             'new_user_id' => $user->id,
             'new_username' => $user->username,
-            'created_by' => Auth::id(),
-            'livello_accesso' => $user->livello_accesso
+            'created_by' => Auth::id()
         ]);
 
         return redirect()->route('admin.users.index')
             ->with('success', 'Utente registrato con successo');
     }
-
-    // ================================================
-    // DASHBOARD GENERALE (Fallback)
-    // ================================================
-
-    /**
-     * Dashboard generale - SOLO per utenti pubblici (livello 1) o come fallback
-     * Gli utenti con livelli superiori vengono automaticamente reindirizzati alle loro dashboard
-     */
-    public function dashboard()
-    {
-        if (!Auth::check()) {
-            return redirect()->route('login');
-        }
-
-        $user = Auth::user();
-        
-        // Se l'utente ha un livello specifico (2+), reindirizza alla sua dashboard
-        if ($user->livello_accesso >= 2) {
-            return $this->redirectBasedOnRole();
-        }
-        
-        // Solo per utenti pubblici (livello 1 o nessun livello)
-        $stats = [
-            'total_prodotti' => Prodotto::count(),
-            'total_centri' => CentroAssistenza::count(),
-        ];
-
-        return view('dashboard', compact('user', 'stats'));
-    }
-
-    // ================================================
-    // DASHBOARD SPECIFICHE PER LIVELLO
-    // ================================================
-
-    /**
-     * Dashboard specifica per amministratori (Livello 4) - SENZA DUMP
-     * Sostituisci il metodo adminDashboard() nel tuo AuthController.php
-     */
-public function adminDashboard()
-{
-    if (!Auth::check() || !Auth::user()->isAdmin()) {
-        abort(403, 'Accesso riservato agli amministratori');
-    }
-
-    $user = Auth::user();
-
-    // === CALCOLO PRODOTTI NON ASSEGNATI ===
-    $prodottiNonAssegnatiCount = Prodotto::whereNull('staff_assegnato_id')->count();
-    
-    $prodottiNonAssegnatiLista = Prodotto::whereNull('staff_assegnato_id')
-        ->select('id', 'nome', 'modello', 'categoria', 'created_at', 'attivo')
-        ->orderBy('created_at', 'desc')
-        ->limit(10)
-        ->get();
-
-    // Statistiche complete per admin
-    $stats = [
-        // Contatori principali
-        'total_utenti' => User::count(),
-        'total_prodotti' => Prodotto::count(),
-        'total_centri' => CentroAssistenza::count(),
-        'total_soluzioni' => Malfunzionamento::count(),
-
-        // === PRODOTTI NON ASSEGNATI ===
-        'prodotti_non_assegnati_count' => $prodottiNonAssegnatiCount,
-        'prodotti_non_assegnati' => $prodottiNonAssegnatiLista,
-
-        // Distribuzione utenti per livello
-        'utenti_per_livello' => User::selectRaw('livello_accesso, COUNT(*) as count')
-            ->groupBy('livello_accesso')
-            ->pluck('count', 'livello_accesso')
-            ->toArray(),
-
-        // Utenti recenti (ultimo mese)
-        'utenti_recenti' => User::where('created_at', '>=', now()->subMonth())
-            ->latest()
-            ->take(5)
-            ->get(['id', 'nome', 'cognome', 'username', 'livello_accesso', 'created_at']),
-
-        // Distribuzione utenti (per la sezione apposita)
-        'distribuzione_utenti' => User::selectRaw('livello_accesso, COUNT(*) as count')
-            ->groupBy('livello_accesso')
-            ->pluck('count', 'livello_accesso')
-            ->toArray(),
-
-        // Soluzioni critiche
-        'soluzioni_critiche' => Malfunzionamento::where('gravita', 'critica')->count(),
-    ];
-
-    // === DEBUG CON LOG (non blocca l'esecuzione) ===
-    Log::info('Dashboard Admin - Statistiche', [
-        'admin_user' => $user->username,
-        'prodotti_non_assegnati_count' => $prodottiNonAssegnatiCount,
-        'prodotti_lista_count' => $prodottiNonAssegnatiLista->count(),
-        'total_prodotti' => $stats['total_prodotti'],
-        'sample_non_assegnati' => $prodottiNonAssegnatiLista->take(3)->pluck('nome', 'id')->toArray()
-    ]);
-
-    // === RITORNA LA VISTA (ora funziona!) ===
-    return view('admin.dashboard', compact('user', 'stats'));
 }
-
-    /**
-     * Dashboard specifica per staff aziendale (Livello 3)
-     * VERSIONE CORRETTA - Risolve tutti i problemi identificati
-     */
-    public function staffDashboard()
-    {
-        // Verifica che l'utente sia autenticato e abbia il livello staff
-        if (!Auth::check() || !Auth::user()->isStaff()) {
-            abort(403, 'Accesso riservato allo staff');
-        }
-
-        $user = Auth::user();
-
-        try {
-            // === SOLUZIONE PROBLEMA 1: Gestione sicura dei prodotti assegnati ===
-            // Usa query diretta invece di relazione per evitare errori
-            $prodottiAssegnati = Prodotto::where('staff_assegnato_id', $user->id)
-                ->with(['malfunzionamenti' => function($query) {
-                    // Ottimizza caricando solo campi necessari per performance
-                    $query->select('id', 'prodotto_id', 'titolo', 'gravita', 'created_at', 'updated_at')
-                          ->orderBy('updated_at', 'desc');
-                }])
-                ->get();
-
-            $countProdottiAssegnati = $prodottiAssegnati->count();
-
-            // === SOLUZIONE PROBLEMA 2: Gestione sicura dei malfunzionamenti creati ===
-            // Query diretta con controllo esistenza campo 'creato_da'
-            $malfunzionamentiCreati = collect(); // Inizializza collezione vuota
-            $countSoluzioniCreate = 0;
-            $countSoluzioniCritiche = 0;
-            $ultimaModifica = 'Mai';
-            $ultimeSoluzioni = collect();
-
-            // Controlla se la tabella malfunzionamenti ha il campo creato_da
-            if (\Schema::hasColumn('malfunzionamenti', 'creato_da')) {
-                // Se il campo esiste, usa la query diretta
-                $malfunzionamentiCreati = Malfunzionamento::where('creato_da', $user->id)
-                    ->with(['prodotto:id,nome,categoria'])
-                    ->get();
-
-                $countSoluzioniCreate = $malfunzionamentiCreati->count();
-                $countSoluzioniCritiche = $malfunzionamentiCreati->where('gravita', 'critica')->count();
-                
-                // Trova ultima modifica
-                $ultimoMalfunzionamento = $malfunzionamentiCreati->sortByDesc('updated_at')->first();
-                if ($ultimoMalfunzionamento) {
-                    $ultimaModifica = $ultimoMalfunzionamento->updated_at->diffForHumans();
-                }
-
-                // Ultimi 5 malfunzionamenti creati
-                $ultimeSoluzioni = $malfunzionamentiCreati->sortByDesc('created_at')->take(5);
-                
-            } else {
-                // Se il campo non esiste, usa query alternativa o valori di default
-                \Log::info('Campo creato_da non trovato nella tabella malfunzionamenti');
-                
-                // Potresti implementare una logica alternativa qui se necessario
-                // Ad esempio, contare tutti i malfunzionamenti dei prodotti assegnati
-                $countSoluzioniCreate = 0;
-                $countSoluzioniCritiche = 0;
-            }
-
-            // === COSTRUZIONE ARRAY STATISTICHE SICURO ===
-            $stats = [
-                // Statistiche prodotti assegnati
-                'prodotti_assegnati' => $countProdottiAssegnati,
-                'prodotti_lista' => $prodottiAssegnati->take(5), // Limita a 5 per la dashboard
-                
-                // Statistiche soluzioni create
-                'soluzioni_create' => $countSoluzioniCreate,
-                'soluzioni_critiche' => $countSoluzioniCritiche,
-                
-                // Ultima attività
-                'ultima_modifica' => $ultimaModifica,
-                
-                // Ultime soluzioni
-                'ultime_soluzioni' => $ultimeSoluzioni,
-                
-                // Statistiche generali accessibili allo staff
-                'total_prodotti' => Prodotto::count(),
-                'total_malfunzionamenti' => Malfunzionamento::count(),
-                'malfunzionamenti_critici' => Malfunzionamento::where('gravita', 'critica')->count(),
-            ];
-
-            // Log per debug in ambiente di sviluppo
-            if (config('app.debug')) {
-                \Log::info('Staff Dashboard Stats Generati', [
-                    'user_id' => $user->id,
-                    'prodotti_assegnati' => $countProdottiAssegnati,
-                    'soluzioni_create' => $countSoluzioniCreate,
-                    'has_creato_da_field' => \Schema::hasColumn('malfunzionamenti', 'creato_da')
-                ]);
-            }
-
-            // Restituisce vista con statistiche
-            return view('staff.dashboard', compact('user', 'stats'));
-
-        } catch (\Exception $e) {
-            // === GESTIONE ERRORI ROBUSTA ===
-            \Log::error('Errore in staffDashboard', [
-                'user_id' => $user->id,
-                'error_message' => $e->getMessage(),
-                'error_file' => $e->getFile(),
-                'error_line' => $e->getLine(),
-                'stack_trace' => $e->getTraceAsString()
-            ]);
-
-            // Statistiche di fallback in caso di errore
-            $stats = [
-                'prodotti_assegnati' => 0,
-                'prodotti_lista' => collect(),
-                'soluzioni_create' => 0,
-                'soluzioni_critiche' => 0,
-                'ultima_modifica' => 'Errore caricamento',
-                'ultime_soluzioni' => collect(),
-                'total_prodotti' => 0,
-                'total_malfunzionamenti' => 0,
-                'malfunzionamenti_critici' => 0,
-                'errore' => 'Impossibile caricare alcune statistiche'
-            ];
-
-            // In ambiente di sviluppo, mostra l'errore
-            if (config('app.debug')) {
-                $stats['debug_error'] = $e->getMessage();
-            }
-
-            return view('staff.dashboard', compact('user', 'stats'))
-                ->with('warning', 'Alcune statistiche potrebbero non essere aggiornate');
-        }
-    }
-    /**
-     * Dashboard specifica per tecnici (Livello 2)
-     */
-    public function tecnicoDashboard()
-    {
-        if (!Auth::check() || !Auth::user()->isTecnico()) {
-            abort(403, 'Accesso riservato ai tecnici');
-        }
-
-        $user = Auth::user();
-        
-        // Statistiche specifiche per il tecnico
-        $stats = [
-            // Statistiche generali accessibili al tecnico
-            'total_prodotti' => Prodotto::count(),
-            'total_malfunzionamenti' => Malfunzionamento::count(),
-            'malfunzionamenti_critici' => Malfunzionamento::where('gravita', 'critica')->count(),
-            'total_centri' => CentroAssistenza::count(),
-            
-            // Centro di assistenza del tecnico
-            'centro_assistenza' => $user->centroAssistenza,
-            
-            // Malfunzionamenti critici recenti (per interventi urgenti)
-            'malfunzionamenti_critici_lista' => Malfunzionamento::where('gravita', 'critica')
-                ->with('prodotto')
-                ->latest()
-                ->take(5)
-                ->get(),
-                
-            // Prodotti con più problemi critici
-            'prodotti_problematici' => Prodotto::whereHas('malfunzionamenti', function($q) {
-                $q->where('gravita', 'critica');
-            })->withCount(['malfunzionamenti as critici_count' => function($q) {
-                $q->where('gravita', 'critica');
-            }])->orderBy('critici_count', 'desc')
-            ->take(5)
-            ->get(),
-            
-            // Distribuzione malfunzionamenti per gravità
-            'malfunzionamenti_per_gravita' => Malfunzionamento::selectRaw('gravita, COUNT(*) as count')
-                ->whereNotNull('gravita')
-                ->groupBy('gravita')
-                ->pluck('count', 'gravita')
-                ->toArray(),
-        ];
-
-        return view('tecnico.dashboard', compact('user', 'stats'));
-    }
-
-    // ================================================
-    // API ENDPOINTS PER STATISTICHE (AJAX)
-    // ================================================
-
-    public function staffStats()
-{
-    try {
-        // Log per debug
-        \Log::info('staffStats API chiamata', [
-            'user_id' => Auth::id(),
-            'user_authenticated' => Auth::check(),
-            'ip' => request()->ip()
-        ]);
-
-        // Verifica autenticazione
-        if (!Auth::check()) {
-            \Log::warning('staffStats: utente non autenticato');
-            return response()->json([
-                'success' => false, 
-                'message' => 'Autenticazione richiesta'
-            ], 401);
-        }
-
-        $user = Auth::user();
-
-        // Verifica livello staff (livello 3+)
-        if (!$user->isStaff()) {
-            \Log::warning('staffStats: utente non autorizzato', [
-                'user_level' => $user->livello_accesso,
-                'required_level' => 3
-            ]);
-            
-            return response()->json([
-                'success' => false, 
-                'message' => 'Accesso riservato allo staff aziendale'
-            ], 403);
-        }
-
-        // Calcola statistiche dal database
-        $stats = [
-            // Statistiche principali
-            'total_malfunzionamenti' => \App\Models\Malfunzionamento::count(),
-            'critici' => \App\Models\Malfunzionamento::where('gravita', 'critica')->count(),
-            'alta_priorita' => \App\Models\Malfunzionamento::where('gravita', 'alta')->count(),
-            'creati_questo_mese' => \App\Models\Malfunzionamento::whereMonth('created_at', now()->month)
-                ->whereYear('created_at', now()->year)
-                ->count(),
-            
-            // Statistiche specifiche staff (aggiungeremo funzionalità future)
-            'prodotti_assegnati' => 0, // TODO: implementare relazione user->prodotti
-            'soluzioni_create' => 0,   // TODO: implementare relazione user->malfunzionamenti_creati
-            'soluzioni_critiche' => 0,
-            'ultima_modifica' => 'Mai',
-            'soluzioni_ultimo_mese' => 0
-        ];
-
-        // Log del successo
-        \Log::info('staffStats completato con successo', [
-            'user_id' => $user->id,
-            'stats' => $stats
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'stats' => $stats,
-            'timestamp' => now()->toISOString(),
-            'user' => $user->nome . ' ' . $user->cognome,
-            'user_level' => $user->livello_accesso
-        ]);
-
-    } catch (\Exception $e) {
-        // Log dettagliato dell'errore
-        \Log::error('Errore in staffStats', [
-            'user_id' => Auth::id(),
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine()
-        ]);
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Errore interno nel caricamento statistiche',
-            'error' => app()->environment('local') ? $e->getMessage() : null
-        ], 500);
-    }
-}
-
-
-    /**
-     * API per prodotti assegnati allo staff (chiamata AJAX)
-     */
-    public function staffProdotti()
-    {
-        if (!Auth::check() || !Auth::user()->isStaff()) {
-            return response()->json(['success' => false, 'message' => 'Non autorizzato'], 403);
-        }
-        
-        $user = Auth::user();
-        
-        $prodotti = $user->prodottiAssegnati()
-            ->with('malfunzionamenti')
-            ->get()
-            ->map(function($prodotto) {
-                return [
-                    'id' => $prodotto->id,
-                    'nome' => $prodotto->nome,
-                    'codice' => $prodotto->codice,
-                    'categoria' => $prodotto->categoria,
-                    'malfunzionamenti_count' => $prodotto->malfunzionamenti->count(),
-                    'critici_count' => $prodotto->malfunzionamenti->where('gravita', 'critica')->count()
-                ];
-            });
-        
-        return response()->json([
-            'success' => true,
-            'prodotti' => $prodotti,
-            'total' => $prodotti->count()
-        ]);
-    }
-
-    /**
-     * API per ultime soluzioni create dallo staff (chiamata AJAX)
-     */
-    public function staffUltimeSoluzioni()
-    {
-        if (!Auth::check() || !Auth::user()->isStaff()) {
-            return response()->json(['success' => false, 'message' => 'Non autorizzato'], 403);
-        }
-        
-        $user = Auth::user();
-        
-        $soluzioni = $user->malfunzionamentiCreati()
-            ->with('prodotto')
-            ->latest()
-            ->take(10)
-            ->get()
-            ->map(function($soluzione) {
-                return [
-                    'id' => $soluzione->id,
-                    'titolo' => $soluzione->titolo,
-                    'prodotto_nome' => $soluzione->prodotto->nome ?? 'N/A',
-                    'gravita' => $soluzione->gravita,
-                    'created_at' => $soluzione->created_at->diffForHumans(),
-                    'updated_at' => $soluzione->updated_at->diffForHumans()
-                ];
-            });
-        
-        return response()->json([
-            'success' => true,
-            'soluzioni' => $soluzioni,
-            'total' => $soluzioni->count()
-        ]);
-    }
-
-    /**
-     * API per statistiche admin (chiamata AJAX)
-     */
-    public function adminStatsUpdate()
-    {
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            return response()->json(['success' => false, 'message' => 'Non autorizzato'], 403);
-        }
-        
-        try {
-            $stats = [
-                'total_utenti' => User::count(),
-                'total_prodotti' => Prodotto::count(),
-                'total_centri' => CentroAssistenza::count(),
-                'total_soluzioni' => Malfunzionamento::count(),
-                'utenti_attivi' => User::where('last_login_at', '>=', now()->subDays(30))->count(),
-                'prodotti_senza_soluzioni' => Prodotto::whereDoesntHave('malfunzionamenti')->count(),
-                'soluzioni_critiche' => Malfunzionamento::where('gravita', 'critica')->count()
-            ];
-            
-            return response()->json([
-                'success' => true,
-                'stats' => $stats,
-                'timestamp' => now()->toISOString()
-            ]);
-            
-        } catch (\Exception $e) {
-            Log::error('Errore nel caricamento statistiche admin', [
-                'user_id' => Auth::user()->id,
-                'error' => $e->getMessage()
-            ]);
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'Errore nel caricamento delle statistiche'
-            ], 500);
-        }
-    }
-
-    /**
-     * API per stato sistema (chiamata AJAX - solo admin)
-     */
-    public function systemStatus()
-    {
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            return response()->json(['success' => false, 'message' => 'Non autorizzato'], 403);
-        }
-        
-        try {
-            $status = [
-                'database' => 'online',
-                'storage' => is_writable(storage_path()) ? 'writable' : 'read-only',
-                'cache' => 'active',
-                'queue' => 'active'
-            ];
-            
-            // Test connessione database
-            try {
-                \DB::connection()->getPdo();
-            } catch (\Exception $e) {
-                $status['database'] = 'error';
-            }
-            
-            // Determina stato generale
-            $overallStatus = 'operational';
-            if ($status['database'] === 'error') {
-                $overallStatus = 'error';
-            } elseif ($status['storage'] === 'read-only') {
-                $overallStatus = 'degraded';
-            }
-            
-            return response()->json([
-                'success' => true,
-                'status' => $overallStatus,
-                'services' => $status,
-                'timestamp' => now()->toISOString(),
-                'server_info' => [
-                    'php_version' => PHP_VERSION,
-                    'laravel_version' => app()->version(),
-                    'memory_usage' => round(memory_get_usage(true) / 1024 / 1024, 2) . ' MB',
-                    'uptime' => $this->getServerUptime()
-                ]
-            ]);
-            
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'status' => 'error',
-                'message' => 'Errore nel controllo stato sistema'
-            ], 500);
-        }
-    }
-
-    // ================================================
-    // METODI HELPER
-    // ================================================
-
-    /**
-     * Helper per ottenere uptime del server (approssimativo)
-     */
-    private function getServerUptime()
-    {
-        try {
-            if (function_exists('sys_getloadavg') && $load = sys_getloadavg()) {
-                return "Load average: " . implode(', ', array_map(function($l) { 
-                    return number_format($l, 2); 
-                }, $load));
-            }
-            return 'Sistema operativo: ' . PHP_OS;
-        } catch (\Exception $e) {
-            return 'N/A';
-        }
-    }
-}
-?>

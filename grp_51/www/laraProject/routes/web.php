@@ -201,6 +201,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/profilo', [AuthController::class, 'profilo'])->name('profilo');
     Route::put('/profilo/aggiorna', [AuthController::class, 'aggiornaProfilo'])->name('profilo.aggiorna');
     Route::post('/profilo/cambia-password', [AuthController::class, 'cambiaPassword'])->name('profilo.password');
+    // Storico interventi per tecnici e superiori
+Route::get('/storico-interventi', [AuthController::class, 'storicoInterventi'])
+    ->name('auth.storico-interventi')
+    ->middleware(['auth', 'check.level:2']);
     
     // =====================================================
     // LIVELLO 2+ (Tecnici e superiori)
