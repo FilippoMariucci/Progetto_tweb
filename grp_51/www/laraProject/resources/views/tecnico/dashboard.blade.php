@@ -107,7 +107,7 @@
                         
                         {{-- Statistiche personali --}}
                         <div class="col-md-6 col-lg-4">
-                            <a href="{{ route('tecnico.statistiche') }}" class="btn btn-secondary btn-lg w-100 h-100">
+                            <a href="{{ route('tecnico.statistiche.view') }}" class="btn btn-secondary btn-lg w-100 h-100">
                                 <i class="bi bi-graph-up display-6 d-block mb-2"></i>
                                 <span class="fw-semibold">Le Mie Stats</span>
                             </a>

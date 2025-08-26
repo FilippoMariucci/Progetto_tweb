@@ -243,6 +243,12 @@ Route::get('/storico-interventi', [AuthController::class, 'storicoInterventi'])
         // === STORICO INTERVENTI TECNICO ===
         Route::get('/tecnico/interventi', [AuthController::class, 'storicoInterventi'])->name('tecnico.interventi');
         Route::get('/tecnico/statistiche', [AuthController::class, 'statisticheTecnico'])->name('tecnico.statistiche');
+        Route::get('/tecnico/le-mie-statistiche', [AuthController::class, 'statisticheTecnicoView'])->name('tecnico.statistiche.view');
+        Route::get('/malfunzionamenti/ricerca', [MalfunzionamentoController::class, 'ricerca'])
+    ->name('malfunzionamenti.ricerca');
+    
+Route::get('/tecnico/interventi', [AuthController::class, 'meiInterventi'])
+    ->name('tecnico.interventi');
     });
     
     // =====================================================
