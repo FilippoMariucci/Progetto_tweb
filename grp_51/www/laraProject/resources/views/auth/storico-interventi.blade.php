@@ -737,10 +737,8 @@ $(document).ready(function() {
     @if($user->isTecnico() || $user->isAdmin())
         setInterval(function() {
             console.log('Controllo aggiornamenti statistiche...');
-            // Qui potresti implementare un refresh AJAX delle statistiche
-            // $.get('{{ route("api.storico.stats") }}', function(data) {
-            //     updateStatistics(data);
-            // });
+            // Implementazione futura per refresh automatico delle statistiche
+            // Potresti creare una route API dedicata per questo scopo
         }, 300000); // 5 minuti
     @endif
     

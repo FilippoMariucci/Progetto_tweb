@@ -235,11 +235,72 @@
                         </div>
                     </div>
                     
-                    <div class="text-center">
-                        <a href="{{ route('prodotti.show', $prodotto) }}" class="btn btn-outline-primary btn-sm w-100">
-                            <i class="bi bi-eye me-1"></i>Vedi Dettagli Prodotto
-                        </a>
-                    </div>
+                    {{-- Sezione informazioni prodotto con routing corretto --}}
+<div class="d-flex align-items-center mb-3">
+    {{-- Immagine prodotto --}}
+    @if($prodotto->foto)
+        <img src="{{ $prodotto->foto_url ?? asset('images/prodotti/' . $prodotto->foto) }}" 
+             class="rounded me-3" 
+             style="width: 60px; height: 60px; object-fit: cover;"
+             alt="{{ $prodotto->nome }}">
+    @else
+        <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" 
+             style="width: 60px; height: 60px;">
+            <i class="bi bi-box text-muted"></i>
+        </div>
+    @endif
+    <div>
+        <h6 class="mb-1">
+            {{-- Link al prodotto con routing intelligente basato su autenticazione --}}
+            @auth
+                {{-- Se l'utente è autenticato e può vedere malfunzionamenti, vai alla vista completa --}}
+                @if(auth()->user()->canViewMalfunzionamenti())
+                    <a href="{{ route('prodotti.completo.show', $prodotto) }}" class="text-decoration-none">
+                        {{ $prodotto->nome }}
+                    </a>
+                @else
+                    {{-- Se autenticato ma senza permessi, vista pubblica --}}
+                    <a href="{{ route('prodotti.show', $prodotto) }}" class="text-decoration-none">
+                        {{ $prodotto->nome }}
+                    </a>
+                @endif
+            @else
+                {{-- Se non autenticato, vista pubblica --}}
+                <a href="{{ route('prodotti.show', $prodotto) }}" class="text-decoration-none">
+                    {{ $prodotto->nome }}
+                </a>
+            @endauth
+        </h6>
+        @if($prodotto->modello)
+            <small class="text-muted">{{ $prodotto->modello }}</small>
+        @endif
+    </div>
+</div>
+
+<div class="text-center">
+    {{-- PULSANTE CORRETTO con routing intelligente --}}
+    @auth
+        {{-- Se l'utente è autenticato e può vedere malfunzionamenti --}}
+        @if(auth()->user()->canViewMalfunzionamenti())
+            <a href="{{ route('prodotti.completo.show', $prodotto) }}" class="btn btn-outline-primary btn-sm w-100">
+                <i class="bi bi-eye me-1"></i>Vedi Dettagli Completi Prodotto
+                <span class="badge bg-warning text-dark ms-1">Con Malfunzionamenti</span>
+            </a>
+        @else
+            {{-- Se autenticato ma senza permessi per malfunzionamenti --}}
+            <a href="{{ route('prodotti.show', $prodotto) }}" class="btn btn-outline-primary btn-sm w-100">
+                <i class="bi bi-eye me-1"></i>Vedi Dettagli Prodotto
+                <span class="badge bg-info ms-1">Vista Base</span>
+            </a>
+        @endif
+    @else
+        {{-- Se non autenticato, vista pubblica --}}
+        <a href="{{ route('prodotti.show', $prodotto) }}" class="btn btn-outline-primary btn-sm w-100">
+            <i class="bi bi-eye me-1"></i>Vedi Dettagli Prodotto
+            <span class="badge bg-secondary ms-1">Pubblico</span>
+        </a>
+    @endauth
+</div>
                 </div>
             </div>
             
