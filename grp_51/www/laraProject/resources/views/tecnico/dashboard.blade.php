@@ -471,107 +471,190 @@
 
 @push('scripts')
 <script>
+// =====================================================
+// DASHBOARD TECNICO - JavaScript Corretto
+// Fix per la ricerca non funzionante
+// =====================================================
+
 $(document).ready(function() {
-    // === INIZIALIZZAZIONE DASHBOARD TECNICO ===
+    // === CONFIGURAZIONE GLOBALE ===
     console.log('Dashboard Tecnico caricata per: {{ auth()->user()->nome_completo }}');
     
-    // === RICERCA CON SUGGERIMENTI AJAX ===
+    // URLs corretti per le API (basati sulle route del tuo web.php)
+    const API_URLS = {
+        // Ricerca prodotti per tecnici (route esistente nel ProdottoController)
+        prodotti_search: '{{ route("api.prodotti.search.tech") }}',
+        
+        // Ricerca malfunzionamenti (route esistente nel MalfunzionamentoController) 
+        malfunzionamenti_search: '{{ route("api.malfunzionamenti.search") }}',
+        
+        // Statistiche dashboard
+        stats_dashboard: '{{ route("api.stats.dashboard") }}',
+        
+        // Segnalazione malfunzionamento
+        segnala_base_url: '{{ url("/api/malfunzionamenti") }}'
+    };
+    
+    // Token CSRF per tutte le richieste AJAX
+    const CSRF_TOKEN = $('meta[name="csrf-token"]').attr('content');
+    
+    // Configurazione AJAX globale per includere sempre il CSRF token
+    $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': CSRF_TOKEN,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        }
+    });
+
+    // === RICERCA CON SUGGERIMENTI AJAX CORRETTA ===
     let searchTimeout;
     
+    // Ricerca prodotti con debouncing e gestione wildcard
     $('#searchProdotti').on('input', function() {
         const query = $(this).val().trim();
         
+        // Cancella timeout precedente per evitare troppe chiamate
         clearTimeout(searchTimeout);
         
         if (query.length >= 2) {
+            // Mostra loading
+            $(this).addClass('loading-input');
+            
             searchTimeout = setTimeout(() => {
                 cercaProdottiAjax(query);
-            }, 300);
+            }, 300); // 300ms di delay
         } else {
             hideSuggestions();
         }
     });
     
+    // Ricerca malfunzionamenti con debouncing
     $('#searchMalfunzionamenti').on('input', function() {
         const query = $(this).val().trim();
         
         clearTimeout(searchTimeout);
         
         if (query.length >= 3) {
+            $(this).addClass('loading-input');
+            
             searchTimeout = setTimeout(() => {
                 cercaMalfunzionamentiAjax(query);
-            }, 500);
+            }, 500); // 500ms per malfunzionamenti (ricerca più complessa)
         } else {
             hideMalfunzionamentoSuggestions();
         }
     });
     
+    // === FUNZIONE RICERCA PRODOTTI AJAX ===
     function cercaProdottiAjax(query) {
         $.ajax({
-            url: '{{ route("api.prodotti.search.tech") }}',
+            url: API_URLS.prodotti_search,
             method: 'GET',
-            data: { q: query },
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            data: { 
+                q: query,
+                limit: 10 // Limita i risultati per performance
             },
             success: function(response) {
-                if (response.success && response.data.length > 0) {
+                // Rimuovi loading
+                $('#searchProdotti').removeClass('loading-input');
+                
+                if (response.success && response.data && response.data.length > 0) {
                     mostraSuggerimenti(response.data, '#searchProdotti');
+                    console.log(`Trovati ${response.data.length} prodotti per "${query}"`);
                 } else {
                     hideSuggestions();
+                    console.log(`Nessun prodotto trovato per "${query}"`);
                 }
             },
-            error: function(xhr) {
-                console.error('Errore ricerca AJAX prodotti:', xhr.responseText);
+            error: function(xhr, status, error) {
+                $('#searchProdotti').removeClass('loading-input');
+                console.error('Errore ricerca prodotti AJAX:', {
+                    status: xhr.status,
+                    statusText: xhr.statusText,
+                    responseText: xhr.responseText,
+                    error: error
+                });
+                
+                // Mostra messaggio di errore user-friendly
+                showErrorTooltip('#searchProdotti', 'Errore nella ricerca prodotti');
                 hideSuggestions();
             }
         });
     }
     
+    // === FUNZIONE RICERCA MALFUNZIONAMENTI AJAX ===
     function cercaMalfunzionamentiAjax(query) {
         $.ajax({
-            url: '{{ route("api.malfunzionamenti.search") }}',
+            url: API_URLS.malfunzionamenti_search,
             method: 'GET',
             data: { 
                 q: query,
-                limit: 8
-            },
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                limit: 8,
+                order: 'gravita' // Ordina per gravità di default
             },
             success: function(response) {
-                if (response.success && response.data.length > 0) {
+                $('#searchMalfunzionamenti').removeClass('loading-input');
+                
+                if (response.success && response.data && response.data.length > 0) {
                     mostraMalfunzionamentoSuggestions(response.data, '#searchMalfunzionamenti');
+                    console.log(`Trovati ${response.data.length} malfunzionamenti per "${query}"`);
                 } else {
                     hideMalfunzionamentoSuggestions();
+                    console.log(`Nessun malfunzionamento trovato per "${query}"`);
                 }
             },
-            error: function(xhr) {
-                console.error('Errore ricerca AJAX malfunzionamenti:', xhr.responseText);
+            error: function(xhr, status, error) {
+                $('#searchMalfunzionamenti').removeClass('loading-input');
+                console.error('Errore ricerca malfunzionamenti AJAX:', {
+                    status: xhr.status,
+                    statusText: xhr.statusText,
+                    responseText: xhr.responseText,
+                    error: error
+                });
+                
+                showErrorTooltip('#searchMalfunzionamenti', 'Errore nella ricerca malfunzionamenti');
                 hideMalfunzionamentoSuggestions();
             }
         });
     }
     
+    // === MOSTRA SUGGERIMENTI PRODOTTI ===
     function mostraSuggerimenti(risultati, targetInput) {
-        let html = '<div class="list-group position-absolute product-suggestions" style="z-index: 1000; max-height: 400px; overflow-y: auto; width: 100%;">';
+        let html = '<div class="list-group position-absolute product-suggestions" style="z-index: 1000; max-height: 400px; overflow-y: auto; width: 100%; box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15); border-radius: 0.375rem;">';
         
         risultati.forEach(function(prodotto) {
+            // Icone per indicare problemi critici
             const criticiIcon = prodotto.critici_count > 0 ? 
                 `<i class="bi bi-exclamation-triangle text-danger ms-1" title="${prodotto.critici_count} problemi critici"></i>` : '';
+            
+            // Badge per categoria e conteggio malfunzionamenti
+            const categoriaBadge = prodotto.categoria ? 
+                `<span class="badge bg-light text-dark me-1">${prodotto.categoria}</span>` : '';
+            
+            const malfunzionamentiBadge = prodotto.malfunzionamenti_count > 0 ? 
+                `<span class="badge bg-primary">${prodotto.malfunzionamenti_count}</span>` : '';
+            
+            const criticiBadge = prodotto.critici_count > 0 ? 
+                `<span class="badge bg-danger ms-1">${prodotto.critici_count}</span>` : '';
             
             html += `
                 <a href="${prodotto.url}" class="list-group-item list-group-item-action">
                     <div class="d-flex justify-content-between align-items-start">
                         <div class="flex-grow-1">
-                            <h6 class="mb-1">${prodotto.nome} ${criticiIcon}</h6>
-                            <p class="mb-1 text-muted small">${prodotto.modello || ''}</p>
-                            <small class="text-muted">${prodotto.categoria}</small>
+                            <h6 class="mb-1">
+                                ${prodotto.nome} ${criticiIcon}
+                                ${prodotto.modello ? `<small class="text-muted">- ${prodotto.modello}</small>` : ''}
+                            </h6>
+                            ${prodotto.descrizione ? `<p class="mb-1 text-muted small">${prodotto.descrizione}</p>` : ''}
+                            <div>
+                                ${categoriaBadge}
+                                ${prodotto.prezzo ? `<small class="text-success">${prodotto.prezzo}</small>` : ''}
+                            </div>
                         </div>
                         <div class="text-end">
-                            <span class="badge bg-primary">${prodotto.malfunzionamenti_count || 0}</span>
-                            ${prodotto.critici_count > 0 ? 
-                                `<span class="badge bg-danger ms-1">${prodotto.critici_count}</span>` : ''}
+                            ${malfunzionamentiBadge}
+                            ${criticiBadge}
                         </div>
                     </div>
                 </a>
@@ -585,10 +668,12 @@ $(document).ready(function() {
         $(targetInput).parent().addClass('position-relative').append(html);
     }
     
+    // === MOSTRA SUGGERIMENTI MALFUNZIONAMENTI ===
     function mostraMalfunzionamentoSuggestions(risultati, targetInput) {
-        let html = '<div class="list-group position-absolute malfunction-suggestions" style="z-index: 1000; max-height: 350px; overflow-y: auto; width: 100%;">';
+        let html = '<div class="list-group position-absolute malfunction-suggestions" style="z-index: 1000; max-height: 350px; overflow-y: auto; width: 100%; box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15); border-radius: 0.375rem;">';
         
         risultati.forEach(function(malfunzionamento) {
+            // Colori badge per gravità
             const graviColor = {
                 'critica': 'danger',
                 'alta': 'warning', 
@@ -596,7 +681,16 @@ $(document).ready(function() {
                 'bassa': 'secondary'
             };
             
+            // Colori per difficoltà
+            const difficoltaColor = {
+                'esperto': 'danger',
+                'difficile': 'warning',
+                'media': 'info',
+                'facile': 'success'
+            };
+            
             const badgeColor = graviColor[malfunzionamento.gravita] || 'secondary';
+            const diffColor = difficoltaColor[malfunzionamento.difficolta] || 'secondary';
             
             html += `
                 <a href="${malfunzionamento.url}" class="list-group-item list-group-item-action">
@@ -604,13 +698,21 @@ $(document).ready(function() {
                         <div class="flex-grow-1">
                             <h6 class="mb-1">${malfunzionamento.titolo}</h6>
                             <p class="mb-1 text-muted small">${malfunzionamento.descrizione}</p>
-                            <small><strong>Prodotto:</strong> ${malfunzionamento.prodotto_nome}</small>
+                            <small>
+                                <strong>Prodotto:</strong> ${malfunzionamento.prodotto_nome}
+                                ${malfunzionamento.prodotto_modello ? ` - ${malfunzionamento.prodotto_modello}` : ''}
+                            </small>
                         </div>
                         <div class="text-end">
-                            <span class="badge bg-${badgeColor}">${malfunzionamento.gravita}</span>
-                            <span class="badge bg-primary ms-1">${malfunzionamento.segnalazioni}</span>
-                            ${malfunzionamento.tempo_stimato ? 
-                                `<div><small class="text-muted">${malfunzionamento.tempo_stimato} min</small></div>` : ''}
+                            <div class="mb-1">
+                                <span class="badge bg-${badgeColor}">${malfunzionamento.gravita}</span>
+                                <span class="badge bg-${diffColor} ms-1">${malfunzionamento.difficolta}</span>
+                            </div>
+                            <div>
+                                <span class="badge bg-primary" title="Segnalazioni">${malfunzionamento.segnalazioni || 0}</span>
+                                ${malfunzionamento.tempo_stimato ? 
+                                    `<small class="text-muted ms-1">${malfunzionamento.tempo_stimato} min</small>` : ''}
+                            </div>
                         </div>
                     </div>
                 </a>
@@ -623,27 +725,54 @@ $(document).ready(function() {
         $(targetInput).parent().addClass('position-relative').append(html);
     }
     
+    // === NASCONDI SUGGERIMENTI ===
     function hideSuggestions() {
-        $('.product-suggestions').remove();
+        $('.product-suggestions').fadeOut(200, function() {
+            $(this).remove();
+        });
     }
     
     function hideMalfunzionamentoSuggestions() {
-        $('.malfunction-suggestions').remove();
+        $('.malfunction-suggestions').fadeOut(200, function() {
+            $(this).remove();
+        });
     }
     
-    // === FUNZIONE SEGNALA MALFUNZIONAMENTO ===
+    // === TOOLTIP PER ERRORI ===
+    function showErrorTooltip(selector, message) {
+        const $element = $(selector);
+        
+        // Rimuovi tooltip esistenti
+        $element.tooltip('dispose');
+        
+        // Aggiungi nuovo tooltip
+        $element.tooltip({
+            title: message,
+            placement: 'bottom',
+            trigger: 'manual',
+            customClass: 'error-tooltip'
+        }).tooltip('show');
+        
+        // Rimuovi dopo 3 secondi
+        setTimeout(function() {
+            $element.tooltip('dispose');
+        }, 3000);
+    }
+    
+    // === FUNZIONE SEGNALA MALFUNZIONAMENTO CORRETTA ===
     window.segnalaMalfunzionamento = function(malfunzionamentoId) {
         if (!confirm('Confermi di aver riscontrato questo problema? Incrementerà il contatore delle segnalazioni.')) {
             return;
         }
         
+        // Disabilita temporaneamente il pulsante per evitare doppi click
+        const $button = $(`[onclick="segnalaMalfunzionamento(${malfunzionamentoId})"]`);
+        $button.prop('disabled', true).addClass('loading');
+        
         $.ajax({
-            url: `{{ url('/api/malfunzionamenti') }}/${malfunzionamentoId}/segnala`,
+            url: `${API_URLS.segnala_base_url}/${malfunzionamentoId}/segnala`,
             method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                'Content-Type': 'application/json'
-            },
+            data: JSON.stringify({}), // Body vuoto ma JSON valido
             success: function(response) {
                 if (response.success) {
                     // Mostra messaggio di successo
@@ -651,120 +780,166 @@ $(document).ready(function() {
                     
                     // Aggiorna il contatore visibile
                     $(`#count-${malfunzionamentoId}`).text(response.nuovo_count);
+                    
+                    // Animazione di feedback
+                    $(`#count-${malfunzionamentoId}`).addClass('badge-updated');
+                    setTimeout(() => {
+                        $(`#count-${malfunzionamentoId}`).removeClass('badge-updated');
+                    }, 2000);
+                    
+                    console.log(`Segnalazione registrata per malfunzionamento ${malfunzionamentoId}. Nuovo conteggio: ${response.nuovo_count}`);
                 } else {
                     showAlert('Errore nella segnalazione: ' + (response.message || 'Errore sconosciuto'), 'danger');
                 }
             },
-            error: function(xhr) {
-                console.error('Errore segnalazione:', xhr.responseText);
+            error: function(xhr, status, error) {
+                console.error('Errore segnalazione:', {
+                    status: xhr.status,
+                    responseText: xhr.responseText,
+                    error: error
+                });
+                
                 let errorMsg = 'Errore nella segnalazione del malfunzionamento.';
                 
                 try {
                     const response = JSON.parse(xhr.responseText);
                     errorMsg = response.message || errorMsg;
                 } catch (e) {
-                    // Mantieni messaggio di default
+                    // Se la risposta non è JSON valida, usa il messaggio di default
                 }
                 
                 showAlert(errorMsg, 'danger');
+            },
+            complete: function() {
+                // Riabilita il pulsante
+                $button.prop('disabled', false).removeClass('loading');
             }
         });
     };
     
     // === FUNZIONE MOSTRA ALERT ===
     function showAlert(message, type) {
+        const alertId = 'alert-' + Date.now();
         const alertHtml = `
-            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 400px;">
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         `;
         
-        // Inserisci l'alert all'inizio del container
-        $('.container').prepend(alertHtml);
+        // Inserisci l'alert nel body
+        $('body').append(alertHtml);
         
         // Rimuovi automaticamente dopo 5 secondi
         setTimeout(function() {
-            $('.alert').fadeOut();
+            $(`#${alertId}`).fadeOut(500, function() {
+                $(this).remove();
+            });
         }, 5000);
     }
     
-    // === GESTIONE EVENTI ===
-    
-    // Nascondi suggerimenti quando si clicca fuori
-    $(document).on('click', function(e) {
-        if (!$(e.target).closest('#searchProdotti, #searchMalfunzionamenti').length) {
-            hideSuggestions();
-            hideMalfunzionamentoSuggestions();
-        }
-    });
-    
-    // Submit con Enter
-    $('#searchProdotti, #searchMalfunzionamenti').on('keypress', function(e) {
-        if (e.which === 13) { // Tasto Enter
-            hideSuggestions();
-            hideMalfunzionamentoSuggestions();
-            $(this).closest('form').submit();
-        }
-    });
-    
-    // === TOOLTIPS E ANIMAZIONI ===
-    
-    // Inizializza tooltip Bootstrap
-    $('[data-bs-toggle="tooltip"]').tooltip();
-    
-    // Effetto hover sulle card statistiche
-    $('.card.card-custom').hover(
-        function() {
-            $(this).addClass('shadow-lg').css('transform', 'translateY(-2px)');
-        },
-        function() {
-            $(this).removeClass('shadow-lg').css('transform', 'translateY(0)');
-        }
-    );
-    
     // === AGGIORNAMENTO STATISTICHE PERIODICO ===
-    
-    let statsUpdateInterval;
-    
     function aggiornaStatistiche() {
         $.ajax({
-            url: '{{ route("api.stats.dashboard") }}',
+            url: API_URLS.stats_dashboard,
             method: 'GET',
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
             success: function(response) {
                 if (response.success && response.data) {
-                    // Aggiorna i valori nelle card statistiche
+                    console.log('Statistiche aggiornate:', response.data);
+                    
+                    // Aggiorna i valori nelle card statistiche se esistono
                     const stats = response.data;
                     
+                    // Funzione helper per aggiornare statistiche con animazione
+                    function updateStat(selector, newValue) {
+                        const $element = $(selector);
+                        if ($element.length && $element.text() !== newValue.toString()) {
+                            $element.addClass('updating');
+                            setTimeout(() => {
+                                $element.text(newValue).removeClass('updating');
+                            }, 300);
+                        }
+                    }
+                    
+                    // Aggiorna le statistiche se gli elementi esistono
                     if (stats.total_prodotti !== undefined) {
-                        $('.bg-primary.bg-opacity-10 h4').text(stats.total_prodotti);
+                        updateStat('.stats-prodotti', stats.total_prodotti);
                     }
                     if (stats.total_malfunzionamenti !== undefined) {
-                        $('.bg-warning.bg-opacity-10 h4').text(stats.total_malfunzionamenti);
+                        updateStat('.stats-malfunzionamenti', stats.total_malfunzionamenti);
                     }
                     if (stats.malfunzionamenti_critici !== undefined) {
-                        $('.bg-danger.bg-opacity-10 h4').text(stats.malfunzionamenti_critici);
+                        updateStat('.stats-critici', stats.malfunzionamenti_critici);
                     }
                     if (stats.total_centri !== undefined) {
-                        $('.bg-success.bg-opacity-10 h4').text(stats.total_centri);
+                        updateStat('.stats-centri', stats.total_centri);
                     }
                 }
             },
             error: function(xhr) {
-                // Errore silenzioso, non disturbare l'utente
+                // Errore silenzioso per non disturbare l'utente
                 console.warn('Aggiornamento statistiche fallito:', xhr.status);
             }
         });
     }
     
-    // Aggiorna statistiche ogni 10 minuti
-    statsUpdateInterval = setInterval(aggiornaStatistiche, 10 * 60 * 1000);
+    // Aggiorna statistiche ogni 10 minuti (600000ms)
+    const statsUpdateInterval = setInterval(aggiornaStatistiche, 10 * 60 * 1000);
+    
+    // === GESTIONE EVENTI GENERALI ===
+    
+    // Nascondi suggerimenti quando si clicca fuori
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('#searchProdotti, #searchMalfunzionamenti, .product-suggestions, .malfunction-suggestions').length) {
+            hideSuggestions();
+            hideMalfunzionamentoSuggestions();
+        }
+    });
+    
+    // Submit con Enter e gestione navigazione con frecce
+    $('#searchProdotti, #searchMalfunzionamenti').on('keydown', function(e) {
+        const $suggestions = $(this).parent().find('.product-suggestions, .malfunction-suggestions');
+        const $activeItem = $suggestions.find('.list-group-item.active');
+        
+        switch(e.which) {
+            case 13: // Enter
+                if ($activeItem.length) {
+                    // Se c'è un elemento attivo, naviga ad esso
+                    window.location.href = $activeItem.attr('href');
+                } else {
+                    // Altrimenti, submit del form
+                    hideSuggestions();
+                    hideMalfunzionamentoSuggestions();
+                    $(this).closest('form').submit();
+                }
+                break;
+                
+            case 38: // Freccia su
+                e.preventDefault();
+                if ($activeItem.length) {
+                    $activeItem.removeClass('active').prev().addClass('active');
+                } else {
+                    $suggestions.find('.list-group-item').last().addClass('active');
+                }
+                break;
+                
+            case 40: // Freccia giù
+                e.preventDefault();
+                if ($activeItem.length) {
+                    $activeItem.removeClass('active').next().addClass('active');
+                } else {
+                    $suggestions.find('.list-group-item').first().addClass('active');
+                }
+                break;
+                
+            case 27: // Escape
+                hideSuggestions();
+                hideMalfunzionamentoSuggestions();
+                break;
+        }
+    });
     
     // === SHORTCUTS DA TASTIERA ===
-    
     $(document).on('keydown', function(e) {
         // Ctrl + F = Focus su ricerca prodotti
         if (e.ctrlKey && e.key === 'f') {
@@ -791,44 +966,73 @@ $(document).ready(function() {
         }
     });
     
-    // === ANALYTICS E TRACKING ===
+    // === TOOLTIPS E ANIMAZIONI ===
     
-    // Traccia utilizzo dashboard (per miglioramenti)
-    console.log('Dashboard Tecnico Analytics:', {
-        user_level: {{ auth()->user()->livello_accesso }},
-        has_centro: {{ auth()->user()->centro_assistenza ? 'true' : 'false' }},
-        stats: {
-            prodotti: {{ $stats['total_prodotti'] ?? 0 }},
-            malfunzionamenti: {{ $stats['total_malfunzionamenti'] ?? 0 }},
-            critici: {{ $stats['malfunzionamenti_critici'] ?? 0 }}
+    // Inizializza tooltip Bootstrap per elementi esistenti
+    $('[data-bs-toggle="tooltip"]').tooltip();
+    
+    // Effetto hover sulle card statistiche con animazione migliorata
+    $('.card.card-custom').hover(
+        function() {
+            $(this).addClass('shadow-lg').css('transform', 'translateY(-2px)');
         },
-        timestamp: new Date().toISOString(),
-        session_start: true
-    });
+        function() {
+            $(this).removeClass('shadow-lg').css('transform', 'translateY(0)');
+        }
+    );
     
-    // === ALERT AUTOMATICI ===
+    // === FUNZIONI DI DEBUG E TESTING ===
     
-    // Avviso se ci sono molti problemi critici
-    @if(isset($stats['malfunzionamenti_critici']) && $stats['malfunzionamenti_critici'] > 10)
-        setTimeout(function() {
-            if (confirm('ATTENZIONE: {{ $stats["malfunzionamenti_critici"] }} problemi critici rilevati nel sistema!\n\nVuoi visualizzare i prodotti con priorità alta?')) {
-                window.location.href = '{{ route("prodotti.completo.index") }}?filter=critici';
-            }
-        }, 3000); // Dopo 3 secondi
-    @endif
+    // Test delle connessioni API
+    function testConnessioniAPI() {
+        console.log('🧪 Test delle connessioni API...');
+        
+        // Test API prodotti
+        $.get(API_URLS.prodotti_search + '?q=test')
+            .done(() => console.log('✅ API Prodotti: OK'))
+            .fail((xhr) => console.log('❌ API Prodotti: ERRORE', xhr.status));
+        
+        // Test API malfunzionamenti
+        $.get(API_URLS.malfunzionamenti_search + '?q=test')
+            .done(() => console.log('✅ API Malfunzionamenti: OK'))
+            .fail((xhr) => console.log('❌ API Malfunzionamenti: ERRORE', xhr.status));
+        
+        // Test API statistiche
+        $.get(API_URLS.stats_dashboard)
+            .done(() => console.log('✅ API Statistiche: OK'))
+            .fail((xhr) => console.log('❌ API Statistiche: ERRORE', xhr.status));
+    }
     
-    // === CLEANUP ===
+    // === CLEANUP E FINALIZZAZIONE ===
     
     // Pulizia quando si lascia la pagina
     $(window).on('beforeunload', function() {
-        if (statsUpdateInterval) {
+        if (typeof statsUpdateInterval !== 'undefined') {
             clearInterval(statsUpdateInterval);
         }
     });
     
     // === INIZIALIZZAZIONE COMPLETATA ===
+    console.log('✅ Dashboard Tecnico inizializzata completamente');
+    console.log('🔧 URLs API configurati:', API_URLS);
+    console.log('🚀 Funzioni disponibili:', {
+        'segnalaMalfunzionamento()': 'Segnala un problema',
+        'testConnessioniAPI()': 'Test delle API',
+        'aggiornaStatistiche()': 'Forza aggiornamento stats'
+    });
     
-    console.log('Dashboard Tecnico inizializzata completamente');
+    // Esponi funzioni per debugging nella console
+    window.dashboardTecnico = {
+        testAPI: testConnessioniAPI,
+        updateStats: aggiornaStatistiche,
+        urls: API_URLS,
+        version: '1.0.0'
+    };
+    
+    // Test automatico delle API all'avvio (solo in ambiente di sviluppo)
+    @if(app()->environment('local'))
+        setTimeout(testConnessioniAPI, 2000);
+    @endif
     
     // Messaggio di benvenuto personalizzato (solo al primo accesso giornaliero)
     const oggi = new Date().toDateString();
@@ -846,13 +1050,18 @@ $(document).ready(function() {
 
 @push('styles')
 <style>
-/* === STILI PERSONALIZZATI PER DASHBOARD TECNICO === */
+/* =====================================================
+   DASHBOARD TECNICO - CSS Corretto
+   Fix per ricerca e animazioni non funzionanti
+   ===================================================== */
 
-/* Stili per le card personalizzate (coerente con admin/staff) */
+/* === STILI BASE PER DASHBOARD TECNICO === */
 .card-custom {
     border: none;
     box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
     transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
 }
 
 .card-custom:hover {
@@ -860,54 +1069,62 @@ $(document).ready(function() {
     transform: translateY(-2px);
 }
 
-/* Effetti hover per i pulsanti di gestione (coerente con admin) */
-.btn-lg:hover {
-    transform: translateY(-1px);
-    transition: transform 0.2s ease-in-out;
+/* === STILI PER INPUT DI RICERCA === */
+.form-control {
+    transition: all 0.3s ease;
 }
 
-/* Stili per gli indicatori di stato */
-.badge.bg-success { background-color: #198754 !important; }
-.badge.bg-warning { background-color: #ffc107 !important; color: #000 !important; }
-.badge.bg-danger { background-color: #dc3545 !important; }
-.badge.bg-info { background-color: #0dcaf0 !important; }
-.badge.bg-primary { background-color: #0d6efd !important; }
-
-/* Badge per livello tecnico */
-.badge-livello {
-    font-size: 0.75em;
-    font-weight: 600;
+.form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    transform: scale(1.02);
 }
 
-/* Animazioni per le statistiche */
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
+/* Indicatore di loading per input */
+.loading-input {
+    background-image: url("data:image/svg+xml,%3csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3e%3cg fill='none' fill-rule='evenodd'%3e%3cg fill='%236c757d'%3e%3ccircle cx='10' cy='10' r='1'%3e%3canimate attributeName='r' begin='0s' dur='1.8s' values='1; 4; 1' calcMode='spline' keyTimes='0; .5; 1' keySplines='0.165, 0.84, 0.44, 1; 0.3, 0.61, 0.355, 1' repeatCount='indefinite'/%3e%3canimate attributeName='stroke-opacity' begin='0s' dur='1.8s' values='1; 0; 1' calcMode='spline' keyTimes='0; .5; 1' keySplines='0.3, 0.61, 0.355, 1; 0.165, 0.84, 0.44, 1' repeatCount='indefinite'/%3e%3c/circle%3e%3c/g%3e%3c/g%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 20px;
+    padding-right: 40px;
 }
 
-.updating {
-    animation: pulse 1s infinite;
-}
-
-/* Suggerimenti ricerca con stile coerente */
+/* === STILI PER SUGGERIMENTI DI RICERCA === */
 .list-group {
     border: 1px solid #dee2e6;
     border-radius: 0.375rem;
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
     background-color: #fff;
+    max-height: 400px;
+    overflow-y: auto;
 }
 
-.list-group-item:hover {
-    background-color: #f8f9fa;
+.list-group-item {
+    border: none;
+    border-bottom: 1px solid #f8f9fa;
+    transition: all 0.2s ease;
+    cursor: pointer;
 }
 
+.list-group-item:hover,
+.list-group-item.active {
+    background-color: #e3f2fd;
+    border-color: #e3f2fd;
+    color: #0d47a1;
+}
+
+.list-group-item:last-child {
+    border-bottom: none;
+}
+
+/* Scrollbar personalizzata per suggerimenti */
 .list-group::-webkit-scrollbar {
     width: 6px;
 }
 
 .list-group::-webkit-scrollbar-track {
     background: #f1f1f1;
+    border-radius: 3px;
 }
 
 .list-group::-webkit-scrollbar-thumb {
@@ -919,16 +1136,165 @@ $(document).ready(function() {
     background: #a8a8a8;
 }
 
-/* Stile per campi ricerca attivi */
-#searchProdotti:focus, #searchMalfunzionamenti:focus {
-    border-color: #0d6efd;
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+/* === BADGE E INDICATORI === */
+.badge {
+    font-size: 0.75em;
+    font-weight: 600;
+    transition: all 0.2s ease;
 }
 
-/* Stile per elementi critici (coerente con admin) */
+/* Animazione per badge aggiornati */
+.badge-updated {
+    animation: badge-pulse 2s ease-in-out;
+    transform: scale(1.2);
+}
+
+@keyframes badge-pulse {
+    0% { 
+        background-color: #198754;
+        transform: scale(1.2);
+    }
+    50% { 
+        background-color: #20c997;
+        transform: scale(1.3);
+    }
+    100% { 
+        background-color: #198754;
+        transform: scale(1);
+    }
+}
+
+/* Colori personalizzati per gravità */
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+    animation: pulse-danger 2s infinite ease-in-out;
+}
+
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #000 !important;
+}
+
+.badge.bg-info {
+    background-color: #0dcaf0 !important;
+}
+
+.badge.bg-success {
+    background-color: #198754 !important;
+}
+
+.badge.bg-primary {
+    background-color: #0d6efd !important;
+}
+
+@keyframes pulse-danger {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* === STILI PER STATISTICHE === */
+.bg-primary.bg-opacity-10 {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+    transition: all 0.3s ease;
+}
+
+.bg-warning.bg-opacity-10 {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+}
+
+.bg-danger.bg-opacity-10 {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+}
+
+.bg-success.bg-opacity-10 {
+    background-color: rgba(25, 135, 84, 0.1) !important;
+}
+
+.bg-info.bg-opacity-10 {
+    background-color: rgba(13, 202, 240, 0.1) !important;
+}
+
+/* Animazione per statistiche in aggiornamento */
+.updating {
+    animation: pulse 1s infinite;
+    opacity: 0.7;
+}
+
+@keyframes pulse {
+    0% { opacity: 0.7; }
+    50% { opacity: 1; }
+    100% { opacity: 0.7; }
+}
+
+/* === STILI PER PULSANTI === */
+.btn {
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.btn.loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.btn.loading::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Effetti hover per pulsanti grandi */
+.btn-lg:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* === STILI PER CARD HEADER === */
+.card-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+    position: relative;
+}
+
+.card-header.bg-info {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    background: linear-gradient(135deg, #0dcaf0 0%, #17a2b8 100%);
+}
+
+.card-header.bg-danger {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+}
+
+.card-header.bg-light {
+    border-bottom: 1px solid #dee2e6;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+/* === STILI PER ELEMENTI CRITICI === */
 .border-danger {
     border-width: 2px !important;
     position: relative;
+    overflow: hidden;
 }
 
 .border-danger::before {
@@ -942,51 +1308,90 @@ $(document).ready(function() {
     border-radius: 0.375rem;
     z-index: -1;
     opacity: 0.1;
+    animation: border-glow 3s ease-in-out infinite;
 }
 
-/* Badge personalizzati per gravità con animazione */
-.badge.bg-danger {
-    animation: pulse-danger 2s infinite;
+@keyframes border-glow {
+    0%, 100% { opacity: 0.1; }
+    50% { opacity: 0.2; }
 }
 
-@keyframes pulse-danger {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
+/* === ALERT PERSONALIZZATI === */
+.alert {
+    border: none;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+    animation: slideInRight 0.5s ease-out;
 }
 
-/* Loading states per AJAX */
-.loading {
-    opacity: 0.6;
-    pointer-events: none;
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
-.loading::after {
-    content: "";
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    margin-left: 10px;
-    border: 3px solid #f3f3f3;
-    border-top: 3px solid #3498db;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+.alert-info {
+    background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+    color: #0c5460;
+    border-left: 4px solid #0dcaf0;
 }
 
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+.alert-success {
+    background: linear-gradient(135deg, #d1e7dd 0%, #badbcc 100%);
+    color: #0f5132;
+    border-left: 4px solid #198754;
 }
 
-/* Evidenziazione termini di ricerca */
-mark {
+.alert-danger {
+    background: linear-gradient(135deg, #f8d7da 0%, #f1aeb5 100%);
+    color: #721c24;
+    border-left: 4px solid #dc3545;
+}
+
+.alert-warning {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    color: #856404;
+    border-left: 4px solid #ffc107;
+}
+
+/* === TOOLTIP PERSONALIZZATI === */
+.tooltip {
+    font-size: 0.875rem;
+}
+
+.tooltip.show {
+    opacity: 1;
+}
+
+.tooltip .tooltip-inner {
+    background-color: #212529;
+    color: #fff;
+    border-radius: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.2);
+}
+
+.error-tooltip .tooltip-inner {
+    background-color: #dc3545;
+    color: #fff;
+}
+
+/* === EVIDENZIAZIONE TERMINI DI RICERCA === */
+mark, .highlight {
     background-color: #fff3cd;
     padding: 0.125em 0.25em;
     border-radius: 0.25rem;
+    font-weight: 500;
 }
 
-/* Icone animate per feedback */
-.btn i {
+/* === ICONE ANIMATE === */
+.btn i, .card-header i {
     transition: transform 0.2s ease;
 }
 
@@ -994,31 +1399,13 @@ mark {
     transform: scale(1.1);
 }
 
-/* Stile per alert personalizzati */
-.alert {
-    border: none;
-    border-radius: 0.5rem;
-    margin-bottom: 1rem;
+.card-header i {
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }
 
-.alert-info {
-    background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
-    color: #0c5460;
-}
-
-.alert-success {
-    background: linear-gradient(135deg, #d1e7dd 0%, #badbcc 100%);
-    color: #0f5132;
-}
-
-.alert-danger {
-    background: linear-gradient(135deg, #f8d7da 0%, #f1aeb5 100%);
-    color: #721c24;
-}
-
-/* Responsive design per schermi piccoli (coerente con admin/staff) */
+/* === RESPONSIVE DESIGN === */
 @media (max-width: 768px) {
-    .col-lg-4, .col-md-6 {
+    .card-custom {
         margin-bottom: 1rem;
     }
     
@@ -1047,77 +1434,147 @@ mark {
     .container {
         padding-left: 1rem;
         padding-right: 1rem;
-    }
-}
-
-/* Stile per tooltip personalizzati */
-.tooltip.show {
-    opacity: 1;
-}
-
-.tooltip .tooltip-inner {
-    background-color: #212529;
-    color: #fff;
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
-    padding: 0.5rem 0.75rem;
-}
-
-/* Footer spacer per mobile */
-@media (max-width: 768px) {
-    .container {
         padding-bottom: 2rem;
     }
+    
+    /* Suggerimenti più piccoli su mobile */
+    .list-group {
+        max-height: 250px;
+        font-size: 0.875rem;
+    }
+    
+    .list-group-item h6 {
+        font-size: 1rem;
+    }
+    
+    .list-group-item p {
+        font-size: 0.75rem;
+    }
+    
+    /* Alert responsive */
+    .alert {
+        position: static !important;
+        margin: 0.5rem;
+        width: auto !important;
+        max-width: none !important;
+    }
 }
 
-/* Stile per le statistiche nelle card (coerente) */
-.bg-primary.bg-opacity-10 {
-    background-color: rgba(13, 110, 253, 0.1) !important;
+@media (max-width: 576px) {
+    .col-lg-4, .col-md-6 {
+        margin-bottom: 1rem;
+    }
+    
+    .row.g-4 {
+        --bs-gutter-x: 1rem;
+        --bs-gutter-y: 1rem;
+    }
+    
+    /* Nasconde alcuni elementi non essenziali su schermi molto piccoli */
+    .badge.bg-light.text-dark {
+        display: none;
+    }
 }
 
-.bg-warning.bg-opacity-10 {
-    background-color: rgba(255, 193, 7, 0.1) !important;
-}
-
-.bg-danger.bg-opacity-10 {
-    background-color: rgba(220, 53, 69, 0.1) !important;
-}
-
-.bg-success.bg-opacity-10 {
-    background-color: rgba(25, 135, 84, 0.1) !important;
-}
-
-.bg-info.bg-opacity-10 {
-    background-color: rgba(13, 202, 240, 0.1) !important;
-}
-
-/* Bordi colorati per le card header */
-.card-header.bg-info {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.card-header.bg-danger {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.card-header.bg-light {
-    border-bottom: 1px solid #dee2e6;
-}
-
-/* Miglioramenti accessibilità */
-.btn:focus {
+/* === ACCESSIBILITÀ === */
+.btn:focus,
+.form-control:focus {
     outline: 2px solid #0d6efd;
     outline-offset: 2px;
 }
 
-.form-control:focus {
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+.list-group-item:focus {
+    outline: 2px solid #0d6efd;
+    outline-offset: -2px;
 }
 
-/* Stile per i suggerimenti nella ricerca */
-.badge.bg-light.text-dark:hover {
-    background-color: #e9ecef !important;
-    cursor: pointer;
+/* Contrasto migliorato per testi piccoli */
+.text-muted {
+    color: #6c757d !important;
+}
+
+.small, small {
+    color: #495057 !important;
+}
+
+/* === TRANSIZIONI SMOOTH === */
+.card,
+.btn,
+.form-control,
+.badge,
+.alert,
+.list-group-item {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* === EFFETTI SPECIALI === */
+.card-custom::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #0d6efd, transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.card-custom:hover::after {
+    opacity: 0.3;
+}
+
+/* === LOADING STATES === */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #0d6efd;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* === MIGLIORAMENTI VISUAL === */
+.shadow-custom {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.shadow-hover:hover {
+    box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.2) !important;
+    transition: box-shadow 0.3s ease;
+}
+
+/* === PRINT STYLES === */
+@media print {
+    .card-custom,
+    .btn,
+    .alert {
+        box-shadow: none !important;
+        background: white !important;
+        color: black !important;
+    }
+    
+    .btn {
+        border: 1px solid #000 !important;
+    }
+    
+    .product-suggestions,
+    .malfunction-suggestions {
+        display: none !important;
+    }
 }
 </style>
 @endpush

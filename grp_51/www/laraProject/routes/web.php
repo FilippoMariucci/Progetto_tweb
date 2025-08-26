@@ -115,21 +115,35 @@ Route::prefix('api')->name('api.')->group(function () {
         // === API LIVELLO 2+ (Tecnici e superiori) ===
         Route::middleware(['check.level:2'])->group(function () {
             
+             // *** QUESTE SONO LE ROUTE CHE MANCAVANO ***
+            
             // Ricerca malfunzionamenti per tecnici
-            Route::get('/malfunzionamenti/search', [MalfunzionamentoController::class, 'apiSearch'])->name('malfunzionamenti.search');
+            Route::get('/malfunzionamenti/search', [MalfunzionamentoController::class, 'apiSearch'])
+                ->name('malfunzionamenti.search');
             
             // Malfunzionamenti per prodotto specifico
-            Route::get('/prodotti/{prodotto}/malfunzionamenti', [MalfunzionamentoController::class, 'apiByProdotto'])->name('prodotti.malfunzionamenti');
+            Route::get('/prodotti/{prodotto}/malfunzionamenti', [MalfunzionamentoController::class, 'apiByProdotto'])
+                ->name('prodotti.malfunzionamenti');
             
-            // Prodotti con vista tecnica completa (inclusi malfunzionamenti)
-            Route::get('/prodotti/tech/search', [ProdottoController::class, 'apiSearchTech'])->name('prodotti.search.tech');
-            Route::get('/prodotti/tech/all', [ProdottoController::class, 'apiIndexTech'])->name('prodotti.tech.all');
+            // Prodotti con vista tecnica completa (QUESTA ERA FONDAMENTALE)
+            Route::get('/prodotti/tech/search', [ProdottoController::class, 'apiSearchTech'])
+                ->name('prodotti.search.tech');
             
-            // Segnalazione problema per incrementare contatori
-            Route::post('/malfunzionamenti/{malfunzionamento}/segnala', [MalfunzionamentoController::class, 'apiSegnala'])->name('malfunzionamenti.segnala');
+            // Lista prodotti per tecnici
+            Route::get('/prodotti/tech/all', [ProdottoController::class, 'apiIndexTech'])
+                ->name('prodotti.tech.all');
+            
+            // Segnalazione problema per incrementare contatori (QUESTA ERA CRITICA)
+            Route::post('/malfunzionamenti/{malfunzionamento}/segnala', [MalfunzionamentoController::class, 'apiSegnala'])
+                ->name('malfunzionamenti.segnala');
             
             // Storico interventi del tecnico
-            Route::get('/tecnico/storico-interventi', [AuthController::class, 'apiStoricoInterventi'])->name('tecnico.storico');
+            Route::get('/tecnico/storico-interventi', [AuthController::class, 'apiStoricoInterventi'])
+                ->name('tecnico.storico');
+            
+            // Suggerimenti per ricerca rapida
+            Route::get('/prodotti/suggestions', [ProdottoController::class, 'apiSuggestions'])
+                ->name('prodotti.suggestions');
         });
         
         // === API LIVELLO 3+ (Staff aziendale e amministratori) ===
@@ -214,6 +228,13 @@ Route::get('/storico-interventi', [AuthController::class, 'storicoInterventi'])
         
         // === DASHBOARD TECNICO ===
         Route::get('/tecnico/dashboard', [AuthController::class, 'tecnicoDashboard'])->name('tecnico.dashboard');
+        // Ricerca avanzata prodotti per tecnici (questa mancava)
+    Route::get('/prodotti-completi/ricerca', [ProdottoController::class, 'ricercaAvanzata'])
+        ->name('prodotti.completo.ricerca');
+    
+    // Ricerca globale malfunzionamenti (mancava anche questa)
+    Route::get('/malfunzionamenti/ricerca', [MalfunzionamentoController::class, 'ricercaGlobale'])
+        ->name('malfunzionamenti.ricerca');
         
         // === CATALOGO PRODOTTI COMPLETO (con malfunzionamenti) ===
         
