@@ -582,4 +582,279 @@ class AuthController extends Controller
         return redirect()->route('admin.users.index')
             ->with('success', 'Utente registrato con successo');
     }
+
+    
+/**
+ * AGGIUNGI QUESTI METODI ALLA FINE DELLA CLASSE AuthController
+ * Prima della chiusura finale della classe (prima dell'ultima parentesi graffa)
+ * Posizionali nella sezione "API ENDPOINTS PER STATISTICHE"
+ */
+
+// ================================================
+// API ENDPOINTS PER STATISTICHE (AJAX)
+// ================================================
+
+/**
+ * API per statistiche tecnico (chiamate AJAX) - METODO MANCANTE RISOLTO
+ * Fornisce statistiche specifiche per il dashboard tecnico via API
+ * @return \Illuminate\Http\JsonResponse - Risposta JSON con statistiche tecnico
+ */
+/**
+ * FIX CORRETTO per errore colonna - Il nome giusto è 'numero_segnalazioni'
+ * 
+ * PROBLEMA: Il codice cercava 'num_segnalazioni' ma la colonna si chiama 'numero_segnalazioni'
+ * SOLUZIONE: Sostituire tutti i riferimenti con il nome corretto della colonna
+ */
+
+/**
+ * VERSIONE CORRETTA DEFINITIVA del metodo statisticheTecnico()
+ * Ora usa i nomi delle colonne corretti dal database
+ */
+public function statisticheTecnico()
+{
+    try {
+        // === CONTROLLO AUTORIZZAZIONI ===
+        if (!Auth::check() || !Auth::user()->isTecnico()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Accesso riservato ai tecnici',
+                'code' => 403
+            ], 403);
+        }
+
+        $user = Auth::user();
+        
+        // === LOG PER DEBUGGING ===
+        Log::info('API statisticheTecnico chiamata', [
+            'user_id' => $user->id,
+            'username' => $user->username,
+            'centro_id' => $user->centro_assistenza_id,
+            'ip' => request()->ip()
+        ]);
+
+        // === CALCOLO STATISTICHE TECNICO (CON NOMI COLONNE CORRETTI) ===
+        $stats = [
+            // Statistiche generali accessibili al tecnico
+            'generale' => [
+                'total_prodotti' => Prodotto::count(),
+                'total_malfunzionamenti' => Malfunzionamento::count(),
+                'total_centri' => CentroAssistenza::count(),
+                'prodotti_attivi' => Prodotto::where('attivo', true)->count()
+            ],
+
+            // Statistiche sui malfunzionamenti per gravità
+            'malfunzionamenti' => [
+                'totali' => Malfunzionamento::count(),
+                'critici' => Malfunzionamento::where('gravita', 'critica')->count(),
+                'media' => Malfunzionamento::where('gravita', 'media')->count(),
+                'bassa' => Malfunzionamento::where('gravita', 'bassa')->count(),
+                
+                // Distribuzione per gravità (per grafici)
+                'per_gravita' => Malfunzionamento::selectRaw('gravita, COUNT(*) as count')
+                    ->whereNotNull('gravita')
+                    ->groupBy('gravita')
+                    ->pluck('count', 'gravita')
+                    ->toArray(),
+                    
+                // Malfunzionamenti creati questo mese
+                'questo_mese' => Malfunzionamento::whereMonth('created_at', now()->month)
+                    ->whereYear('created_at', now()->year)
+                    ->count()
+            ],
+
+            // Informazioni centro assistenza del tecnico
+            'centro_assistenza' => $user->centroAssistenza ? [
+                'id' => $user->centroAssistenza->id,
+                'nome' => $user->centroAssistenza->nome,
+                'citta' => $user->centroAssistenza->citta,
+                'provincia' => $user->centroAssistenza->provincia,
+                'indirizzo' => $user->centroAssistenza->indirizzo,
+                'telefono' => $user->centroAssistenza->telefono,
+                // Conta altri tecnici nello stesso centro
+                'altri_tecnici' => User::where('centro_assistenza_id', $user->centro_assistenza_id)
+                    ->where('id', '!=', $user->id)
+                    ->where('livello_accesso', 2)
+                    ->count()
+            ] : null,
+
+            // Malfunzionamenti critici recenti (CON NOME COLONNA CORRETTO)
+            'critici_recenti' => Malfunzionamento::where('gravita', 'critica')
+                ->with(['prodotto:id,nome,modello,categoria'])
+                ->select('id', 'titolo', 'descrizione', 'gravita', 'prodotto_id', 'created_at', 'numero_segnalazioni') // CORRETTO!
+                ->latest()
+                ->take(10)
+                ->get()
+                ->map(function($m) {
+                    return [
+                        'id' => $m->id,
+                        'titolo' => $m->titolo,
+                        'descrizione' => \Illuminate\Support\Str::limit($m->descrizione, 100),
+                        'prodotto_nome' => $m->prodotto->nome ?? 'N/D',
+                        'prodotto_modello' => $m->prodotto->modello ?? '',
+                        'categoria' => $m->prodotto->categoria ?? 'N/D',
+                        'segnalazioni' => $m->numero_segnalazioni ?? 0, // CORRETTO!
+                        'data' => $m->created_at->format('d/m/Y H:i')
+                    ];
+                }),
+
+            // Prodotti più problematici (con più malfunzionamenti critici)
+            'prodotti_problematici' => Prodotto::whereHas('malfunzionamenti', function($q) {
+                    $q->where('gravita', 'critica');
+                })
+                ->withCount(['malfunzionamenti as critici_count' => function($q) {
+                    $q->where('gravita', 'critica');
+                }])
+                ->orderBy('critici_count', 'desc')
+                ->take(8)
+                ->get(['id', 'nome', 'modello', 'categoria'])
+                ->map(function($p) {
+                    return [
+                        'id' => $p->id,
+                        'nome' => $p->nome,
+                        'modello' => $p->modello,
+                        'categoria' => $p->categoria,
+                        'problemi_critici' => $p->critici_count
+                    ];
+                }),
+
+            // Statistiche per categoria prodotti
+            'per_categoria' => Prodotto::selectRaw('categoria, COUNT(*) as count')
+                ->where('attivo', true)
+                ->groupBy('categoria')
+                ->pluck('count', 'categoria')
+                ->toArray(),
+
+            // Statistiche delle ultime attività
+            'attivita_recenti' => [
+                'malfunzionamenti_settimana' => Malfunzionamento::where('created_at', '>=', now()->subWeek())->count(),
+                'nuovi_prodotti_mese' => Prodotto::where('created_at', '>=', now()->subMonth())->count(),
+                'categorie_disponibili' => Prodotto::distinct('categoria')->count('categoria')
+            ],
+
+            // Top malfunzionamenti più segnalati
+            'piu_segnalati' => Malfunzionamento::with(['prodotto:id,nome,modello'])
+                ->orderBy('numero_segnalazioni', 'desc') // CORRETTO!
+                ->take(5)
+                ->get()
+                ->map(function($m) {
+                    return [
+                        'id' => $m->id,
+                        'titolo' => $m->titolo,
+                        'prodotto' => $m->prodotto->nome ?? 'N/D',
+                        'segnalazioni' => $m->numero_segnalazioni, // CORRETTO!
+                        'gravita' => $m->gravita
+                    ];
+                })
+        ];
+
+        // === METADATA RISPOSTA ===
+        $metadata = [
+            'timestamp' => now()->toISOString(),
+            'user_level' => $user->livello_accesso,
+            'centro_nome' => $user->centroAssistenza->nome ?? 'Non assegnato',
+            'cache_ttl' => 300,
+            'version' => '1.1_fixed'
+        ];
+
+        // === LOG SUCCESSO ===
+        Log::info('statisticheTecnico API completata con successo', [
+            'user_id' => $user->id,
+            'stats_generated' => [
+                'prodotti_problematici' => count($stats['prodotti_problematici']),
+                'critici_recenti' => count($stats['critici_recenti']),
+                'piu_segnalati' => count($stats['piu_segnalati']),
+                'malfunzionamenti_totali' => $stats['generale']['total_malfunzionamenti']
+            ]
+        ]);
+
+        // === RISPOSTA JSON ===
+        return response()->json([
+            'success' => true,
+            'data' => $stats,
+            'meta' => $metadata
+        ], 200);
+
+    } catch (\Exception $e) {
+        // === GESTIONE ERRORI COMPLETA ===
+        Log::error('Errore in statisticheTecnico API', [
+            'user_id' => Auth::id(),
+            'error_message' => $e->getMessage(),
+            'error_file' => $e->getFile(),
+            'error_line' => $e->getLine()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'error' => config('app.debug') ? $e->getMessage() : 'Errore nel caricamento delle statistiche',
+            'code' => 500,
+            'timestamp' => now()->toISOString()
+        ], 500);
+    }
+}
+
+/**
+ * VERSIONE CORRETTA di malfunzionamentiCritici() - CON NOME COLONNA CORRETTO
+ */
+public function malfunzionamentiCritici()
+{
+    try {
+        // === CONTROLLO AUTORIZZAZIONI ===
+        if (!Auth::check() || !Auth::user()->isTecnico()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        // === QUERY CON NOMI COLONNE CORRETTI ===
+        $critici = Malfunzionamento::where('gravita', 'critica')
+            ->with(['prodotto:id,nome,modello,categoria'])
+            ->select('id', 'titolo', 'descrizione', 'prodotto_id', 'created_at', 'numero_segnalazioni') // CORRETTO!
+            ->orderBy('numero_segnalazioni', 'desc') // CORRETTO! Più segnalazioni = più urgente
+            ->orderBy('created_at', 'desc')
+            ->take(20)
+            ->get()
+            ->map(function($m) {
+                return [
+                    'id' => $m->id,
+                    'titolo' => $m->titolo,
+                    'descrizione' => \Illuminate\Support\Str::limit($m->descrizione, 150),
+                    'prodotto' => [
+                        'id' => $m->prodotto->id,
+                        'nome' => $m->prodotto->nome,
+                        'modello' => $m->prodotto->modello,
+                        'categoria' => $m->prodotto->categoria
+                    ],
+                    'segnalazioni' => $m->numero_segnalazioni ?? 0, // CORRETTO!
+                    'data_creazione' => $m->created_at->format('d/m/Y H:i'),
+                    'urgenza' => $m->numero_segnalazioni > 5 ? 'alta' : 'media' // CORRETTO!
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $critici,
+            'count' => count($critici),
+            'timestamp' => now()->toISOString()
+        ], 200);
+
+    } catch (\Exception $e) {
+        Log::error('Errore malfunzionamentiCritici API', [
+            'error' => $e->getMessage(),
+            'user_id' => Auth::id()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'error' => 'Errore nel caricamento malfunzionamenti critici'
+        ], 500);
+    }
+}
+
+/**
+ * IMPORTANTE: SOSTITUISCI TUTTI I METODI PRECEDENTI CON QUESTE VERSIONI CORRETTE
+ * 
+ * SUMMARY DEI CAMBIAMENTI:
+ * 1. Sostituito 'num_segnalazioni' con 'numero_segnalazioni' (nome corretto della colonna)
+ * 2. Aggiunta nuova sezione 'piu_segnalati' per mostrare i problemi più frequenti
+ * 3. Ordinamento corretto per urgenza basato su numero_segnalazioni
+ * 4. Tutti i riferimenti alla colonna ora usano il nome corretto
+ */
 }
