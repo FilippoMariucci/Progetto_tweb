@@ -160,6 +160,11 @@ Route::prefix('api')->name('api.')->group(function () {
             
             // Malfunzionamenti più segnalati (per priorità interventi)
             Route::get('/staff/malfunzionamenti-prioritari', [StaffController::class, 'apiMalfunzionamentiPrioritari'])->name('staff.prioritari');
+
+            Route::get('/stats', [StaffController::class, 'apiStats'])->name('stats');
+        Route::get('/ultime-soluzioni', [StaffController::class, 'apiUltimeSoluzioni'])->name('ultime-soluzioni');
+        Route::get('/malfunzionamenti-prioritari', [StaffController::class, 'apiMalfunzionamentiPrioritari'])->name('malfunzionamenti-prioritari');
+        Route::get('/prodotti-assegnati', [StaffController::class, 'apiProdottiAssegnati'])->name('prodotti-assegnati');
         });
         
         // === API LIVELLO 4 (Solo amministratori) ===

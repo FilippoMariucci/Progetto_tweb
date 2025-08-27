@@ -193,4 +193,311 @@ class StaffController extends Controller
         // Restituisce la vista con i risultati della ricerca
         return view('staff.malfunzionamenti', compact('prodotto', 'malfunzionamenti', 'searchTerm'));
     }
+
+    /**
+ * API per le statistiche dello staff (chiamata AJAX)
+ * Route: GET /api/staff/stats
+ */
+public function apiStats()
+{
+    try {
+        // Verifica autenticazione e autorizzazione
+        if (!Auth::check() || Auth::user()->livello_accesso < 3) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Accesso riservato allo staff'
+            ], 403);
+        }
+
+        $user = Auth::user();
+
+        // Calcola statistiche reali dal database
+        $malfunzionamentiGestiti = Malfunzionamento::whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->count();
+
+        $soluzioniAggiunte = Malfunzionamento::where('created_at', '>=', now()->subDays(30))
+            ->count();
+
+        $prodottiSeguiti = Prodotto::count();
+
+        $richiesteUrgenti = Malfunzionamento::where('gravita', 'critica')
+            ->orWhere('gravita', 'alta')
+            ->count();
+
+        return response()->json([
+            'success' => true,
+            'malfunzionamenti_gestiti' => $malfunzionamentiGestiti,
+            'soluzioni_aggiunte' => $soluzioniAggiunte,
+            'prodotti_seguiti' => $prodottiSeguiti,
+            'richieste_urgenti' => $richiesteUrgenti,
+            'timestamp' => now()->toISOString()
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Errore API stats staff', [
+            'error' => $e->getMessage(),
+            'user_id' => Auth::id()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Errore nel caricamento delle statistiche'
+        ], 500);
+    }
+}
+
+/**
+ * API per le ultime soluzioni create (chiamata AJAX)
+ * Route: GET /api/staff/ultime-soluzioni
+ */
+public function apiUltimeSoluzioni(Request $request)
+{
+    try {
+        // Verifica autorizzazione
+        if (!Auth::check() || Auth::user()->livello_accesso < 3) {
+            return response()->json(['success' => false], 403);
+        }
+
+        $limit = $request->get('limit', 10);
+
+        // Recupera le ultime soluzioni dal database
+        $soluzioni = Malfunzionamento::with(['prodotto'])
+            ->latest()
+            ->take($limit)
+            ->get()
+            ->map(function($malfunzionamento) {
+                return [
+                    'id' => $malfunzionamento->id,
+                    'title' => $malfunzionamento->title,
+                    'description' => $malfunzionamento->description,
+                    'prodotto_nome' => $malfunzionamento->prodotto->nome ?? 'Prodotto sconosciuto',
+                    'prodotto_categoria' => $malfunzionamento->prodotto->categoria ?? 'N/A',
+                    'created_at' => $malfunzionamento->created_at->toISOString(),
+                    'gravita' => $malfunzionamento->gravita ?? 'normale'
+                ];
+            });
+
+        return response()->json($soluzioni);
+
+    } catch (\Exception $e) {
+        \Log::error('Errore API ultime soluzioni', [
+            'error' => $e->getMessage(),
+            'user_id' => Auth::id()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Errore nel caricamento delle soluzioni'
+        ], 500);
+    }
+}
+
+/**
+ * API per i prodotti più problematici (chiamata AJAX)
+ * Route: GET /api/staff/malfunzionamenti-prioritari
+ */
+public function apiMalfunzionamentiPrioritari()
+{
+    try {
+        // Verifica autorizzazione
+        if (!Auth::check() || Auth::user()->livello_accesso < 3) {
+            return response()->json(['success' => false], 403);
+        }
+
+        // Recupera prodotti con più malfunzionamenti
+        $prodottiProblematici = Prodotto::withCount('malfunzionamenti')
+            ->orderBy('malfunzionamenti_count', 'desc')
+            ->having('malfunzionamenti_count', '>', 0)
+            ->take(5)
+            ->get()
+            ->map(function($prodotto) {
+                return [
+                    'id' => $prodotto->id,
+                    'nome' => $prodotto->nome,
+                    'categoria' => $prodotto->categoria,
+                    'malfunzionamenti_count' => $prodotto->malfunzionamenti_count
+                ];
+            });
+
+        return response()->json($prodottiProblematici);
+
+    } catch (\Exception $e) {
+        \Log::error('Errore API prodotti problematici', [
+            'error' => $e->getMessage(),
+            'user_id' => Auth::id()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Errore nel caricamento dei prodotti problematici'
+        ], 500);
+    }
+}
+
+/**
+ * API per ottenere i prodotti assegnati allo staff
+ * Route: GET /api/staff/prodotti-assegnati
+ */
+public function apiProdottiAssegnati()
+{
+    try {
+        // Verifica autorizzazione
+        if (!Auth::check() || Auth::user()->livello_accesso < 3) {
+            return response()->json(['success' => false], 403);
+        }
+
+        $user = Auth::user();
+
+        // Se esiste la relazione prodotti assegnati, usala
+        // Altrimenti restituisci tutti i prodotti (per ora)
+        $prodotti = Prodotto::with(['malfunzionamenti'])
+            ->get()
+            ->map(function($prodotto) {
+                return [
+                    'id' => $prodotto->id,
+                    'nome' => $prodotto->nome,
+                    'categoria' => $prodotto->categoria,
+                    'codice' => $prodotto->codice ?? 'N/A',
+                    'malfunzionamenti_count' => $prodotto->malfunzionamenti->count(),
+                    'critici_count' => $prodotto->malfunzionamenti->where('gravita', 'critica')->count()
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'prodotti' => $prodotti,
+            'total' => $prodotti->count()
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Errore API prodotti assegnati', [
+            'error' => $e->getMessage(),
+            'user_id' => Auth::id()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Errore nel caricamento dei prodotti'
+        ], 500);
+    }
+}
+
+/**
+ * Aggiornata la dashboard dello staff per passare solo le statistiche essenziali
+ */
+public function dashboard()
+{
+    // Verifica autorizzazione
+    if (!Auth::check() || Auth::user()->livello_accesso < 3) {
+        abort(403, 'Accesso riservato allo staff aziendale');
+    }
+
+    $user = Auth::user();
+
+    // Statistiche basilari per inizializzare la vista
+    // I dati dettagliati vengono caricati via AJAX
+    $stats = [
+        'prodotti_lista' => collect(), // Vuoto, verrà caricato via AJAX
+        'loading' => true // Flag per mostrare gli spinner
+    ];
+
+    return view('staff.dashboard', compact('user', 'stats'));
+}
+
+/**
+ * Pagina delle statistiche dettagliate dello staff
+ */
+public function statistiche()
+{
+    // Verifica autorizzazione
+    if (!Auth::check() || Auth::user()->livello_accesso < 3) {
+        abort(403, 'Accesso riservato allo staff aziendale');
+    }
+
+    $user = Auth::user();
+
+    // Statistiche dettagliate per la pagina dedicata
+    $stats = [
+        'malfunzionamenti_mese_corrente' => Malfunzionamento::whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->count(),
+        
+        'soluzioni_ultima_settimana' => Malfunzionamento::where('created_at', '>=', now()->subWeek())
+            ->count(),
+            
+        'prodotti_con_problemi' => Prodotto::has('malfunzionamenti')->count(),
+        
+        'richieste_critiche' => Malfunzionamento::where('gravita', 'critica')->count(),
+        
+        'trend_mensile' => $this->calcolaTrendMensile(),
+        
+        'top_categorie_problematiche' => $this->getTopCategorieProblematiche()
+    ];
+
+    return view('staff.statistiche', compact('user', 'stats'));
+}
+
+/**
+ * Report delle attività dello staff
+ */
+public function reportAttivita()
+{
+    // Verifica autorizzazione
+    if (!Auth::check() || Auth::user()->livello_accesso < 3) {
+        abort(403, 'Accesso riservato allo staff aziendale');
+    }
+
+    $user = Auth::user();
+    
+    // Dati per il report
+    $reportData = [
+        'periodo' => now()->format('F Y'),
+        'malfunzionamenti_risolti' => Malfunzionamento::whereMonth('updated_at', now()->month)->count(),
+        'nuove_soluzioni' => Malfunzionamento::whereMonth('created_at', now()->month)->count(),
+        'categorie_attive' => Prodotto::distinct('categoria')->count(),
+        'prodotti_aggiornati' => Prodotto::whereMonth('updated_at', now()->month)->count()
+    ];
+
+    return view('staff.report-attivita', compact('user', 'reportData'));
+}
+
+/**
+ * Metodo di supporto: calcola il trend mensile
+ */
+private function calcolaTrendMensile()
+{
+    $meseCorrente = Malfunzionamento::whereMonth('created_at', now()->month)
+        ->whereYear('created_at', now()->year)
+        ->count();
+
+    $mesePrecedente = Malfunzionamento::whereMonth('created_at', now()->subMonth()->month)
+        ->whereYear('created_at', now()->subMonth()->year)
+        ->count();
+
+    if ($mesePrecedente == 0) {
+        return $meseCorrente > 0 ? 100 : 0;
+    }
+
+    return round((($meseCorrente - $mesePrecedente) / $mesePrecedente) * 100, 1);
+}
+
+/**
+ * Metodo di supporto: ottiene le categorie più problematiche
+ */
+private function getTopCategorieProblematiche()
+{
+    return Prodotto::select('categoria')
+        ->withCount('malfunzionamenti')
+        ->groupBy('categoria')
+        ->orderBy('malfunzionamenti_count', 'desc')
+        ->take(5)
+        ->get()
+        ->map(function($item) {
+            return [
+                'categoria' => $item->categoria,
+                'count' => $item->malfunzionamenti_count
+            ];
+        });
+}
 }
