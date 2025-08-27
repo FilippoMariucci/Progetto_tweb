@@ -232,9 +232,7 @@ Route::get('/storico-interventi', [AuthController::class, 'storicoInterventi'])
     Route::get('/prodotti-completi/ricerca', [ProdottoController::class, 'ricercaAvanzata'])
         ->name('prodotti.completo.ricerca');
     
-    // Ricerca globale malfunzionamenti (mancava anche questa)
-    Route::get('/malfunzionamenti/ricerca', [MalfunzionamentoController::class, 'ricercaGlobale'])
-        ->name('malfunzionamenti.ricerca');
+   
         
         // === CATALOGO PRODOTTI COMPLETO (con malfunzionamenti) ===
         

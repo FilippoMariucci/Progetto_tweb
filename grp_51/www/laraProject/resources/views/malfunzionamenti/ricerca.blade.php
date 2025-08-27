@@ -256,7 +256,7 @@
                                     <div class="col-lg-4 text-end">
                                         {{-- Statistiche e azioni --}}
                                         <div class="mb-3">
-                                            <span class="badge bg-primary me-1">
+                                            <span class="badge bg-primary me-1" data-segnalazioni-count="{{ $malfunzionamento->id }}">
                                                 <i class="bi bi-flag me-1"></i>{{ $malfunzionamento->numero_segnalazioni ?? 0 }} segnalazioni
                                             </span>
                                             
@@ -287,10 +287,10 @@
                                             </a>
                                             
                                             <button type="button" 
-                                                    class="btn btn-outline-success"
-                                                    onclick="segnalaMalfunzionamento({{ $malfunzionamento->id }})"
+                                                    class="btn btn-outline-warning segnala-btn"
+                                                    data-malfunzionamento-id="{{ $malfunzionamento->id }}"
                                                     title="Segnala di aver riscontrato questo problema">
-                                                <i class="bi bi-plus-circle me-1"></i>Segnala
+                                                <i class="bi bi-exclamation-circle me-1"></i>Segnala
                                             </button>
                                         </div>
                                     </div>
@@ -483,77 +483,137 @@ $(document).ready(function() {
         $('#prodotto_id').html(options);
     }
     
-    // === FUNZIONE SEGNALA MALFUNZIONAMENTO ===
-    window.segnalaMalfunzionamento = function(malfunzionamentoId) {
+    // === SEGNALAZIONE MALFUNZIONAMENTO (CORRETTO) ===
+    $(document).on('click', '.segnala-btn', function(e) {
+        e.preventDefault();
+        
+        const btn = $(this);
+        const malfunzionamentoId = btn.data('malfunzionamento-id');
+        
+        if (!malfunzionamentoId) {
+            console.error('ID malfunzionamento mancante dal bottone');
+            showAlert('danger', 'Errore: ID malfunzionamento non trovato');
+            return;
+        }
+        
         if (!confirm('Confermi di aver riscontrato questo problema? Incrementerà il contatore delle segnalazioni.')) {
             return;
         }
         
+        // Disabilita pulsante durante richiesta
+        const originalHtml = btn.html();
+        btn.prop('disabled', true)
+           .html('<i class="bi bi-hourglass me-1"></i>Invio...')
+           .addClass('btn-loading');
+        
+        // URL CORRETTO: usa la route NON API
+        const url = `/malfunzionamenti/${malfunzionamentoId}/segnala`;
+        
+        console.log('Invio segnalazione a:', url);
+        
         $.ajax({
-            url: `{{ url('/api/malfunzionamenti') }}/${malfunzionamentoId}/segnala`,
+            url: url,
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                'Content-Type': 'application/json'
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
             },
+            timeout: 10000,
             success: function(response) {
+                console.log('Risposta segnalazione:', response);
+                
                 if (response.success) {
-                    // Mostra messaggio di successo
-                    showAlert('Segnalazione registrata con successo!', 'success');
-                    
-                    // Aggiorna il contatore visibile
+                    // Aggiorna contatore segnalazioni
                     updateSegnalazioniCount(malfunzionamentoId, response.nuovo_count);
+                    
+                    // Cambia aspetto del pulsante
+                    btn.removeClass('btn-outline-warning btn-loading')
+                       .addClass('btn-outline-success')
+                       .html('<i class="bi bi-check-circle-fill me-1"></i>Segnalato')
+                       .prop('disabled', true);
+                    
+                    // Mostra messaggio di successo
+                    showAlert('success', response.message || 'Segnalazione registrata con successo!');
                 } else {
-                    showAlert('Errore nella segnalazione: ' + (response.message || 'Errore sconosciuto'), 'danger');
+                    console.error('Errore dal server:', response.message);
+                    showAlert('danger', response.message || 'Errore durante la segnalazione');
+                    resetButton(btn, originalHtml);
                 }
             },
-            error: function(xhr) {
-                console.error('Errore segnalazione:', xhr.responseText);
-                let errorMsg = 'Errore nella segnalazione del malfunzionamento.';
+            error: function(xhr, status, error) {
+                console.error('Errore AJAX segnalazione:', {
+                    status: status,
+                    error: error,
+                    responseText: xhr.responseText,
+                    statusCode: xhr.status
+                });
                 
-                try {
-                    const response = JSON.parse(xhr.responseText);
-                    errorMsg = response.message || errorMsg;
-                } catch (e) {
-                    // Mantieni messaggio di default
+                let errorMessage = 'Errore durante la segnalazione';
+                
+                if (xhr.status === 403) {
+                    errorMessage = 'Non hai i permessi per segnalare questo problema';
+                } else if (xhr.status === 404) {
+                    errorMessage = 'Malfunzionamento non trovato';
+                } else if (xhr.status === 419) {
+                    errorMessage = 'Sessione scaduta. Ricarica la pagina e riprova.';
+                } else if (xhr.status === 500) {
+                    errorMessage = 'Errore interno del server. Riprova tra qualche minuto.';
+                } else if (status === 'timeout') {
+                    errorMessage = 'Richiesta scaduta. Controlla la connessione e riprova.';
                 }
                 
-                showAlert(errorMsg, 'danger');
+                showAlert('danger', errorMessage);
+                resetButton(btn, originalHtml);
             }
         });
-    };
+    });
     
-    function updateSegnalazioniCount(malfunzionamentoId, newCount) {
-        // Trova e aggiorna il badge delle segnalazioni
-        $(`.badge:contains("segnalazioni")`).each(function() {
-            const text = $(this).text();
-            if (text.includes('segnalazioni')) {
-                $(this).html(`<i class="bi bi-flag me-1"></i>${newCount} segnalazioni`);
-            }
-        });
+    // === FUNZIONI HELPER ===
+    
+    function updateSegnalazioniCount(malfunzionamentoId, nuovoCount) {
+        // Aggiorna il badge specifico per questo malfunzionamento
+        $(`[data-segnalazioni-count="${malfunzionamentoId}"]`).html(
+            `<i class="bi bi-flag me-1"></i>${nuovoCount} segnalazioni`
+        );
+        
+        console.log('Contatore aggiornato per malfunzionamento', malfunzionamentoId, 'al valore:', nuovoCount);
     }
     
-    // === FUNZIONE MOSTRA ALERT ===
-    function showAlert(message, type) {
+    function resetButton(btn, originalHtml) {
+        btn.prop('disabled', false)
+           .html(originalHtml)
+           .removeClass('btn-loading btn-outline-success')
+           .addClass('btn-outline-warning');
+    }
+    
+    function showAlert(type, message) {
+        // Rimuovi alert precedenti dello stesso tipo
+        $(`.alert-${type}.dynamic-alert`).remove();
+        
+        // Crea nuovo alert
         const alertHtml = `
-            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <div class="alert alert-${type} alert-dismissible fade show dynamic-alert position-fixed" 
+                 style="top: 20px; right: 20px; z-index: 1055; min-width: 300px; max-width: 500px;">
+                <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+                <strong>${type === 'success' ? 'Successo!' : 'Errore!'}</strong>
+                <br>${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         `;
         
-        // Inserisci l'alert all'inizio del container
-        $('.container').prepend(alertHtml);
+        // Aggiungi alert al DOM
+        $('body').append(alertHtml);
         
-        // Scrolla in alto per mostrare l'alert
-        $('html, body').animate({scrollTop: 0}, 300);
-        
-        // Rimuovi automaticamente dopo 5 secondi
-        setTimeout(function() {
-            $('.alert').fadeOut();
-        }, 5000);
+        // Auto-rimuovi dopo timeout
+        const timeout = type === 'success' ? 5000 : 8000;
+        setTimeout(() => {
+            $('.dynamic-alert').fadeOut('slow', function() {
+                $(this).remove();
+            });
+        }, timeout);
     }
-    
+
     // === GESTIONE EVENTI ===
     
     // Nascondi suggerimenti quando si clicca fuori
@@ -571,6 +631,12 @@ $(document).ready(function() {
         }
     });
     
+    // === AUTO-SUBMIT FILTRI ===
+    $('#gravita, #difficolta, #order, #categoria_prodotto, #prodotto_id').on('change', function() {
+        console.log('Filtro cambiato:', $(this).attr('id'), '=', $(this).val());
+        $(this).closest('form').submit();
+    });
+
     // === TOOLTIPS ===
     $('[data-bs-toggle="tooltip"]').tooltip();
     
@@ -590,11 +656,27 @@ $(document).ready(function() {
     }
     
     function escapeRegex(string) {
-        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\                                        <li><i class="bi bi-check-circle text-success me-2"></i>Parti dalla gravità più alta se è un'emergenza</li>
-                                        <li><i class="bi bi-check-circle text-success me-2"></i');
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\    // === GESTIONE EVENTI ===
+    
+    // Nas');
     }
     
-    // === ANALYTICS ===
+    // === PREVENZIONE DOUBLE SUBMIT ===
+    $('form').on('submit', function() {
+        $(this).find('button[type="submit"]').prop('disabled', true).addClass('btn-loading');
+    });
+
+    // === GESTIONE ERRORI GLOBALI AJAX ===
+    $(document).ajaxError(function(event, xhr, settings, error) {
+        if (xhr.status === 419) { // CSRF Token Mismatch
+            showAlert('warning', 'La tua sessione è scaduta. La pagina verrà ricaricata.');
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+        }
+    });
+
+    // === ANALYTICS E LOGGING ===
     @if(request('q'))
         console.log('Ricerca malfunzionamenti effettuata:', {
             termine: '{{ request("q") }}',
@@ -611,6 +693,8 @@ $(document).ready(function() {
     @if(!request()->hasAny(['q', 'gravita', 'difficolta', 'categoria_prodotto', 'prodotto_id']))
         $('#q').focus();
     @endif
+
+    console.log('JavaScript ricerca malfunzionamenti completamente inizializzato');
 });
 </script>
 @endpush
@@ -764,12 +848,12 @@ mark {
 }
 
 /* Loading states */
-.loading {
+.btn-loading {
     opacity: 0.6;
     pointer-events: none;
 }
 
-.loading::after {
+.btn-loading::after {
     content: "";
     display: inline-block;
     width: 16px;

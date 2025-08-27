@@ -271,52 +271,70 @@ public function ricerca(Request $request)
      */
     public function segnalaProblema(Request $request, Malfunzionamento $malfunzionamento)
     {
-        // Verifica autorizzazioni
+        // Verifica autorizzazioni - solo tecnici (livello 2+)
         if (!Auth::check() || !Auth::user()->canViewMalfunzionamenti()) {
-            abort(403, 'Non autorizzato');
+            if ($request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Non autorizzato'], 403);
+            }
+            abort(403, 'Accesso riservato a tecnici e staff');
         }
 
         try {
-            // Incrementa segnalazioni e aggiorna data
+            // Incrementa segnalazioni e aggiorna data ultima segnalazione
             $malfunzionamento->increment('numero_segnalazioni');
             $malfunzionamento->update(['ultima_segnalazione' => now()->toDateString()]);
 
-            // Log dell'azione
-            \Log::info('Segnalazione malfunzionamento', [
+            // Log dell'azione per tracciabilità
+            \Log::info('Segnalazione malfunzionamento registrata', [
                 'malfunzionamento_id' => $malfunzionamento->id,
+                'titolo' => $malfunzionamento->titolo,
                 'nuovo_count' => $malfunzionamento->numero_segnalazioni,
                 'segnalato_da' => Auth::id(),
-                'ip' => $request->ip()
+                'username' => Auth::user()->username,
+                'ip_address' => $request->ip(),
+                'timestamp' => now()
             ]);
 
-            // Risposta appropriata
+            // Se richiesta AJAX, restituisci JSON
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => true,
                     'nuovo_count' => $malfunzionamento->numero_segnalazioni,
-                    'message' => 'Segnalazione registrata con successo'
+                    'message' => 'Segnalazione registrata con successo',
+                    'data' => [
+                        'id' => $malfunzionamento->id,
+                        'titolo' => $malfunzionamento->titolo,
+                        'segnalazioni' => $malfunzionamento->numero_segnalazioni,
+                        'ultima_segnalazione' => $malfunzionamento->ultima_segnalazione,
+                        'gravita' => $malfunzionamento->gravita
+                    ]
                 ]);
             }
 
+            // Se richiesta normale, redirect con messaggio
             return back()->with('success', 
                 'Segnalazione registrata con successo! Totale segnalazioni: ' . $malfunzionamento->numero_segnalazioni
             );
 
         } catch (\Exception $e) {
-            \Log::error('Errore segnalazione malfunzionamento', [
+            // Log dell'errore per debugging
+            \Log::error('Errore durante segnalazione malfunzionamento', [
                 'malfunzionamento_id' => $malfunzionamento->id,
                 'user_id' => Auth::id(),
-                'error' => $e->getMessage()
+                'error_message' => $e->getMessage(),
+                'stack_trace' => $e->getTraceAsString()
             ]);
 
+            // Gestione errori per AJAX
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Errore durante la segnalazione'
+                    'message' => 'Errore durante la segnalazione. Riprova tra qualche minuto.'
                 ], 500);
             }
 
-            return back()->with('error', 'Errore durante la segnalazione del problema.');
+            // Gestione errori per richiesta normale
+            return back()->with('error', 'Errore durante la segnalazione del problema. Riprova tra qualche minuto.');
         }
     }
 
@@ -654,53 +672,97 @@ public function apiByProdotto(Request $request, Prodotto $prodotto)
 
 
 /**
- * API per segnalare un malfunzionamento (AJAX)
- * Permette ai tecnici di incrementare il contatore segnalazioni
- */
-public function apiSegnala(Request $request, Malfunzionamento $malfunzionamento)
-{
-    if (!Auth::check() || !Auth::user()->canViewMalfunzionamenti()) {
-        return response()->json(['success' => false, 'message' => 'Non autorizzato'], 403);
-    }
-    
-    try {
-        // Incrementa segnalazioni e aggiorna data
-        $malfunzionamento->increment('numero_segnalazioni');
-        $malfunzionamento->update(['ultima_segnalazione' => now()->toDateString()]);
-        
-        // Log dell'azione
-        \Log::info('Segnalazione malfunzionamento via API', [
-            'malfunzionamento_id' => $malfunzionamento->id,
-            'nuovo_count' => $malfunzionamento->numero_segnalazioni,
-            'segnalato_da' => Auth::id(),
-            'ip' => $request->ip()
-        ]);
-        
-        return response()->json([
-            'success' => true,
-            'nuovo_count' => $malfunzionamento->numero_segnalazioni,
-            'message' => 'Segnalazione registrata con successo',
-            'data' => [
-                'id' => $malfunzionamento->id,
+     * API per segnalare un malfunzionamento (chiamate AJAX)
+     * Route: POST /api/malfunzionamenti/{malfunzionamento}/segnala
+     * Name: api.malfunzionamenti.segnala
+     */
+    public function apiSegnala(Request $request, Malfunzionamento $malfunzionamento)
+    {
+        // Verifica autorizzazioni
+        if (!Auth::check() || !Auth::user()->canViewMalfunzionamenti()) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Accesso riservato a tecnici e staff'
+            ], 403);
+        }
+
+        try {
+            // Controllo CSRF per sicurezza (Laravel lo fa automaticamente, ma controlliamo)
+            if (!$request->hasValidSignature()) {
+                // Il CSRF token è già controllato dal middleware, ma aggiungiamo ulteriore sicurezza
+                \Log::warning('Tentativo di segnalazione senza token CSRF valido', [
+                    'user_id' => Auth::id(),
+                    'ip' => $request->ip()
+                ]);
+            }
+
+            // Incrementa segnalazioni atomicamente
+            $vecchioContatore = $malfunzionamento->numero_segnalazioni;
+            $malfunzionamento->increment('numero_segnalazioni');
+            
+            // Aggiorna data ultima segnalazione
+            $malfunzionamento->update(['ultima_segnalazione' => now()->toDateString()]);
+
+            // Ricarica il modello per ottenere il nuovo valore
+            $malfunzionamento->refresh();
+
+            // Log dettagliato per API
+            \Log::info('Segnalazione malfunzionamento via API', [
+                'malfunzionamento_id' => $malfunzionamento->id,
+                'prodotto_id' => $malfunzionamento->prodotto_id,
                 'titolo' => $malfunzionamento->titolo,
-                'segnalazioni' => $malfunzionamento->numero_segnalazioni,
-                'ultima_segnalazione' => $malfunzionamento->ultima_segnalazione
-            ]
-        ]);
-        
-    } catch (\Exception $e) {
-        \Log::error('Errore API segnalazione malfunzionamento', [
-            'malfunzionamento_id' => $malfunzionamento->id,
-            'user_id' => Auth::id(),
-            'error' => $e->getMessage()
-        ]);
-        
-        return response()->json([
-            'success' => false,
-            'message' => 'Errore durante la segnalazione'
-        ], 500);
+                'vecchio_count' => $vecchioContatore,
+                'nuovo_count' => $malfunzionamento->numero_segnalazioni,
+                'segnalato_da' => Auth::id(),
+                'username' => Auth::user()->username,
+                'livello_utente' => Auth::user()->livello_accesso,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'timestamp' => now()
+            ]);
+
+            // Risposta JSON completa per aggiornamento interfaccia
+            return response()->json([
+                'success' => true,
+                'nuovo_count' => $malfunzionamento->numero_segnalazioni,
+                'message' => 'Segnalazione registrata con successo!',
+                'data' => [
+                    'id' => $malfunzionamento->id,
+                    'titolo' => $malfunzionamento->titolo,
+                    'gravita' => $malfunzionamento->gravita,
+                    'difficolta' => $malfunzionamento->difficolta,
+                    'segnalazioni' => $malfunzionamento->numero_segnalazioni,
+                    'incremento' => $malfunzionamento->numero_segnalazioni - $vecchioContatore,
+                    'ultima_segnalazione' => $malfunzionamento->ultima_segnalazione,
+                    'updated_at' => $malfunzionamento->updated_at->toISOString()
+                ],
+                'meta' => [
+                    'user_id' => Auth::id(),
+                    'timestamp' => now()->toISOString()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            // Log dettagliato dell'errore
+            \Log::error('Errore API segnalazione malfunzionamento', [
+                'malfunzionamento_id' => $malfunzionamento->id,
+                'user_id' => Auth::id(),
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'request_data' => $request->all(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Errore interno del server. La segnalazione non è stata registrata.',
+                'error_code' => 'SEGNALA_API_ERROR',
+                'timestamp' => now()->toISOString()
+            ], 500);
+        }
     }
-}
+
 
 /**
  * API per esportazione malfunzionamenti (solo admin)
