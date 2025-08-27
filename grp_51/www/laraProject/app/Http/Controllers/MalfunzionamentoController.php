@@ -814,7 +814,7 @@ public function apiExport(Request $request)
      * Incrementa il numero di segnalazioni per un malfunzionamento
      * Utile quando un tecnico conferma di aver riscontrato lo stesso problema
      */
-    public function incrementSegnalazioni(Prodotto $prodotto, Malfunzionamento $malfunzionamento)
+    public function incrementSegnalazioni(Request $request, Prodotto $prodotto, Malfunzionamento $malfunzionamento)
     {
         if ($malfunzionamento->prodotto_id !== $prodotto->id) {
             abort(404);

@@ -255,8 +255,7 @@ Route::get('/storico-interventi', [AuthController::class, 'storicoInterventi'])
         // Dettaglio singolo malfunzionamento con soluzione
         Route::get('/prodotti/{prodotto}/malfunzionamenti/{malfunzionamento}', [MalfunzionamentoController::class, 'show'])->name('malfunzionamenti.show');
         
-        // Segnalazione problema (incrementa contatore segnalazioni)
-        Route::post('/malfunzionamenti/{malfunzionamento}/segnala', [MalfunzionamentoController::class, 'segnalaProblema'])->name('malfunzionamenti.segnala');
+        
         
         // Ricerca globale nei malfunzionamenti
         Route::get('/malfunzionamenti/ricerca', [MalfunzionamentoController::class, 'ricercaGlobale'])->name('malfunzionamenti.ricerca');
