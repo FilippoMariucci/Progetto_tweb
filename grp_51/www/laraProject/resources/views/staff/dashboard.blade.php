@@ -1,23 +1,16 @@
-{{-- Dashboard specifica per lo staff aziendale --}}
+{{-- 
+    Dashboard completa per lo staff aziendale (Livello 3)
+    File: resources/views/staff/dashboard.blade.php
+    
+    Questa vista mostra il pannello di controllo per i membri dello staff aziendale
+    Include statistiche, gestione malfunzionamenti, prodotti assegnati e strumenti di lavoro
+--}}
 @extends('layouts.app')
 
-@section('title', 'Dashboard Staff')
+@section('title', 'Dashboard Staff Aziendale')
 
 @section('content')
-<div class="container mt-4">
-    
-    {{-- === DEBUG TEMPORANEO (rimuovi in produzione) === --}}
-    @if(config('app.debug'))
-        <div class="alert alert-info">
-            <strong>🐛 DEBUG INFO:</strong>
-            <ul>
-                <li>Prodotti Lista: {{ isset($stats['prodotti_lista']) ? $stats['prodotti_lista']->count() : 'non definito' }}</li>
-                <li>Stats Keys: {{ isset($stats) ? implode(', ', array_keys($stats)) : 'stats non definito' }}</li>
-                <li>User: {{ auth()->user()->nome_completo ?? 'N/A' }}</li>
-            </ul>
-        </div>
-    @endif
-
+<div class="container-fluid mt-4" id="staff-dashboard-container">
     <div class="row">
         <div class="col-12">
             {{-- Header personalizzato per lo staff --}}
@@ -32,13 +25,14 @@
                     <i class="bi bi-person-badge display-6 text-warning me-3"></i>
                     <div>
                         <h4 class="alert-heading mb-1">
-                            Benvenuto, {{ auth()->user()->nome_completo ?? auth()->user()->name ?? 'Staff' }}!
+                            Benvenuto, {{ auth()->user()->nome_completo ?? auth()->user()->nome . ' ' . auth()->user()->cognome }}!
                         </h4>
                         <p class="mb-0">
                             <span class="badge bg-warning text-dark">Staff Tecnico Aziendale</span>
+                            <span class="badge bg-secondary ms-1">Livello 3</span>
                         </p>
                         <small class="text-muted">
-                            Gestisci malfunzionamenti e soluzioni tecniche per i prodotti assegnati
+                            Gestisci malfunzionamenti e soluzioni tecniche per i prodotti del sistema
                         </small>
                     </div>
                 </div>
@@ -54,22 +48,73 @@
         </div>
     </div>
 
-    {{-- PHP: Calcola il primo prodotto disponibile --}}
-    @php
-        $firstProdotto = isset($stats['prodotti_lista']) && $stats['prodotti_lista']->count() > 0 
-                         ? $stats['prodotti_lista']->first() 
-                         : null;
-    @endphp
-
     <div class="row g-4">
         
-        {{-- === ACCESSI RAPIDI STAFF === --}}
+        {{-- === STATISTICHE RAPIDE === --}}
+        <div class="col-12">
+            <div class="row g-3" id="statistiche-rapide">
+                {{-- Statistiche caricate dinamicamente via AJAX --}}
+                <div class="col-lg-3 col-md-6">
+                    <div class="card card-custom h-100 border-warning">
+                        <div class="card-body text-center">
+                            <i class="bi bi-wrench-adjustable display-4 text-warning mb-3"></i>
+                            <h5 class="card-title">Malfunzionamenti Gestiti</h5>
+                            <h2 class="text-warning mb-0" id="stat-malfunzionamenti">
+                                <span class="spinner-border spinner-border-sm" role="status"></span>
+                            </h2>
+                            <small class="text-muted">Questo mese</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-md-6">
+                    <div class="card card-custom h-100 border-success">
+                        <div class="card-body text-center">
+                            <i class="bi bi-check-circle display-4 text-success mb-3"></i>
+                            <h5 class="card-title">Soluzioni Aggiunte</h5>
+                            <h2 class="text-success mb-0" id="stat-soluzioni">
+                                <span class="spinner-border spinner-border-sm" role="status"></span>
+                            </h2>
+                            <small class="text-muted">Ultimi 30 giorni</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-md-6">
+                    <div class="card card-custom h-100 border-info">
+                        <div class="card-body text-center">
+                            <i class="bi bi-box-seam display-4 text-info mb-3"></i>
+                            <h5 class="card-title">Prodotti Seguiti</h5>
+                            <h2 class="text-info mb-0" id="stat-prodotti">
+                                <span class="spinner-border spinner-border-sm" role="status"></span>
+                            </h2>
+                            <small class="text-muted">Attualmente</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-md-6">
+                    <div class="card card-custom h-100 border-danger">
+                        <div class="card-body text-center">
+                            <i class="bi bi-exclamation-triangle display-4 text-danger mb-3"></i>
+                            <h5 class="card-title">Richieste Urgenti</h5>
+                            <h2 class="text-danger mb-0" id="stat-urgenti">
+                                <span class="spinner-border spinner-border-sm" role="status"></span>
+                            </h2>
+                            <small class="text-muted">Da risolvere</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- === AZIONI PRINCIPALI === --}}
         <div class="col-lg-8">
             <div class="card card-custom">
                 <div class="card-header bg-warning text-dark">
                     <h5 class="mb-0">
-                        <i class="bi bi-gear me-2"></i>
-                        Strumenti Staff
+                        <i class="bi bi-tools me-2"></i>
+                        Gestione Malfunzionamenti
                     </h5>
                 </div>
                 <div class="card-body">
@@ -77,44 +122,37 @@
                         
                         {{-- Gestione malfunzionamenti --}}
                         <div class="col-md-6">
-                            <a href="{{ route('staff.malfunzionamenti.index') }}" 
-                               class="btn btn-warning btn-lg w-100 h-100 d-flex flex-column justify-content-center align-items-center">
-                                <i class="bi bi-exclamation-triangle-fill display-6 mb-2"></i>
-                                <span class="fw-semibold">Gestisci Soluzioni</span>
+                            <a href="{{ route('staff.malfunzionamenti.index') }}" class="btn btn-warning btn-lg w-100 h-100">
+                                <i class="bi bi-list-check display-6 d-block mb-2"></i>
+                                <span class="fw-semibold">Gestisci Malfunzionamenti</span>
+                                <br><small>Visualizza e modifica</small>
                             </a>
                         </div>
                         
-                        {{-- CORRETTO: Usa rotta catalogo completo per staff --}}
+                        {{-- Ricerca malfunzionamenti --}}
                         <div class="col-md-6">
-                            <a href="{{ route('prodotti.completo.index') }}?staff_filter=my_products" 
-                               class="btn btn-primary btn-lg w-100 h-100 d-flex flex-column justify-content-center align-items-center">
-                                <i class="bi bi-box-seam display-6 mb-2"></i>
-                                <span class="fw-semibold">Miei Prodotti</span>
+                            <a href="{{ route('malfunzionamenti.ricerca') }}" class="btn btn-outline-warning btn-lg w-100 h-100">
+                                <i class="bi bi-search display-6 d-block mb-2"></i>
+                                <span class="fw-semibold">Ricerca Problemi</span>
+                                <br><small>Trova soluzioni esistenti</small>
                             </a>
                         </div>
-
-                        {{-- Nuova Soluzione --}}
+                        
+                        {{-- Prodotti completi --}}
                         <div class="col-md-6">
-                            @if($firstProdotto)
-                                <a href="{{ route('staff.malfunzionamenti.create', ['prodotto' => $firstProdotto->id]) }}" 
-                                   class="btn btn-success btn-lg w-100 h-100 d-flex flex-column justify-content-center align-items-center">
-                                    <i class="bi bi-plus-circle display-6 mb-2"></i>
-                                    <span class="fw-semibold">Nuova Soluzione</span>
-                                </a>
-                            @else
-                                <button class="btn btn-success btn-lg w-100 h-100 d-flex flex-column justify-content-center align-items-center" disabled>
-                                    <i class="bi bi-plus-circle display-6 mb-2"></i>
-                                    <span class="fw-semibold">Nessun prodotto disponibile</span>
-                                </button>
-                            @endif
+                            <a href="{{ route('prodotti.completo.index') }}" class="btn btn-outline-secondary btn-lg w-100 h-100">
+                                <i class="bi bi-box-seam display-6 d-block mb-2"></i>
+                                <span class="fw-semibold">Catalogo Completo</span>
+                                <br><small>Prodotti con malfunzionamenti</small>
+                            </a>
                         </div>
                         
-                        {{-- Visualizza catalogo completo --}}
+                        {{-- Statistiche staff --}}
                         <div class="col-md-6">
-                            <a href="{{ route('prodotti.completo.index') }}" 
-                               class="btn btn-info btn-lg w-100 h-100 d-flex flex-column justify-content-center align-items-center">
-                                <i class="bi bi-search display-6 mb-2"></i>
-                                <span class="fw-semibold">Esplora Catalogo</span>
+                            <a href="{{ route('staff.statistiche') }}" class="btn btn-outline-info btn-lg w-100 h-100">
+                                <i class="bi bi-graph-up display-6 d-block mb-2"></i>
+                                <span class="fw-semibold">Le Mie Statistiche</span>
+                                <br><small>Attività e performance</small>
                             </a>
                         </div>
                     </div>
@@ -122,389 +160,980 @@
             </div>
         </div>
 
-        {{-- === STATISTICHE STAFF === --}}
+        {{-- === SIDEBAR INFORMAZIONI === --}}
         <div class="col-lg-4">
-            <div class="card card-custom">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0">
-                        <i class="bi bi-graph-up me-2"></i>
-                        Le Tue Statistiche
-                    </h5>
+            {{-- Attività recenti --}}
+            <div class="card card-custom mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="bi bi-clock-history me-2"></i>
+                        Attività Recenti
+                    </h6>
                 </div>
-                <div class="card-body">
-                    @if(isset($stats) && count($stats) > 0)
-                        <div class="row g-3 text-center">
-                            {{-- Prodotti assegnati --}}
-                            @if(isset($stats['prodotti_assegnati']))
-                                <div class="col-6">
-                                    <div class="p-3 bg-primary bg-opacity-10 rounded">
-                                        <i class="bi bi-box text-primary fs-1"></i>
-                                        <h4 class="mt-2 mb-1">{{ $stats['prodotti_assegnati'] }}</h4>
-                                        <small class="text-muted">Prodotti Tuoi</small>
-                                    </div>
-                                </div>
-                            @endif
-                            
-                            {{-- Soluzioni create --}}
-                            @if(isset($stats['soluzioni_create']))
-                                <div class="col-6">
-                                    <div class="p-3 bg-success bg-opacity-10 rounded">
-                                        <i class="bi bi-check-circle text-success fs-1"></i>
-                                        <h4 class="mt-2 mb-1">{{ $stats['soluzioni_create'] }}</h4>
-                                        <small class="text-muted">Soluzioni</small>
-                                    </div>
-                                </div>
-                            @endif
-                            
-                            {{-- Soluzioni critiche --}}
-                            @if(isset($stats['soluzioni_critiche']))
-                                <div class="col-6">
-                                    <div class="p-3 bg-danger bg-opacity-10 rounded">
-                                        <i class="bi bi-exclamation-triangle text-danger fs-1"></i>
-                                        <h4 class="mt-2 mb-1">{{ $stats['soluzioni_critiche'] }}</h4>
-                                        <small class="text-muted">Critiche</small>
-                                    </div>
-                                </div>
-                            @endif
-                            
-                            {{-- Ultima modifica --}}
-                            @if(isset($stats['ultima_modifica']))
-                                <div class="col-6">
-                                    <div class="p-3 bg-warning bg-opacity-10 rounded">
-                                        <i class="bi bi-clock text-warning fs-1"></i>
-                                        <h6 class="mt-2 mb-1 small">{{ $stats['ultima_modifica'] }}</h6>
-                                        <small class="text-muted">Ultima Modifica</small>
-                                    </div>
-                                </div>
-                            @endif
+                <div class="card-body" id="attivita-recenti">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-warning" role="status">
+                            <span class="visually-hidden">Caricamento...</span>
                         </div>
-                    @else
-                        <p class="text-muted text-center">Statistiche in caricamento...</p>
-                    @endif
+                        <p class="mt-2 text-muted">Caricamento attività...</p>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    {{-- === PRODOTTI ASSEGNATI === --}}
-    <div class="row mt-4">
-        <div class="col-md-6">
-            <div class="card card-custom">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="bi bi-box-seam me-2"></i>
-                        I Tuoi Prodotti Assegnati
-                    </h5>
+            {{-- Prodotti più problematici --}}
+            <div class="card card-custom mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+                        Prodotti Più Problematici
+                    </h6>
                 </div>
-                <div class="card-body">
-                    @if(isset($stats['prodotti_lista']) && $stats['prodotti_lista']->count() > 0)
-                        <div class="list-group list-group-flush">
-                            @foreach($stats['prodotti_lista']->take(5) as $prodotto)
-                                <div class="list-group-item list-group-item-action px-0">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="mb-1 fw-semibold">{{ $prodotto->nome }}</h6>
-                                            <small class="text-muted">{{ $prodotto->codice ?? $prodotto->modello ?? 'N/A' }}</small>
-                                        </div>
-                                        <div class="text-end">
-                                            <span class="badge bg-info">
-                                                {{ $prodotto->malfunzionamenti->count() ?? 0 }} soluzioni
-                                            </span>
-                                            <br>
-                                            {{-- CORRETTO: Usa rotta catalogo completo per visualizzare prodotto --}}
-                                            <a href="{{ route('prodotti.completo.show', $prodotto) }}" 
-                                               class="btn btn-outline-primary btn-sm mt-1">
-                                                <i class="bi bi-eye"></i> Vedi
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
-                            @endforeach
+                <div class="card-body" id="prodotti-problematici">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-danger" role="status">
+                            <span class="visually-hidden">Caricamento...</span>
                         </div>
-                        @if($stats['prodotti_lista']->count() > 5)
-                            <div class="text-center mt-3">
-                                {{-- CORRETTO: Link al catalogo completo con filtro per prodotti assegnati --}}
-                                <a href="{{ route('prodotti.completo.index') }}?staff_filter=my_products" 
-                                   class="btn btn-outline-primary">
-                                    Vedi tutti i {{ $stats['prodotti_lista']->count() }} prodotti
-                                </a>
-                            </div>
-                        @endif
-                    @else
-                        <div class="text-center py-4">
-                            <i class="bi bi-inbox display-1 text-muted"></i>
-                            <p class="text-muted mt-2">Nessun prodotto assegnato</p>
-                            <small class="text-muted">Contatta l'amministratore per ottenere l'assegnazione di prodotti</small>
-                        </div>
-                    @endif
+                        <p class="mt-2 text-muted">Caricamento dati...</p>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        {{-- === ULTIME SOLUZIONI CREATE === --}}
-        <div class="col-md-6">
+            {{-- Azioni rapide --}}
             <div class="card card-custom">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0">
-                        <i class="bi bi-check-circle me-2"></i>
-                        Ultime Soluzioni Create
-                    </h5>
-                </div>
-                <div class="card-body">
-                    @if(isset($stats['ultime_soluzioni']) && $stats['ultime_soluzioni']->count() > 0)
-                        <div class="list-group list-group-flush">
-                            @foreach($stats['ultime_soluzioni']->take(5) as $soluzione)
-                                <div class="list-group-item px-0">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div class="flex-grow-1">
-                                            <h6 class="mb-1 fw-semibold">
-                                                {{ Str::limit($soluzione->titolo, 40) }}
-                                            </h6>
-                                            <p class="mb-1 small">
-                                                <strong>Prodotto:</strong> {{ $soluzione->prodotto->nome ?? 'N/A' }}
-                                            </p>
-                                            <small class="text-muted">
-                                                {{ $soluzione->created_at->diffForHumans() }}
-                                            </small>
-                                        </div>
-                                        <div class="text-end">
-                                            <span class="badge bg-{{ $soluzione->gravita == 'critica' ? 'danger' : ($soluzione->gravita == 'alta' ? 'warning' : 'success') }}">
-                                                {{ ucfirst($soluzione->gravita ?? 'normale') }}
-                                            </span>
-                                            {{-- CORRETTO: Link alla soluzione usando rotta staff --}}
-                                            @if($soluzione->prodotto)
-                                                <br>
-                                                <a href="{{ route('staff.malfunzionamenti.show', [$soluzione->prodotto, $soluzione]) }}" class="btn btn-outline-primary btn-sm mt-1">
-    <i class="bi bi-eye"></i> Vedi
-</a>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                        <div class="text-center mt-3">
-                            <a href="{{ route('staff.malfunzionamenti.index') }}" class="btn btn-outline-success">
-                                Vedi tutte le soluzioni
-                            </a>
-                        </div>
-                    @else
-                        <div class="text-center py-4">
-                            <i class="bi bi-plus-circle display-1 text-muted"></i>
-                            <p class="text-muted mt-2">Nessuna soluzione creata ancora</p>
-                            @if($firstProdotto)
-                                <a href="{{ route('staff.malfunzionamenti.create', ['prodotto' => $firstProdotto->id]) }}" 
-                                   class="btn btn-success">
-                                    <i class="bi bi-plus-circle me-1"></i>Crea la prima soluzione
-                                </a>
-                            @else
-                                <p class="text-muted small">Nessun prodotto assegnato per creare soluzioni</p>
-                            @endif
-                        </div>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {{-- === AZIONI RAPIDE === --}}
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card card-custom bg-light">
-                <div class="card-body text-center">
-                    <h5 class="card-title">
-                        <i class="bi bi-lightning text-warning me-2"></i>
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="bi bi-lightning me-2"></i>
                         Azioni Rapide
-                    </h5>
-                    <div class="d-flex flex-wrap justify-content-center gap-3 mt-3">
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="btn-aggiungi-malfunzionamento">
+                            <i class="bi bi-plus-circle me-1"></i>
+                            Nuovo Malfunzionamento
+                        </button>
                         
-                        {{-- Nuova Soluzione --}}
-                        @if($firstProdotto)
-                            <a href="{{ route('staff.malfunzionamenti.create', ['prodotto' => $firstProdotto->id]) }}" 
-                               class="btn btn-success">
-                                <i class="bi bi-plus-circle me-1"></i>
-                                Nuova Soluzione
-                            </a>
-                        @else
-                            <button class="btn btn-success disabled" disabled>
-                                <i class="bi bi-plus-circle me-1"></i>
-                                Nuova Soluzione (nessun prodotto)
-                            </button>
-                        @endif
+                        <button type="button" class="btn btn-sm btn-outline-success" id="btn-ricerca-rapida">
+                            <i class="bi bi-search me-1"></i>
+                            Ricerca Rapida
+                        </button>
                         
-                        {{-- CORRETTI: Link con rotte appropriate per lo staff --}}
-                        <a href="{{ route('prodotti.completo.index') }}?filter=critici" class="btn btn-warning">
-                            <i class="bi bi-exclamation-triangle me-1"></i>Prodotti Critici
-                        </a>
-                        <a href="{{ route('staff.malfunzionamenti.index') }}?filter=recent" class="btn btn-info">
-                            <i class="bi bi-clock me-1"></i>Soluzioni Recenti
-                        </a>
-                        <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary">
-                            <i class="bi bi-house me-1"></i>Dashboard Generale
+                        <button type="button" class="btn btn-sm btn-outline-info" id="btn-esporta-report">
+                            <i class="bi bi-download me-1"></i>
+                            Esporta Report
+                        </button>
+                        
+                        <hr>
+                        
+                        <a href="{{ route('profilo') }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-person me-1"></i>
+                            Il Mio Profilo
                         </a>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    {{-- === MESSAGGIO SE NESSUN PRODOTTO ASSEGNATO === --}}
-    @if(!$firstProdotto)
-        <div class="row mt-4">
-            <div class="col-12">
-                <div class="alert alert-warning">
-                    <h5 class="alert-heading">
-                        <i class="bi bi-info-circle me-2"></i>Nessun prodotto assegnato
+        {{-- === SEZIONE MALFUNZIONAMENTI RECENTI === --}}
+        <div class="col-12">
+            <div class="card card-custom">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-clock-history text-warning me-2"></i>
+                        Malfunzionamenti Recenti
                     </h5>
-                    <p>Non hai ancora prodotti assegnati per gestire le soluzioni tecniche.</p>
-                    <hr>
-                    <p class="mb-0">
-                        <a href="{{ route('dashboard') }}" class="btn btn-outline-warning">Torna alla Dashboard</a>
-                        {{-- CORRETTO: Link al catalogo pubblico per esplorare --}}
-                        <a href="{{ route('prodotti.index') }}" class="btn btn-warning">Esplora Catalogo</a>
-                    </p>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-refresh-malfunzionamenti">
+                        <i class="bi bi-arrow-clockwise me-1"></i>
+                        Aggiorna
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive" id="tabella-malfunzionamenti-recenti">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-warning" role="status">
+                                <span class="visually-hidden">Caricamento...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Caricamento malfunzionamenti recenti...</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-    @endif
 
+        {{-- === RICERCA RAPIDA === --}}
+        <div class="col-12">
+            <div class="card card-custom">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-search text-primary me-2"></i>
+                        Ricerca Rapida Malfunzionamenti
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="form-ricerca-rapida" class="mb-3">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-6">
+                                <label for="ricerca-prodotto" class="form-label">Prodotto</label>
+                                <input type="text" class="form-control" id="ricerca-prodotto" 
+                                       placeholder="Nome prodotto...">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="ricerca-problema" class="form-label">Problema</label>
+                                <input type="text" class="form-control" id="ricerca-problema" 
+                                       placeholder="Descrizione problema...">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-search me-1"></i>
+                                    Cerca
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    
+                    <div id="risultati-ricerca-rapida">
+                        <div class="text-center text-muted py-3">
+                            <i class="bi bi-search display-4"></i>
+                            <p class="mt-2">Utilizza la ricerca per trovare malfunzionamenti e soluzioni</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Modal per aggiungere nuovo malfunzionamento --}}
+<div class="modal fade" id="modalNuovoMalfunzionamento" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="bi bi-plus-circle me-2"></i>
+                    Nuovo Malfunzionamento
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-nuovo-malfunzionamento">
+                    <div class="mb-3">
+                        <label for="prodotto-select" class="form-label required">Prodotto</label>
+                        <select class="form-select" id="prodotto-select" required>
+                            <option value="">Seleziona un prodotto...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="titolo-malfunzionamento" class="form-label required">Titolo del Problema</label>
+                        <input type="text" class="form-control" id="titolo-malfunzionamento" 
+                               placeholder="Es: Lavatrice non si accende" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="descrizione-malfunzionamento" class="form-label required">Descrizione Dettagliata</label>
+                        <textarea class="form-control" id="descrizione-malfunzionamento" rows="4" 
+                                  placeholder="Descrivi il problema in dettaglio..." required></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="soluzione-malfunzionamento" class="form-label required">Soluzione Tecnica</label>
+                        <textarea class="form-control" id="soluzione-malfunzionamento" rows="4" 
+                                  placeholder="Descrivi la soluzione step-by-step..." required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i>
+                    Annulla
+                </button>
+                <button type="submit" form="form-nuovo-malfunzionamento" class="btn btn-warning">
+                    <i class="bi bi-check-circle me-1"></i>
+                    Salva Malfunzionamento
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection
 
+{{-- JavaScript personalizzato per la dashboard staff --}}
+@push('scripts')
+<script>
+/**
+ * JavaScript per la Dashboard Staff - Sistema Assistenza Tecnica
+ * 
+ * Questo script gestisce:
+ * - Caricamento dinamico delle statistiche via AJAX
+ * - Ricerca rapida malfunzionamenti 
+ * - Gestione modal nuovo malfunzionamento
+ * - Aggiornamento dati in tempo reale
+ * - Gestione errori e feedback utente
+ */
+
+$(document).ready(function() {
+    console.log('🟡 Dashboard Staff - Inizializzazione...');
+    
+    // === CONFIGURAZIONE GLOBALE AJAX ===
+    $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        }
+    });
+    
+    // === CARICAMENTO INIZIALE DATI ===
+    caricaStatisticheStaff();
+    caricaAttivitaRecenti();
+    caricaProdottiProblematici();
+    caricaMalfunzionamentiRecenti();
+    caricaProdottiPerSelect();
+    
+    // === EVENT LISTENERS ===
+    
+    // Ricerca rapida
+    $('#form-ricerca-rapida').on('submit', function(e) {
+        e.preventDefault();
+        eseguiRicercaRapida();
+    });
+    
+    // Pulsante nuovo malfunzionamento
+    $('#btn-aggiungi-malfunzionamento').on('click', function() {
+        $('#modalNuovoMalfunzionamento').modal('show');
+    });
+    
+    // Pulsante ricerca rapida
+    $('#btn-ricerca-rapida').on('click', function() {
+        $('#ricerca-prodotto').focus();
+    });
+    
+    // Pulsante esporta report
+    $('#btn-esporta-report').on('click', function() {
+        esportaReport();
+    });
+    
+    // Form nuovo malfunzionamento
+    $('#form-nuovo-malfunzionamento').on('submit', function(e) {
+        e.preventDefault();
+        salvaNuovoMalfunzionamento();
+    });
+    
+    // Refresh malfunzionamenti
+    $('#btn-refresh-malfunzionamenti').on('click', function() {
+        caricaMalfunzionamentiRecenti();
+    });
+    
+    // Auto-refresh ogni 5 minuti
+    setInterval(function() {
+        caricaStatisticheStaff();
+        caricaAttivitaRecenti();
+    }, 300000);
+});
+
+/**
+ * Carica le statistiche generali dello staff via AJAX
+ */
+function caricaStatisticheStaff() {
+    $.ajax({
+        url: '/api/staff/stats',
+        method: 'GET',
+        success: function(data) {
+            // Aggiorna i contatori nelle card statistiche
+            $('#stat-malfunzionamenti').html(data.malfunzionamenti_gestiti || '0');
+            $('#stat-soluzioni').html(data.soluzioni_aggiunte || '0');
+            $('#stat-prodotti').html(data.prodotti_seguiti || '0');
+            $('#stat-urgenti').html(data.richieste_urgenti || '0');
+            
+            console.log('✅ Statistiche staff caricate');
+        },
+        error: function() {
+            // In caso di errore, mostra valori di fallback
+            $('#stat-malfunzionamenti, #stat-soluzioni, #stat-prodotti, #stat-urgenti')
+                .html('<i class="bi bi-exclamation-triangle text-danger" title="Errore caricamento"></i>');
+            
+            showAlert('Attenzione', 'Impossibile caricare le statistiche.', 'warning');
+        }
+    });
+}
+
+/**
+ * Carica le attività recenti dello staff
+ */
+function caricaAttivitaRecenti() {
+    $.ajax({
+        url: '/api/staff/ultime-soluzioni',
+        method: 'GET',
+        success: function(data) {
+            let html = '';
+            
+            if (data.length > 0) {
+                data.forEach(function(attivita) {
+                    const dataFormatted = new Date(attivita.created_at).toLocaleDateString('it-IT');
+                    html += `
+                        <div class="d-flex align-items-start mb-3">
+                            <div class="bg-warning rounded-circle p-2 me-3">
+                                <i class="bi bi-wrench text-white"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">${attivita.title}</h6>
+                                <p class="text-muted mb-0 small">
+                                    ${attivita.prodotto_nome} - ${dataFormatted}
+                                </p>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                html = `
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-clock-history display-4"></i>
+                        <p class="mt-2">Nessuna attività recente</p>
+                    </div>
+                `;
+            }
+            
+            $('#attivita-recenti').html(html);
+        },
+        error: function() {
+            $('#attivita-recenti').html(`
+                <div class="text-center text-danger py-3">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <p class="mt-2">Errore nel caricamento</p>
+                </div>
+            `);
+        }
+    });
+}
+
+/**
+ * Carica i prodotti più problematici
+ */
+function caricaProdottiProblematici() {
+    $.ajax({
+        url: '/api/staff/malfunzionamenti-prioritari',
+        method: 'GET',
+        success: function(data) {
+            let html = '';
+            
+            if (data.length > 0) {
+                data.forEach(function(prodotto, index) {
+                    const badge = index === 0 ? 'danger' : index === 1 ? 'warning' : 'secondary';
+                    html += `
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <h6 class="mb-0">${prodotto.nome}</h6>
+                                <small class="text-muted">${prodotto.categoria}</small>
+                            </div>
+                            <span class="badge bg-${badge}">${prodotto.malfunzionamenti_count}</span>
+                        </div>
+                    `;
+                });
+            } else {
+                html = `
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-check-circle display-4 text-success"></i>
+                        <p class="mt-2">Ottimo lavoro!<br>Nessun prodotto problematico</p>
+                    </div>
+                `;
+            }
+            
+            $('#prodotti-problematici').html(html);
+        },
+        error: function() {
+            $('#prodotti-problematici').html(`
+                <div class="text-center text-danger py-3">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <p class="mt-2">Errore nel caricamento</p>
+                </div>
+            `);
+        }
+    });
+}
+
+/**
+ * Carica i malfunzionamenti recenti in una tabella
+ */
+function caricaMalfunzionamentiRecenti() {
+    $('#tabella-malfunzionamenti-recenti').html(`
+        <div class="text-center py-4">
+            <div class="spinner-border text-warning" role="status">
+                <span class="visually-hidden">Caricamento...</span>
+            </div>
+            <p class="mt-2 text-muted">Aggiornamento malfunzionamenti...</p>
+        </div>
+    `);
+    
+    $.ajax({
+        url: '/api/staff/ultime-soluzioni?limit=10',
+        method: 'GET',
+        success: function(data) {
+            let html = `
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Prodotto</th>
+                            <th>Problema</th>
+                            <th>Data</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            if (data.length > 0) {
+                data.forEach(function(item) {
+                    const dataFormatted = new Date(item.created_at).toLocaleDateString('it-IT');
+                    html += `
+                        <tr>
+                            <td>
+                                <strong>${item.prodotto_nome}</strong>
+                                <br><small class="text-muted">${item.prodotto_categoria || 'N/A'}</small>
+                            </td>
+                            <td>
+                                ${item.title}
+                                <br><small class="text-muted">${item.description.substring(0, 50)}...</small>
+                            </td>
+                            <td>${dataFormatted}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" onclick="visualizzaMalfunzionamento(${item.id})">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="modificaMalfunzionamento(${item.id})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } else {
+                html += `
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox display-4"></i>
+                            <p class="mt-2">Nessun malfunzionamento trovato</p>
+                        </td>
+                    </tr>
+                `;
+            }
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
+            
+            $('#tabella-malfunzionamenti-recenti').html(html);
+        },
+        error: function() {
+            $('#tabella-malfunzionamenti-recenti').html(`
+                <div class="text-center text-danger py-4">
+                    <i class="bi bi-exclamation-triangle display-4"></i>
+                    <p class="mt-2">Errore nel caricamento dei malfunzionamenti</p>
+                    <button class="btn btn-sm btn-outline-primary" onclick="caricaMalfunzionamentiRecenti()">
+                        Riprova
+                    </button>
+                </div>
+            `);
+        }
+    });
+}
+
+/**
+ * Carica la lista prodotti per la select del modal
+ */
+function caricaProdottiPerSelect() {
+    $.ajax({
+        url: '/api/prodotti',
+        method: 'GET',
+        success: function(data) {
+            let options = '<option value="">Seleziona un prodotto...</option>';
+            
+            data.forEach(function(prodotto) {
+                options += `<option value="${prodotto.id}">${prodotto.nome} - ${prodotto.categoria}</option>`;
+            });
+            
+            $('#prodotto-select').html(options);
+        },
+        error: function() {
+            $('#prodotto-select').html('<option value="">Errore caricamento prodotti</option>');
+        }
+    });
+}
+
+/**
+ * Esegue la ricerca rapida di malfunzionamenti
+ */
+function eseguiRicercaRapida() {
+    const prodotto = $('#ricerca-prodotto').val().trim();
+    const problema = $('#ricerca-problema').val().trim();
+    
+    if (!prodotto && !problema) {
+        showAlert('Attenzione', 'Inserisci almeno un criterio di ricerca', 'warning');
+        return;
+    }
+    
+    $('#risultati-ricerca-rapida').html(`
+        <div class="text-center py-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Ricerca in corso...</span>
+            </div>
+            <p class="mt-2 text-muted">Ricerca in corso...</p>
+        </div>
+    `);
+    
+    $.ajax({
+        url: '/api/malfunzionamenti/search',
+        method: 'GET',
+        data: {
+            prodotto: prodotto,
+            problema: problema
+        },
+        success: function(data) {
+            let html = '';
+            
+            if (data.length > 0) {
+                html = `
+                    <div class="row g-3">
+                `;
+                
+                data.forEach(function(item) {
+                    html += `
+                        <div class="col-md-6">
+                            <div class="card border-primary">
+                                <div class="card-body">
+                                    <h6 class="card-title text-primary">${item.prodotto_nome}</h6>
+                                    <h6 class="card-subtitle mb-2 text-muted">${item.title}</h6>
+                                    <p class="card-text small">${item.description.substring(0, 100)}...</p>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-sm btn-primary" onclick="visualizzaMalfunzionamento(${item.id})">
+                                            <i class="bi bi-eye me-1"></i>Visualizza
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-secondary" onclick="modificaMalfunzionamento(${item.id})">
+                                            <i class="bi bi-pencil me-1"></i>Modifica
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `</div>`;
+            } else {
+                html = `
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-search display-4"></i>
+                        <p class="mt-2">Nessun risultato trovato per la ricerca</p>
+                        <small>Prova con altri termini di ricerca</small>
+                    </div>
+                `;
+            }
+            
+            $('#risultati-ricerca-rapida').html(html);
+        },
+        error: function() {
+            $('#risultati-ricerca-rapida').html(`
+                <div class="text-center text-danger py-3">
+                    <i class="bi bi-exclamation-triangle display-4"></i>
+                    <p class="mt-2">Errore nella ricerca</p>
+                    <button class="btn btn-sm btn-outline-primary" onclick="eseguiRicercaRapida()">
+                        Riprova
+                    </button>
+                </div>
+            `);
+        }
+    });
+}
+
+/**
+ * Salva un nuovo malfunzionamento tramite il modal
+ */
+function salvaNuovoMalfunzionamento() {
+    const prodottoId = $('#prodotto-select').val();
+    const titolo = $('#titolo-malfunzionamento').val().trim();
+    const descrizione = $('#descrizione-malfunzionamento').val().trim();
+    const soluzione = $('#soluzione-malfunzionamento').val().trim();
+    
+    // Validazione client-side
+    if (!prodottoId || !titolo || !descrizione || !soluzione) {
+        showAlert('Errore', 'Tutti i campi sono obbligatori', 'danger');
+        return;
+    }
+    
+    // Disabilita il pulsante di salvataggio durante la richiesta
+    const btnSalva = $('button[form="form-nuovo-malfunzionamento"]');
+    const originalText = btnSalva.html();
+    btnSalva.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Salvataggio...');
+    
+    $.ajax({
+        url: `/staff/prodotti/${prodottoId}/malfunzionamenti`,
+        method: 'POST',
+        data: {
+            title: titolo,
+            description: descrizione,
+            solution: soluzione
+        },
+        success: function(response) {
+            // Chiudi il modal
+            $('#modalNuovoMalfunzionamento').modal('hide');
+            
+            // Reset del form
+            $('#form-nuovo-malfunzionamento')[0].reset();
+            
+            // Mostra messaggio di successo
+            showAlert('Successo', 'Malfunzionamento creato con successo!', 'success');
+            
+            // Ricarica i dati della dashboard
+            caricaMalfunzionamentiRecenti();
+            caricaStatisticheStaff();
+        },
+        error: function(xhr) {
+            let message = 'Errore durante il salvataggio';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                message = xhr.responseJSON.message;
+            }
+            showAlert('Errore', message, 'danger');
+        },
+        complete: function() {
+            // Ripristina il pulsante
+            btnSalva.prop('disabled', false).html(originalText);
+        }
+    });
+}
+
+/**
+ * Visualizza i dettagli di un malfunzionamento specifico
+ */
+function visualizzaMalfunzionamento(id) {
+    // Redirect alla pagina di dettaglio del malfunzionamento
+    window.open(`/staff/malfunzionamenti/${id}`, '_blank');
+}
+
+/**
+ * Apre la pagina di modifica di un malfunzionamento
+ */
+function modificaMalfunzionamento(id) {
+    // Redirect alla pagina di modifica
+    window.location.href = `/staff/malfunzionamenti/${id}/edit`;
+}
+
+/**
+ * Esporta un report delle attività dello staff
+ */
+function esportaReport() {
+    showAlert('Info', 'Generazione report in corso...', 'info');
+    
+    $.ajax({
+        url: '/staff/export-report',
+        method: 'POST',
+        success: function(response) {
+            if (response.download_url) {
+                // Crea un link temporaneo per il download
+                const link = document.createElement('a');
+                link.href = response.download_url;
+                link.download = response.filename || 'report_staff.pdf';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showAlert('Successo', 'Report generato e scaricato!', 'success');
+            } else {
+                showAlert('Attenzione', 'Report generato ma link di download non disponibile', 'warning');
+            }
+        },
+        error: function() {
+            showAlert('Errore', 'Impossibile generare il report', 'danger');
+        }
+    });
+}
+
+/**
+ * Mostra un alert Bootstrap personalizzato
+ */
+function showAlert(title, message, type) {
+    // Rimuove eventuali alert precedenti
+    $('.alert-custom').remove();
+    
+    // Crea l'alert HTML
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show alert-custom" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+            <strong>${title}:</strong> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    `;
+    
+    // Aggiunge l'alert al body
+    $('body').append(alertHtml);
+    
+    // Rimozione automatica dopo 5 secondi
+    setTimeout(function() {
+        $('.alert-custom').alert('close');
+    }, 5000);
+}
+
+/**
+ * Gestisce gli errori AJAX in modo centralizzato
+ */
+function handleAjaxError(xhr, operation) {
+    console.error(`Errore ${operation}:`, xhr);
+    
+    let message = 'Si è verificato un errore imprevisto';
+    
+    if (xhr.status === 401) {
+        message = 'Sessione scaduta. Effettua nuovamente il login';
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 2000);
+    } else if (xhr.status === 403) {
+        message = 'Non hai i permessi necessari per questa operazione';
+    } else if (xhr.status === 404) {
+        message = 'Risorsa non trovata';
+    } else if (xhr.status >= 500) {
+        message = 'Errore del server. Riprova più tardi';
+    }
+    
+    showAlert('Errore', message, 'danger');
+}
+
+/**
+ * Controlla la connettività e mostra eventuali problemi
+ */
+function checkConnectivity() {
+    $.ajax({
+        url: '/api/staff/stats',
+        method: 'GET',
+        timeout: 5000,
+        success: function() {
+            console.log('Connettività OK');
+        },
+        error: function(xhr, status, error) {
+            if (status === 'timeout') {
+                showAlert('Attenzione', 'Connessione lenta. I dati potrebbero non essere aggiornati.', 'warning');
+            } else {
+                console.warn('Problema di connettività:', error);
+            }
+        }
+    });
+}
+
+/**
+ * Funzione di inizializzazione da chiamare quando la pagina è pronta
+ */
+function initStaffDashboard() {
+    // Verifica che siamo effettivamente nella dashboard staff
+    if (!$('#staff-dashboard-container').length) {
+        console.warn('Script caricato in pagina non-staff');
+        return;
+    }
+    
+    // Avvia controllo connettività
+    checkConnectivity();
+    
+    console.log('Dashboard Staff completamente inizializzata');
+}
+
+// Inizializza quando il documento è pronto
+$(document).ready(initStaffDashboard);
+</script>
+@endpush
+
+{{-- CSS personalizzato per la dashboard staff --}}
 @push('styles')
 <style>
-/* Stili per la dashboard staff */
+/* === STILI GENERALI DASHBOARD STAFF === */
+body.staff-dashboard {
+    background-color: #fef9e7; /* Sfondo leggermente giallo per staff */
+}
+
+/* Stili per le card personalizzate */
 .card-custom {
     border: none;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: all 0.3s ease;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: all 0.15s ease-in-out;
 }
 
 .card-custom:hover {
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
 }
 
-/* Fix per i pulsanti grandi */
-.btn-lg.w-100.h-100 {
-    min-height: 120px;
-    padding: 1rem;
+/* Stili specifici per le card di statistica */
+.border-warning {
+    border-color: #ffc107 !important;
+    border-width: 2px !important;
 }
 
-/* Migliora la spaziatura delle icone nei pulsanti */
-.btn .display-6 {
+.border-success {
+    border-color: #198754 !important;
+    border-width: 2px !important;
+}
+
+.border-info {
+    border-color: #0dcaf0 !important;
+    border-width: 2px !important;
+}
+
+.border-danger {
+    border-color: #dc3545 !important;
+    border-width: 2px !important;
+}
+
+/* Effetti hover per i pulsanti di azione */
+.btn-lg:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease-in-out;
+}
+
+/* Stili per i badge personalizzati */
+.badge {
+    font-size: 0.75em;
+    font-weight: 600;
+}
+
+/* Stili per le statistiche numeriche */
+.card-body h2 {
+    font-weight: 700;
     font-size: 2.5rem;
 }
 
-/* Responsive adjustments */
+/* Stili per la tabella responsive */
+.table-hover tbody tr:hover {
+    background-color: rgba(255, 193, 7, 0.1);
+}
+
+/* Stili per il modal */
+.modal-header.bg-warning {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.form-label.required::after {
+    content: " *";
+    color: #dc3545;
+    font-weight: bold;
+}
+
+/* Stili per gli alert personalizzati */
+.alert-custom {
+    border-radius: 0.5rem;
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
+}
+
+/* Animazioni per i caricamenti */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.updating {
+    animation: pulse 1s infinite;
+}
+
+/* Stili per i risultati di ricerca */
+.card.border-primary {
+    border-color: #0d6efd !important;
+    border-width: 1px !important;
+}
+
+.card.border-primary:hover {
+    border-width: 2px !important;
+    transform: translateY(-1px);
+}
+
+/* Responsive design */
 @media (max-width: 768px) {
-    .btn-lg.w-100.h-100 {
-        min-height: 100px;
+    .col-lg-4, .col-md-6 {
+        margin-bottom: 1rem;
+    }
+    
+    .btn-lg {
+        font-size: 1rem;
+        padding: 0.75rem;
     }
     
     .display-6 {
         font-size: 2rem;
     }
+    
+    .card-body h2 {
+        font-size: 2rem;
+    }
+    
+    .d-flex.gap-2 {
+        flex-direction: column;
+    }
+    
+    .d-flex.gap-2 .btn {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Tabella più compatta su mobile */
+    .table-responsive table {
+        font-size: 0.875rem;
+    }
 }
 
-/* Fix per list-group */
-.list-group-item {
-    border-left: none;
-    border-right: none;
+@media (max-width: 576px) {
+    .container-fluid {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    .alert-custom {
+        position: relative !important;
+        top: auto !important;
+        right: auto !important;
+        width: 100% !important;
+        margin-bottom: 1rem;
+    }
 }
 
-.list-group-item:first-child {
-    border-top: none;
+/* Focus migliorato per accessibilità */
+.form-control:focus,
+.form-select:focus,
+.btn:focus {
+    box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25);
+    border-color: #ffc107;
 }
 
-.list-group-item:last-child {
-    border-bottom: none;
+/* Stili per stati di loading */
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
 }
 
-/* Badge improvements */
-.badge {
-    font-size: 0.75rem;
+/* Miglioramenti per la leggibilità */
+.text-muted {
+    color: #6c757d !important;
+}
+
+.card-subtitle {
+    font-weight: 500;
+}
+
+/* Stili per le icone di stato */
+.text-warning { color: #ffc107 !important; }
+.text-success { color: #198754 !important; }
+.text-info { color: #0dcaf0 !important; }
+.text-danger { color: #dc3545 !important; }
+
+/* Animazioni di entrata per gli elementi dinamici */
+.fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Stile per elementi interattivi */
+.clickable {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.clickable:hover {
+    background-color: rgba(255, 193, 7, 0.1);
 }
 </style>
-@endpush
-
-@push('scripts')
-<script>
-$(document).ready(function() {
-    // Inizializzazione specifica per dashboard staff
-    console.log('Dashboard staff caricata');
-    
-    // Controllo se ci sono prodotti assegnati
-    const hasProdotti = {{ $firstProdotto ? 'true' : 'false' }};
-    console.log('Ha prodotti assegnati:', hasProdotti);
-    
-    // Aggiornamento automatico statistiche ogni 2 minuti (solo se ci sono prodotti)
-    if (hasProdotti) {
-        setInterval(function() {
-            updateStaffStats();
-        }, 120000); // 2 minuti
-    }
-    
-    // Funzione per aggiornare le statistiche staff via AJAX
-    function updateStaffStats() {
-        $.ajax({
-            url: "{{ route('api.staff.stats') }}",
-            method: 'GET',
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                'Accept': 'application/json'
-            },
-            success: function(data) {
-                if (data.success) {
-                    console.log('Statistiche staff aggiornate', data.stats);
-                    
-                    // Aggiorna i contatori nella dashboard se necessario
-                    if (data.stats.prodotti_assegnati !== undefined) {
-                        // Aggiorna contatore prodotti assegnati se esiste nella pagina
-                        $('.prodotti-count').text(data.stats.prodotti_assegnati);
-                    }
-                    if (data.stats.soluzioni_create !== undefined) {
-                        // Aggiorna contatore soluzioni create se esiste nella pagina
-                        $('.soluzioni-count').text(data.stats.soluzioni_create);
-                    }
-                } else {
-                    console.warn('Errore API staff stats:', data.message);
-                }
-            },
-            error: function(xhr, status, error) {
-                console.log('Errore nell\'aggiornamento statistiche staff:', error);
-                
-                // Se l'errore è 403 (non autorizzato), reindirizza al login
-                if (xhr.status === 403) {
-                    console.warn('Sessione scaduta, reindirizzo al login');
-                    window.location.href = "{{ route('login') }}";
-                }
-            }
-        });
-    }
-    
-    // Evidenziazione elementi con hover
-    $('.list-group-item-action').hover(
-        function() { $(this).addClass('bg-light'); },
-        function() { $(this).removeClass('bg-light'); }
-    );
-    
-    // Tooltip per pulsanti disabilitati
-    $('[disabled]').tooltip({
-        title: 'Funzione non disponibile - nessun prodotto assegnato',
-        placement: 'top'
-    });
-    
-    // Animazioni al caricamento per le card
-    $('.card-custom').each(function(index) {
-        $(this).css('opacity', '0').delay(index * 100).animate({opacity: 1}, 300);
-    });
-    
-    // Conferma prima di azioni importanti
-    $('.btn-danger').on('click', function(e) {
-        if (!confirm('Sei sicuro di voler procedere con questa azione?')) {
-            e.preventDefault();
-        }
-    });
-});
-</script>
 @endpush
