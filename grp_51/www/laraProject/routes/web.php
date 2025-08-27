@@ -150,20 +150,15 @@ Route::prefix('api')->name('api.')->group(function () {
         Route::middleware(['check.level:3'])->group(function () {
             
             // Statistiche staff per dashboard AJAX
-            Route::get('/staff/stats', [StaffController::class, 'apiStats'])->name('staff.stats');
-            
-            // Prodotti assegnati allo staff corrente
-            Route::get('/staff/prodotti-assegnati', [StaffController::class, 'apiProdottiAssegnati'])->name('staff.prodotti');
-            
-            // Ultime soluzioni create dallo staff
-            Route::get('/staff/ultime-soluzioni', [StaffController::class, 'apiUltimeSoluzioni'])->name('staff.soluzioni');
-            
-            // Malfunzionamenti più segnalati (per priorità interventi)
-            Route::get('/staff/malfunzionamenti-prioritari', [StaffController::class, 'apiMalfunzionamentiPrioritari'])->name('staff.prioritari');
-
-            Route::get('/stats', [StaffController::class, 'apiStats'])->name('stats');
+        Route::get('/stats', [StaffController::class, 'apiStats'])->name('stats');
+        
+        // Ultime soluzioni create dallo staff
         Route::get('/ultime-soluzioni', [StaffController::class, 'apiUltimeSoluzioni'])->name('ultime-soluzioni');
+        
+        // Malfunzionamenti più segnalati (per priorità interventi)
         Route::get('/malfunzionamenti-prioritari', [StaffController::class, 'apiMalfunzionamentiPrioritari'])->name('malfunzionamenti-prioritari');
+        
+        // Prodotti assegnati allo staff corrente
         Route::get('/prodotti-assegnati', [StaffController::class, 'apiProdottiAssegnati'])->name('prodotti-assegnati');
         });
         
