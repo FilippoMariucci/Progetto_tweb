@@ -434,7 +434,7 @@ $(document).ready(function() {
  */
 function caricaStatisticheStaff() {
     $.ajax({
-        url: '/api/staff/stats',
+        url: "{{ route('api.stats') }}",
         method: 'GET',
         success: function(data) {
             // Aggiorna i contatori nelle card statistiche
@@ -460,7 +460,7 @@ function caricaStatisticheStaff() {
  */
 function caricaAttivitaRecenti() {
     $.ajax({
-        url: '/api/staff/ultime-soluzioni',
+        url: "{{ route('api.ultime-soluzioni') }}",
         method: 'GET',
         success: function(data) {
             let html = '';
@@ -509,7 +509,7 @@ function caricaAttivitaRecenti() {
  */
 function caricaProdottiProblematici() {
     $.ajax({
-        url: '/api/staff/malfunzionamenti-prioritari',
+       url: "{{ route('api.malfunzionamenti-prioritari') }}",
         method: 'GET',
         success: function(data) {
             let html = '';
@@ -563,7 +563,7 @@ function caricaMalfunzionamentiRecenti() {
     `);
     
     $.ajax({
-        url: '/api/staff/ultime-soluzioni?limit=10',
+        url: "{{ route('api.ultime-soluzioni') }}",
         method: 'GET',
         success: function(data) {
             let html = `
@@ -641,7 +641,7 @@ function caricaMalfunzionamentiRecenti() {
  */
 function caricaProdottiPerSelect() {
     $.ajax({
-        url: '/api/prodotti',
+        url: "{{ route('api.prodotti-assegnati') }}",
         method: 'GET',
         success: function(data) {
             let options = '<option value="">Seleziona un prodotto...</option>';
@@ -680,7 +680,7 @@ function eseguiRicercaRapida() {
     `);
     
     $.ajax({
-        url: '/api/malfunzionamenti/search',
+        url: "{{ route('api.malfunzionameti.search') }}",
         method: 'GET',
         data: {
             prodotto: prodotto,
@@ -898,7 +898,7 @@ function handleAjaxError(xhr, operation) {
  */
 function checkConnectivity() {
     $.ajax({
-        url: '/api/staff/stats',
+        url: "{{ route('api.stats') }}",
         method: 'GET',
         timeout: 5000,
         success: function() {
