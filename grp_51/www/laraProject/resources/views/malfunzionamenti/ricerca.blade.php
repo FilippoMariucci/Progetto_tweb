@@ -376,7 +376,7 @@ $(document).ready(function() {
         
         // Chiamata AJAX per segnalare il malfunzionamento
         $.ajax({
-            url: `/api/malfunzionamenti/${malfunzionamentoId}/segnala`,
+           url: `{{ url('/api/malfunzionamenti') }}/${malfunzionamentoId}/segnala`,
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
