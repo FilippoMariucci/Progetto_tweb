@@ -216,7 +216,20 @@ class MalfunzionamentoController extends Controller
             'categorieProdotti', 
             'prodotti'
         ));
+
+        
     }
+
+    /**
+ * Ricerca malfunzionamenti (alias per ricercaGlobale)
+ * Route: GET /malfunzionamenti/ricerca
+ * Name: malfunzionamenti.ricerca
+ */
+public function ricerca(Request $request)
+{
+    // Semplicemente chiama il metodo ricercaGlobale esistente
+    return $this->ricercaGlobale($request);
+}
 
 
     /**
