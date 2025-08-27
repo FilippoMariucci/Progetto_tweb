@@ -680,7 +680,7 @@ function eseguiRicercaRapida() {
     `);
     
     $.ajax({
-        url: "{{ route('api.malfunzionameti.search') }}",
+        url: "{{ route('api.malfunzionamenti.search') }}",
         method: 'GET',
         data: {
             prodotto: prodotto,
