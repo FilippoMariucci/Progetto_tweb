@@ -133,6 +133,9 @@ Route::prefix('api')->name('api.')->group(function () {
             Route::get('/prodotti/tech/all', [ProdottoController::class, 'apiIndexTech'])
                 ->name('prodotti.tech.all');
             
+            // Segnalazione problema per incrementare contatori (QUESTA ERA CRITICA)
+            Route::post('/malfunzionamenti/{malfunzionamento}/segnala', [MalfunzionamentoController::class, 'apiSegnala'])
+                ->name('malfunzionamenti.segnala');
             
             // Storico interventi del tecnico
             Route::get('/tecnico/storico-interventi', [AuthController::class, 'apiStoricoInterventi'])
@@ -223,44 +226,46 @@ Route::get('/storico-interventi', [AuthController::class, 'storicoInterventi'])
     
     Route::middleware(['check.level:2'])->group(function () {
         
-       // === DASHBOARD TECNICO ===
+        // === DASHBOARD TECNICO ===
         Route::get('/tecnico/dashboard', [AuthController::class, 'tecnicoDashboard'])->name('tecnico.dashboard');
-        
-        // === RICERCA MALFUNZIONAMENTI (DEVE ESSERE PRIMA!) ===
-        // IMPORTANTE: Questa route deve essere prima di qualsiasi route con parametri
-        Route::get('/malfunzionamenti/ricerca', [MalfunzionamentoController::class, 'ricercaGlobale'])
-            ->name('malfunzionamenti.ricerca');
-        
-        // === SEGNALAZIONE MALFUNZIONAMENTO (ROUTE PRINCIPALE) ===
-        // Questa è la route che serve per il JavaScript
-        Route::post('/malfunzionamenti/{malfunzionamento}/segnala', [MalfunzionamentoController::class, 'segnalaProblema'])
-            ->name('malfunzionamenti.segnala');
+        // Ricerca avanzata prodotti per tecnici (questa mancava)
+    Route::get('/prodotti-completi/ricerca', [ProdottoController::class, 'ricercaAvanzata'])
+        ->name('prodotti.completo.ricerca');
+    
+    // Ricerca globale malfunzionamenti (mancava anche questa)
+    Route::get('/malfunzionamenti/ricerca', [MalfunzionamentoController::class, 'ricercaGlobale'])
+        ->name('malfunzionamenti.ricerca');
         
         // === CATALOGO PRODOTTI COMPLETO (con malfunzionamenti) ===
-        Route::get('/prodotti-completi', [ProdottoController::class, 'indexCompleto'])
-            ->name('prodotti.completo.index');
-        Route::get('/prodotti-completi/{prodotto}', [ProdottoController::class, 'showCompleto'])
-            ->name('prodotti.completo.show');
-        Route::get('/prodotti-completi/ricerca-avanzata', [ProdottoController::class, 'ricercaAvanzata'])
-            ->name('prodotti.completo.ricerca');
         
-        // === MALFUNZIONAMENTI PER PRODOTTO ===
-        Route::get('/prodotti/{prodotto}/malfunzionamenti', [MalfunzionamentoController::class, 'index'])
-            ->name('malfunzionamenti.index');
-        Route::get('/prodotti/{prodotto}/malfunzionamenti/{malfunzionamento}', [MalfunzionamentoController::class, 'show'])
-            ->name('malfunzionamenti.show');
+        // Lista prodotti con accesso ai malfunzionamenti
+        Route::get('/prodotti-completi', [ProdottoController::class, 'indexCompleto'])->name('prodotti.completo.index');
+        
+        // Dettaglio prodotto con malfunzionamenti e soluzioni
+        Route::get('/prodotti-completi/{prodotto}', [ProdottoController::class, 'showCompleto'])->name('prodotti.completo.show');
+        
+        // Ricerca avanzata nei prodotti e malfunzionamenti
+        Route::get('/prodotti-completi/ricerca', [ProdottoController::class, 'ricercaAvanzata'])->name('prodotti.completo.ricerca');
+        
+        // === GESTIONE MALFUNZIONAMENTI ===
+        
+        // Lista malfunzionamenti per un prodotto specifico
+        Route::get('/prodotti/{prodotto}/malfunzionamenti', [MalfunzionamentoController::class, 'index'])->name('malfunzionamenti.index');
+        
+        // Dettaglio singolo malfunzionamento con soluzione
+        Route::get('/prodotti/{prodotto}/malfunzionamenti/{malfunzionamento}', [MalfunzionamentoController::class, 'show'])->name('malfunzionamenti.show');
+        
+        // Segnalazione problema (incrementa contatore segnalazioni)
+        Route::post('/malfunzionamenti/{malfunzionamento}/segnala', [MalfunzionamentoController::class, 'segnalaProblema'])->name('malfunzionamenti.segnala');
+        
+        // Ricerca globale nei malfunzionamenti
+        Route::get('/malfunzionamenti/ricerca', [MalfunzionamentoController::class, 'ricercaGlobale'])->name('malfunzionamenti.ricerca');
         
         // === STORICO INTERVENTI TECNICO ===
-        Route::get('/tecnico/interventi', [AuthController::class, 'storicoInterventi'])
-            ->name('tecnico.interventi');
-        Route::get('/tecnico/statistiche', [AuthController::class, 'statisticheTecnico'])
-            ->name('tecnico.statistiche');
-        Route::get('/tecnico/le-mie-statistiche', [AuthController::class, 'statisticheTecnicoView'])
-            ->name('tecnico.statistiche.view');
-        
-        // === STORICO GENERALE ===
-        Route::get('/storico-interventi', [AuthController::class, 'storicoInterventi'])
-            ->name('auth.storico-interventi');
+        Route::get('/tecnico/interventi', [AuthController::class, 'storicoInterventi'])->name('tecnico.interventi');
+        Route::get('/tecnico/statistiche', [AuthController::class, 'statisticheTecnico'])->name('tecnico.statistiche');
+        Route::get('/tecnico/le-mie-statistiche', [AuthController::class, 'statisticheTecnicoView'])->name('tecnico.statistiche.view');
+        Route::get('/malfunzionamenti/ricerca', [MalfunzionamentoController::class, 'ricerca'])->name('malfunzionamenti.ricerca');
     });
     
     // =====================================================
