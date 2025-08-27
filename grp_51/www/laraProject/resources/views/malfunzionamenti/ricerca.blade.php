@@ -355,61 +355,92 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    console.log('JavaScript caricato');
+    console.log('JavaScript ricerca malfunzionamenti caricato');
     
-    // Test click segnala con versione semplificata
-    $('.segnala-btn').on('click', function(e) {
-        e.preventDefault();
-        console.log('Bottone cliccato');
-        
-        const btn = $(this);
-        const id = btn.data('malfunzionamento-id');
-        
-        console.log('ID trovato:', id);
-        
-        if (!id) {
-            alert('ID mancante');
+    // === IMPLEMENTAZIONE SEGNALAZIONE MALFUNZIONAMENTO ===
+    // Definisce la funzione globale chiamata dai bottoni onclick
+    window.segnalaMalfunzionamento = function(malfunzionamentoId) {
+        if (!malfunzionamentoId) {
+            alert('Errore: ID malfunzionamento non valido');
             return;
         }
         
-        if (!confirm('Segnalare problema?')) {
+        if (!confirm('Confermi di aver riscontrato questo problema?')) {
             return;
         }
         
-        btn.prop('disabled', true).text('Invio...');
+        // Trova il bottone e mostra loading
+        const button = $(`button[onclick="segnalaMalfunzionamento(${malfunzionamentoId})"]`);
+        const originalText = button.html();
+        button.html('<span class="spinner-border spinner-border-sm me-1"></span>Segnalando...').prop('disabled', true);
         
-        $.post({
-            url: '/malfunzionamenti/' + id + '/segnala',
+        // Chiamata AJAX per segnalare il malfunzionamento
+        $.ajax({
+            url: `/api/malfunzionamenti/${malfunzionamentoId}/segnala`,
+            method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'Content-Type': 'application/json'
             },
+            timeout: 10000,
             success: function(response) {
-                console.log('Successo:', response);
                 if (response.success) {
-                    btn.removeClass('btn-outline-warning')
-                       .addClass('btn-outline-success')
-                       .text('Segnalato')
-                       .prop('disabled', true);
+                    // Aggiorna il contatore delle segnalazioni
+                    $(`[data-segnalazioni-count="${malfunzionamentoId}"]`)
+                        .html(`<i class="bi bi-flag me-1"></i>${response.nuovo_count} segnalazioni`);
                     
-                    // Aggiorna contatore
-                    $('[data-segnalazioni-count="' + id + '"]')
-                        .html('<i class="bi bi-flag me-1"></i>' + response.nuovo_count + ' segnalazioni');
-                        
-                    alert('Segnalazione registrata!');
+                    // Cambia il pulsante per mostrare successo
+                    button.removeClass('btn-outline-success')
+                          .addClass('btn-success')
+                          .html('<i class="bi bi-check-circle me-1"></i>Segnalato')
+                          .prop('disabled', true);
+                    
+                    showAlert(`Segnalazione registrata! Totale: ${response.nuovo_count}`, 'success');
                 } else {
-                    alert('Errore: ' + response.message);
-                    btn.prop('disabled', false).text('Segnala');
+                    throw new Error(response.message || 'Errore nella risposta');
                 }
             },
             error: function(xhr) {
-                console.error('Errore:', xhr);
-                alert('Errore HTTP ' + xhr.status + ': ' + xhr.statusText);
-                btn.prop('disabled', false).text('Segnala');
+                console.error('Errore AJAX:', xhr);
+                let msg = 'Errore nella segnalazione del malfunzionamento';
+                
+                // Gestione messaggi di errore specifici
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    msg = xhr.responseJSON.message;
+                } else if (xhr.status === 403) {
+                    msg = 'Non hai i permessi per questa azione';
+                } else if (xhr.status === 404) {
+                    msg = 'Malfunzionamento non trovato';
+                }
+                
+                showAlert(msg, 'danger');
+                button.html(originalText).prop('disabled', false);
             }
         });
-    });
+    };
     
-    console.log('Setup completato');
+    // === FUNZIONE PER MOSTRARE ALERT ===
+    function showAlert(message, type = 'info', duration = 5000) {
+        $('.custom-alert').remove(); // Rimuove alert precedenti
+        
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show custom-alert position-fixed" 
+                 style="top: 20px; right: 20px; z-index: 1060; min-width: 300px;">
+                <i class="bi bi-${type === 'success' ? 'check-circle' : 'x-circle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        $('body').append(alertHtml);
+        
+        // Auto-rimozione dopo il tempo specificato
+        setTimeout(() => {
+            $('.custom-alert').fadeOut(() => $('.custom-alert').remove());
+        }, duration);
+    }
+    
+    console.log('Setup JavaScript ricerca completato');
 });
 </script>
 @endpush
