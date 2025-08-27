@@ -355,346 +355,61 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // === INIZIALIZZAZIONE RICERCA MALFUNZIONAMENTI ===
-    console.log('Pagina ricerca malfunzionamenti caricata');
+    console.log('JavaScript caricato');
     
-    // === RICERCA CON SUGGERIMENTI AJAX ===
-    let searchTimeout;
-    
-    $('#q').on('input', function() {
-        const query = $(this).val().trim();
+    // Test click segnala con versione semplificata
+    $('.segnala-btn').on('click', function(e) {
+        e.preventDefault();
+        console.log('Bottone cliccato');
         
-        clearTimeout(searchTimeout);
+        const btn = $(this);
+        const id = btn.data('malfunzionamento-id');
         
-        if (query.length >= 3) {
-            searchTimeout = setTimeout(() => {
-                cercaSuggerimenti(query);
-            }, 500);
-        } else {
-            hideSuggerimenti();
+        console.log('ID trovato:', id);
+        
+        if (!id) {
+            alert('ID mancante');
+            return;
         }
-    });
-    
-    function cercaSuggerimenti(query) {
-        $.ajax({
-            url: '{{ route("api.malfunzionamenti.search") }}',
-            method: 'GET',
-            data: { 
-                q: query,
-                limit: 8
-            },
+        
+        if (!confirm('Segnalare problema?')) {
+            return;
+        }
+        
+        btn.prop('disabled', true).text('Invio...');
+        
+        $.post({
+            url: '/malfunzionamenti/' + id + '/segnala',
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
             success: function(response) {
-                if (response.success && response.data.length > 0) {
-                    mostraSuggerimenti(response.data);
+                console.log('Successo:', response);
+                if (response.success) {
+                    btn.removeClass('btn-outline-warning')
+                       .addClass('btn-outline-success')
+                       .text('Segnalato')
+                       .prop('disabled', true);
+                    
+                    // Aggiorna contatore
+                    $('[data-segnalazioni-count="' + id + '"]')
+                        .html('<i class="bi bi-flag me-1"></i>' + response.nuovo_count + ' segnalazioni');
+                        
+                    alert('Segnalazione registrata!');
                 } else {
-                    hideSuggerimenti();
+                    alert('Errore: ' + response.message);
+                    btn.prop('disabled', false).text('Segnala');
                 }
             },
             error: function(xhr) {
-                console.error('Errore ricerca suggerimenti:', xhr.responseText);
-                hideSuggerimenti();
-            }
-        });
-    }
-    
-    function mostraSuggerimenti(risultati) {
-        let html = '<div class="list-group position-absolute search-suggestions" style="z-index: 1000; max-height: 400px; overflow-y: auto; width: 100%;">';
-        
-        risultati.forEach(function(malfunzionamento) {
-            const graviColor = {
-                'critica': 'danger',
-                'alta': 'warning', 
-                'media': 'info',
-                'bassa': 'secondary'
-            };
-            
-            const badgeColor = graviColor[malfunzionamento.gravita] || 'secondary';
-            
-            html += `
-                <a href="${malfunzionamento.url}" class="list-group-item list-group-item-action">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="flex-grow-1">
-                            <h6 class="mb-1">${malfunzionamento.titolo}</h6>
-                            <p class="mb-1 text-muted small">${malfunzionamento.descrizione}</p>
-                            <small><strong>Prodotto:</strong> ${malfunzionamento.prodotto_nome}</small>
-                        </div>
-                        <div class="text-end">
-                            <span class="badge bg-${badgeColor}">${malfunzionamento.gravita}</span>
-                            <span class="badge bg-primary ms-1">${malfunzionamento.segnalazioni}</span>
-                        </div>
-                    </div>
-                </a>
-            `;
-        });
-        
-        html += '</div>';
-        
-        hideSuggerimenti();
-        $('#q').parent().addClass('position-relative').append(html);
-    }
-    
-    function hideSuggerimenti() {
-        $('.search-suggestions').remove();
-    }
-    
-    // === GESTIONE FILTRO CATEGORIA -> PRODOTTI ===
-    $('#categoria_prodotto').on('change', function() {
-        const categoria = $(this).val();
-        
-        if (categoria) {
-            // Carica prodotti per la categoria selezionata via AJAX
-            $.ajax({
-                url: '{{ route("api.prodotti.index") }}',
-                method: 'GET',
-                data: { categoria: categoria },
-                headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                },
-                success: function(response) {
-                    if (response.success) {
-                        aggiornaProdotti(response.data);
-                    }
-                },
-                error: function(xhr) {
-                    console.error('Errore caricamento prodotti:', xhr.responseText);
-                }
-            });
-        } else {
-            // Reset select prodotti
-            $('#prodotto_id').html('<option value="">Tutti i prodotti</option>');
-        }
-    });
-    
-    function aggiornaProdotti(prodotti) {
-        let options = '<option value="">Tutti i prodotti</option>';
-        
-        prodotti.forEach(function(prodotto) {
-            const selected = {{ request('prodotto_id') ?? 'null' }} == prodotto.id ? 'selected' : '';
-            options += `<option value="${prodotto.id}" ${selected}>${prodotto.nome}`;
-            if (prodotto.modello) {
-                options += ` - ${prodotto.modello}`;
-            }
-            options += '</option>';
-        });
-        
-        $('#prodotto_id').html(options);
-    }
-    
-    // === SEGNALAZIONE MALFUNZIONAMENTO (CORRETTO) ===
-    $(document).on('click', '.segnala-btn', function(e) {
-        e.preventDefault();
-        
-        const btn = $(this);
-        const malfunzionamentoId = btn.data('malfunzionamento-id');
-        
-        if (!malfunzionamentoId) {
-            console.error('ID malfunzionamento mancante dal bottone');
-            showAlert('danger', 'Errore: ID malfunzionamento non trovato');
-            return;
-        }
-        
-        if (!confirm('Confermi di aver riscontrato questo problema? Incrementerà il contatore delle segnalazioni.')) {
-            return;
-        }
-        
-        // Disabilita pulsante durante richiesta
-        const originalHtml = btn.html();
-        btn.prop('disabled', true)
-           .html('<i class="bi bi-hourglass me-1"></i>Invio...')
-           .addClass('btn-loading');
-        
-        // URL CORRETTO: usa la route NON API
-        const url = `/malfunzionamenti/${malfunzionamentoId}/segnala`;
-        
-        console.log('Invio segnalazione a:', url);
-        
-        $.ajax({
-            url: url,
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            timeout: 10000,
-            success: function(response) {
-                console.log('Risposta segnalazione:', response);
-                
-                if (response.success) {
-                    // Aggiorna contatore segnalazioni
-                    updateSegnalazioniCount(malfunzionamentoId, response.nuovo_count);
-                    
-                    // Cambia aspetto del pulsante
-                    btn.removeClass('btn-outline-warning btn-loading')
-                       .addClass('btn-outline-success')
-                       .html('<i class="bi bi-check-circle-fill me-1"></i>Segnalato')
-                       .prop('disabled', true);
-                    
-                    // Mostra messaggio di successo
-                    showAlert('success', response.message || 'Segnalazione registrata con successo!');
-                } else {
-                    console.error('Errore dal server:', response.message);
-                    showAlert('danger', response.message || 'Errore durante la segnalazione');
-                    resetButton(btn, originalHtml);
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Errore AJAX segnalazione:', {
-                    status: status,
-                    error: error,
-                    responseText: xhr.responseText,
-                    statusCode: xhr.status
-                });
-                
-                let errorMessage = 'Errore durante la segnalazione';
-                
-                if (xhr.status === 403) {
-                    errorMessage = 'Non hai i permessi per segnalare questo problema';
-                } else if (xhr.status === 404) {
-                    errorMessage = 'Malfunzionamento non trovato';
-                } else if (xhr.status === 419) {
-                    errorMessage = 'Sessione scaduta. Ricarica la pagina e riprova.';
-                } else if (xhr.status === 500) {
-                    errorMessage = 'Errore interno del server. Riprova tra qualche minuto.';
-                } else if (status === 'timeout') {
-                    errorMessage = 'Richiesta scaduta. Controlla la connessione e riprova.';
-                }
-                
-                showAlert('danger', errorMessage);
-                resetButton(btn, originalHtml);
+                console.error('Errore:', xhr);
+                alert('Errore HTTP ' + xhr.status + ': ' + xhr.statusText);
+                btn.prop('disabled', false).text('Segnala');
             }
         });
     });
     
-    // === FUNZIONI HELPER ===
-    
-    function updateSegnalazioniCount(malfunzionamentoId, nuovoCount) {
-        // Aggiorna il badge specifico per questo malfunzionamento
-        $(`[data-segnalazioni-count="${malfunzionamentoId}"]`).html(
-            `<i class="bi bi-flag me-1"></i>${nuovoCount} segnalazioni`
-        );
-        
-        console.log('Contatore aggiornato per malfunzionamento', malfunzionamentoId, 'al valore:', nuovoCount);
-    }
-    
-    function resetButton(btn, originalHtml) {
-        btn.prop('disabled', false)
-           .html(originalHtml)
-           .removeClass('btn-loading btn-outline-success')
-           .addClass('btn-outline-warning');
-    }
-    
-    function showAlert(type, message) {
-        // Rimuovi alert precedenti dello stesso tipo
-        $(`.alert-${type}.dynamic-alert`).remove();
-        
-        // Crea nuovo alert
-        const alertHtml = `
-            <div class="alert alert-${type} alert-dismissible fade show dynamic-alert position-fixed" 
-                 style="top: 20px; right: 20px; z-index: 1055; min-width: 300px; max-width: 500px;">
-                <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
-                <strong>${type === 'success' ? 'Successo!' : 'Errore!'}</strong>
-                <br>${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        `;
-        
-        // Aggiungi alert al DOM
-        $('body').append(alertHtml);
-        
-        // Auto-rimuovi dopo timeout
-        const timeout = type === 'success' ? 5000 : 8000;
-        setTimeout(() => {
-            $('.dynamic-alert').fadeOut('slow', function() {
-                $(this).remove();
-            });
-        }, timeout);
-    }
-
-    // === GESTIONE EVENTI ===
-    
-    // Nascondi suggerimenti quando si clicca fuori
-    $(document).on('click', function(e) {
-        if (!$(e.target).closest('#q').length) {
-            hideSuggerimenti();
-        }
-    });
-    
-    // Submit con Enter
-    $('#q').on('keypress', function(e) {
-        if (e.which === 13) { // Tasto Enter
-            hideSuggerimenti();
-            $(this).closest('form').submit();
-        }
-    });
-    
-    // === AUTO-SUBMIT FILTRI ===
-    $('#gravita, #difficolta, #order, #categoria_prodotto, #prodotto_id').on('change', function() {
-        console.log('Filtro cambiato:', $(this).attr('id'), '=', $(this).val());
-        $(this).closest('form').submit();
-    });
-
-    // === TOOLTIPS ===
-    $('[data-bs-toggle="tooltip"]').tooltip();
-    
-    // === EVIDENZIAZIONE TERMINI RICERCA ===
-    const searchTerm = '{{ request("q") }}';
-    if (searchTerm && searchTerm.length > 2) {
-        highlightSearchTerms(searchTerm);
-    }
-    
-    function highlightSearchTerms(term) {
-        $('.hover-light h5, .hover-light p').each(function() {
-            const text = $(this).html();
-            const regex = new RegExp(`(${escapeRegex(term)})`, 'gi');
-            const highlighted = text.replace(regex, '<mark>$1</mark>');
-            $(this).html(highlighted);
-        });
-    }
-    
-    function escapeRegex(string) {
-        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\    // === GESTIONE EVENTI ===
-    
-    // Nas');
-    }
-    
-    // === PREVENZIONE DOUBLE SUBMIT ===
-    $('form').on('submit', function() {
-        $(this).find('button[type="submit"]').prop('disabled', true).addClass('btn-loading');
-    });
-
-    // === GESTIONE ERRORI GLOBALI AJAX ===
-    $(document).ajaxError(function(event, xhr, settings, error) {
-        if (xhr.status === 419) { // CSRF Token Mismatch
-            showAlert('warning', 'La tua sessione è scaduta. La pagina verrà ricaricata.');
-            setTimeout(() => {
-                window.location.reload();
-            }, 3000);
-        }
-    });
-
-    // === ANALYTICS E LOGGING ===
-    @if(request('q'))
-        console.log('Ricerca malfunzionamenti effettuata:', {
-            termine: '{{ request("q") }}',
-            gravita: '{{ request("gravita") }}',
-            difficolta: '{{ request("difficolta") }}',
-            categoria: '{{ request("categoria_prodotto") }}',
-            risultati: {{ $malfunzionamenti->total() ?? 0 }},
-            user_level: {{ auth()->user()->livello_accesso }},
-            timestamp: new Date().toISOString()
-        });
-    @endif
-    
-    // === AUTO-FOCUS ===
-    @if(!request()->hasAny(['q', 'gravita', 'difficolta', 'categoria_prodotto', 'prodotto_id']))
-        $('#q').focus();
-    @endif
-
-    console.log('JavaScript ricerca malfunzionamenti completamente inizializzato');
+    console.log('Setup completato');
 });
 </script>
 @endpush
