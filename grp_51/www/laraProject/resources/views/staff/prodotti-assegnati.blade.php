@@ -122,12 +122,17 @@
                         <label for="search" class="form-label">
                             <i class="bi bi-search me-1"></i>Cerca Prodotto
                         </label>
-                        <input type="text" 
-                               class="form-control" 
-                               id="search" 
-                               name="search" 
-                               value="{{ request('search') }}" 
-                               placeholder="Nome, modello, codice...">
+                        <div class="input-group">
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="search" 
+                                   name="search" 
+                                   value="{{ request('search') }}" 
+                                   placeholder="Nome, modello, codice...">
+                            <button class="btn btn-outline-secondary" type="button" id="searchButton">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
                     </div>
                     
                     {{-- Filtro categoria --}}
@@ -495,18 +500,28 @@ $(document).ready(function() {
         $('#filterForm').submit();
     });
     
-    // === RICERCA DINAMICA (con debounce) ===
-    let searchTimeout;
-    $('#search').on('input', function() {
-        clearTimeout(searchTimeout);
-        const query = $(this).val().trim();
-        
-        // Auto-submit dopo 500ms di inattività
-        searchTimeout = setTimeout(function() {
-            if (query.length >= 2 || query.length === 0) {
-                $('#filterForm').submit();
-            }
-        }, 500);
+    // === RICERCA SOLO MANUALE ===
+    
+    // Ricerca con tasto Invio
+    $('#search').on('keypress', function(e) {
+        if (e.which === 13) { // Tasto Invio
+            e.preventDefault();
+            const query = $(this).val().trim();
+            console.log('Ricerca con Invio attivata per:', query);
+            $('#filterForm').submit();
+        }
+    });
+    
+    // Ricerca con pulsante
+    $('#searchButton').on('click', function() {
+        const query = $('#search').val().trim();
+        console.log('Ricerca con pulsante attivata per:', query);
+        $('#filterForm').submit();
+    });
+    
+    // === DEBUG FORM SUBMIT ===
+    $('#filterForm').on('submit', function() {
+        console.log('Form inviato con parametri:', $(this).serialize());
     });
     
     // === CHECKBOX CRITICI ===

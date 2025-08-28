@@ -131,7 +131,14 @@ class StaffController extends Controller
      */
     public function prodottiAssegnati(Request $request)
     {
-        $user = Auth::user();
+
+        \Log::info('Ricerca prodotti assegnati', [
+        'parametri_ricerca' => $request->all(),
+        'search_term' => $request->input('search'),
+        'user_id' => Auth::id()
+    ]);
+    
+    $user = Auth::user();
 
         try {
             // Query base per prodotti assegnati all'utente
@@ -153,12 +160,12 @@ class StaffController extends Controller
             }
             
             if ($request->filled('search')) {
-                $searchTerm = $request->input('search');
-                $query->where(function($q) use ($searchTerm) {
-                    $q->where('nome', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('modello', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('codice', 'LIKE', "%{$searchTerm}%");
-                });
+    $searchTerm = $request->input('search');
+    $query->where(function($q) use ($searchTerm) {
+        $q->where('nome', 'LIKE', "%{$searchTerm}%")
+          ->orWhere('modello', 'LIKE', "%{$searchTerm}%")
+          ->orWhere('codice', 'LIKE', "%{$searchTerm}%");
+    });
             }
             
             // Ordinamento
