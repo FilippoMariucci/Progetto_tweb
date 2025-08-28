@@ -491,7 +491,7 @@ $(document).ready(function() {
      */
     function updateAdminStats() {
         $.ajax({
-            url: "/admin/stats-update", // Route nell'AdminController per statistiche
+            url: "admin/stats-update", // Route nell'AdminController per statistiche
             method: 'GET',
             dataType: 'json',
             success: function(data) {

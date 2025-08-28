@@ -304,8 +304,8 @@ Route::get('/storico-interventi', [AuthController::class, 'storicoInterventi'])
             // === GESTIONE PRODOTTI ASSEGNATI (Funzionalità Opzionale) ===
             
             // Solo i prodotti assegnati allo staff corrente
-            Route::get('/prodotti-assegnati', [StaffController::class, 'prodottiAssegnati'])->name('prodotti.assegnati');
-            
+            Route::get('/prodotti-assegnati', [StaffController::class, 'ProdottiAssegnati'])->name('prodotti.assegnati');
+
             // === STATISTICHE E REPORT STAFF ===
             Route::get('/statistiche', [StaffController::class, 'statistiche'])->name('statistiche');
             Route::get('/report-attivita', [StaffController::class, 'reportAttivita'])->name('report.attivita');
