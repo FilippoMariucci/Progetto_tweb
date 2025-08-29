@@ -149,6 +149,8 @@
                 </div>
             </div>
         </div>
+
+        
     </div>
 
     {{-- === AZIONI RAPIDE === --}}
@@ -165,7 +167,7 @@
                 <div class="card-body pt-3">
                     <div class="row g-3">
                         {{-- NUOVA SOLUZIONE (Pulsante principale) --}}
-                        <div class="col-lg-4 col-md-6">
+                        <div class="col-lg-3 col-md-6">
                             <div class="position-relative">
                                 <a href="{{ route('staff.create.nuova.soluzione') }}" 
                                    class="btn btn-success btn-lg w-100 h-100 d-flex flex-column justify-content-center align-items-center text-decoration-none shadow-sm"
@@ -184,7 +186,7 @@
                         </div>
 
                         {{-- ESPLORA CATALOGO --}}
-                        <div class="col-lg-4 col-md-6">
+                        <div class="col-lg-3 col-md-6">
                             <a href="{{ route('prodotti.completo.index') }}" 
                                class="btn btn-info btn-lg w-100 h-100 d-flex flex-column justify-content-center align-items-center text-decoration-none text-white shadow-sm"
                                style="min-height: 140px;">
@@ -197,7 +199,7 @@
                         </div>
 
                         {{-- STATISTICHE DETTAGLIATE --}}
-                        <div class="col-lg-4 col-md-6">
+                        <div class="col-lg-3 col-md-6">
                             <button class="btn btn-warning btn-lg w-100 h-100 d-flex flex-column justify-content-center align-items-center text-dark shadow-sm"
                                     style="min-height: 140px;" 
                                     data-bs-toggle="modal" 
@@ -211,7 +213,7 @@
                         </div>
 
                         {{-- SUPPORTO --}}
-                        <div class="col-lg-4 col-md-6">
+                        <div class="col-lg-3 col-md-6">
                             <a href="#" 
                                class="btn btn-outline-secondary btn-lg w-100 h-100 d-flex flex-column justify-content-center align-items-center text-decoration-none shadow-sm"
                                style="min-height: 140px;"

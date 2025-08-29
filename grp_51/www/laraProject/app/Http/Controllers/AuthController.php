@@ -163,7 +163,7 @@ class AuthController extends Controller
         }
     }
 
-    /**
+ /**
  * Dashboard staff aziendale (Livello 3) - VERSIONE SEMPLIFICATA E FUNZIONANTE
  * Sostituisci completamente il metodo staffDashboard esistente con questo
  */
