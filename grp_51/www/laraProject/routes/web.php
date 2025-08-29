@@ -300,6 +300,18 @@ Route::get('/storico-interventi', [AuthController::class, 'storicoInterventi'])
             
             // Visualizzazione dettagliata per staff (con opzioni di modifica)
             Route::get('/prodotti/{prodotto}/malfunzionamenti/{malfunzionamento}', [MalfunzionamentoController::class, 'show'])->name('malfunzionamenti.show');
+
+     /**
+     * Route per creare una nuova soluzione dalla dashboard
+     * Permette di selezionare il prodotto dal dropdown invece di averlo predefinito
+     */
+    Route::get('/nuova-soluzione', [StaffController::class, 'createNuovaSoluzione'])->name('create.nuova.soluzione');
+    
+    /**
+     * Route per salvare la nuova soluzione creata dalla dashboard
+     * Gestisce il form con la selezione del prodotto
+     */
+    Route::post('/nuova-soluzione', [StaffController::class, 'storeNuovaSoluzione'])->name('store.nuova.soluzione');
             
             // === GESTIONE PRODOTTI ASSEGNATI (Funzionalità Opzionale) ===
             

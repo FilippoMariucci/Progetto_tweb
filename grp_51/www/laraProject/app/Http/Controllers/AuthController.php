@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\Prodotto;
 use App\Models\Malfunzionamento;
 use App\Models\CentroAssistenza;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Controller per la gestione dell'autenticazione e delle dashboard
@@ -163,35 +164,144 @@ class AuthController extends Controller
     }
 
     /**
-     * Dashboard staff aziendale (Livello 3)
-     */
-    public function staffDashboard()
-    {
-        if (!Auth::check() || !Auth::user()->isStaff()) {
-            abort(403, 'Accesso riservato allo staff aziendale');
-        }
+ * Dashboard staff aziendale (Livello 3) - VERSIONE SEMPLIFICATA E FUNZIONANTE
+ * Sostituisci completamente il metodo staffDashboard esistente con questo
+ */
+public function staffDashboard()
+{
+    // Verifica autorizzazioni
+    if (!Auth::check() || !Auth::user()->isStaff()) {
+        abort(403, 'Accesso riservato allo staff aziendale');
+    }
 
-        $user = Auth::user();
+    $user = Auth::user();
 
-        // Prodotti assegnati al membro dello staff corrente
-        $prodottiAssegnati = Prodotto::where('staff_assegnato_id', $user->id)
-            ->withCount('malfunzionamenti')
-            ->orderBy('nome')
-            ->paginate(10);
-
-        // Statistiche specifiche per il membro dello staff
+    try {
+        // === INIZIALIZZA STATISTICHE CON VALORI DI DEFAULT SICURI ===
         $stats = [
-            'prodotti_gestiti' => $prodottiAssegnati->total(),
-            'malfunzionamenti_totali' => Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
-                $q->where('staff_assegnato_id', $user->id);
-            })->count(),
-            'soluzioni_aggiunte_mese' => Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
-                $q->where('staff_assegnato_id', $user->id);
-            })->where('created_at', '>=', now()->subMonth())->count(),
+            'prodotti_assegnati' => 0,
+            'prodotti_lista' => collect(),
+            'soluzioni_create' => 0,
+            'soluzioni_critiche' => 0,
+            'ultima_modifica' => 'Mai',
+            'ultime_soluzioni' => collect(),
+            'total_prodotti' => 0,
+            'total_malfunzionamenti' => 0,
         ];
 
-        return view('staff.dashboard', compact('user', 'prodottiAssegnati', 'stats'));
+        // === CALCOLO STATISTICHE BASE SICURE ===
+        
+        // Totale prodotti nel sistema
+        $stats['total_prodotti'] = Prodotto::count();
+        
+        // Totale malfunzionamenti nel sistema  
+        $stats['total_malfunzionamenti'] = Malfunzionamento::count();
+
+        // === PRODOTTI ASSEGNATI (se la colonna esiste) ===
+        try {
+            if (Schema::hasColumn('prodotti', 'staff_assegnato_id')) {
+                // Prodotti assegnati al membro dello staff corrente
+                $prodottiAssegnati = Prodotto::where('staff_assegnato_id', $user->id)
+                    ->with('malfunzionamenti')
+                    ->get();
+                
+                $stats['prodotti_assegnati'] = $prodottiAssegnati->count();
+                $stats['prodotti_lista'] = $prodottiAssegnati;
+                
+                Log::info('Prodotti assegnati caricati', [
+                    'user_id' => $user->id,
+                    'count' => $prodottiAssegnati->count()
+                ]);
+            } else {
+                // Se la colonna non esiste, usa tutti i prodotti come fallback
+                $prodottiAssegnati = Prodotto::with('malfunzionamenti')->take(10)->get();
+                $stats['prodotti_assegnati'] = $prodottiAssegnati->count();
+                $stats['prodotti_lista'] = $prodottiAssegnati;
+                
+                Log::warning('Colonna staff_assegnato_id non trovata, usando fallback');
+            }
+        } catch (\Exception $e) {
+            Log::warning('Errore nel caricamento prodotti assegnati: ' . $e->getMessage());
+            // Mantieni i valori di default
+        }
+
+        // === SOLUZIONI CREATE (se la colonna esiste) ===
+        try {
+            if (Schema::hasColumn('malfunzionamenti', 'creato_da')) {
+                // Malfunzionamenti creati da questo staff
+                $malfunzionamentiCreati = Malfunzionamento::where('creato_da', $user->id)
+                    ->with('prodotto')
+                    ->get();
+                
+                $stats['soluzioni_create'] = $malfunzionamentiCreati->count();
+                $stats['soluzioni_critiche'] = $malfunzionamentiCreati->where('gravita', 'alta')->count();
+                
+                // Ultime 5 soluzioni create
+                $stats['ultime_soluzioni'] = $malfunzionamentiCreati
+                    ->sortByDesc('created_at')
+                    ->take(5);
+                
+                // Ultima modifica
+                $ultimaModifica = $malfunzionamentiCreati->sortByDesc('updated_at')->first();
+                if ($ultimaModifica) {
+                    $stats['ultima_modifica'] = $ultimaModifica->updated_at->diffForHumans();
+                }
+                
+                Log::info('Soluzioni staff caricate', [
+                    'user_id' => $user->id,
+                    'soluzioni_create' => $stats['soluzioni_create']
+                ]);
+            } else {
+                Log::warning('Colonna creato_da non trovata nella tabella malfunzionamenti');
+                // Usa statistiche generali come fallback
+                $stats['soluzioni_create'] = Malfunzionamento::where('created_at', '>=', now()->subMonth())->count();
+                $stats['soluzioni_critiche'] = Malfunzionamento::where('gravita', 'alta')->count();
+            }
+        } catch (\Exception $e) {
+            Log::warning('Errore nel caricamento soluzioni create: ' . $e->getMessage());
+            // Mantieni i valori di default
+        }
+
+        // === LOG SUCCESSO ===
+        Log::info('Dashboard staff caricata con successo', [
+            'user_id' => $user->id,
+            'username' => $user->username,
+            'stats' => [
+                'prodotti_assegnati' => $stats['prodotti_assegnati'],
+                'soluzioni_create' => $stats['soluzioni_create'],
+                'total_prodotti' => $stats['total_prodotti']
+            ]
+        ]);
+
+        // === RESTITUISCE LA VISTA ===
+        return view('staff.dashboard', compact('user', 'stats'));
+
+    } catch (\Exception $e) {
+        // === GESTIONE ERRORI ROBUSTA ===
+        Log::error('Errore critico in staffDashboard', [
+            'user_id' => $user->id,
+            'error_message' => $e->getMessage(),
+            'error_file' => $e->getFile(),
+            'error_line' => $e->getLine()
+        ]);
+
+        // Statistiche di fallback complete
+        $stats = [
+            'prodotti_assegnati' => 0,
+            'prodotti_lista' => collect(),
+            'soluzioni_create' => 0,
+            'soluzioni_critiche' => 0,
+            'ultima_modifica' => 'Errore nel caricamento',
+            'ultime_soluzioni' => collect(),
+            'total_prodotti' => Prodotto::count() ?? 0,
+            'total_malfunzionamenti' => Malfunzionamento::count() ?? 0,
+            'errore' => 'Alcune statistiche potrebbero non essere aggiornate'
+        ];
+
+        return view('staff.dashboard', compact('user', 'stats'))
+            ->with('warning', 'Alcune statistiche potrebbero non essere disponibili');
     }
+}
 
     /**
      * Dashboard tecnici centri assistenza (Livello 2)

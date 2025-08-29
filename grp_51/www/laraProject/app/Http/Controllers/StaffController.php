@@ -404,6 +404,110 @@ class StaffController extends Controller
     }
 
     /**
+     * NUOVO METODO: Mostra il form per creare un nuovo malfunzionamento
+     * con possibilità di scegliere il prodotto dalla dashboard
+     * 
+     * @return \Illuminate\View\View
+     */
+    public function createNuovaSoluzione()
+    {
+        // Verifica che l'utente sia staff e autenticato
+        if (!Auth::check() || !Auth::user()->isStaff()) {
+            abort(403, 'Accesso riservato allo staff');
+        }
+
+        // Recupera tutti i prodotti disponibili per la selezione
+        // Ordina per categoria e nome per facilitare la ricerca
+        $prodotti = Prodotto::orderBy('categoria')
+                           ->orderBy('nome')
+                           ->get();
+
+        // Crea un prodotto vuoto per mantenere compatibilità con la view esistente
+        // La view malfunzionamenti.create si aspetta una variabile $prodotto
+        $prodotto = null; // Sarà null per indicare che deve essere selezionato
+        
+        // Passa un flag per indicare che è una "nuova soluzione" dalla dashboard
+        $isNuovaSoluzione = true;
+        
+        // Restituisce la view malfunzionamenti.create con tutti i prodotti
+        // e il flag per modificare il comportamento della view
+        return view('malfunzionamenti.create', compact('prodotto', 'prodotti', 'isNuovaSoluzione'));
+    }
+
+    /**
+     * NUOVO METODO: Salva un nuovo malfunzionamento creato dalla dashboard
+     * con prodotto selezionato dal dropdown
+     * 
+     * @param \Illuminate\Http\Request $request - Richiesta HTTP con i dati del form
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function storeNuovaSoluzione(Request $request)
+    {
+        // Verifica che l'utente sia staff e autenticato
+        if (!Auth::check() || !Auth::user()->isStaff()) {
+            abort(403, 'Accesso riservato allo staff');
+        }
+
+        // Validazione dei dati di input
+        // Ora include anche la validazione del prodotto selezionato
+        $request->validate([
+            'prodotto_id' => 'required|exists:prodotti,id',  // Prodotto deve esistere nel DB
+            'titolo' => 'required|string|max:255',           // Titolo obbligatorio
+            'descrizione' => 'required|string',              // Descrizione obbligatoria
+            'soluzione' => 'required|string',                // Soluzione obbligatoria
+            'gravita' => 'required|in:bassa,media,alta',     // Gravità deve essere uno dei valori permessi
+            'componente_difettoso' => 'nullable|string|max:255', // Componente opzionale
+            'codice_errore' => 'nullable|string|max:50',     // Codice errore opzionale
+        ]);
+
+        try {
+            // Crea un nuovo malfunzionamento nel database
+            $malfunzionamento = Malfunzionamento::create([
+                'prodotto_id' => $request->prodotto_id,           // ID del prodotto selezionato
+                'titolo' => $request->titolo,                     // Titolo del problema
+                'descrizione' => $request->descrizione,           // Descrizione dettagliata
+                'soluzione' => $request->soluzione,               // Soluzione tecnica
+                'gravita' => $request->gravita,                   // Livello di gravità
+                'componente_difettoso' => $request->componente_difettoso, // Componente coinvolto
+                'codice_errore' => $request->codice_errore,       // Eventuale codice di errore
+                'creato_da' => Auth::id(),                        // ID dello staff che ha creato
+                'stato' => 'attivo',                              // Imposta come attivo
+                'numero_segnalazioni' => 0,                       // Inizializza contatore
+                'created_at' => now(),                            // Timestamp creazione
+                'updated_at' => now()                             // Timestamp ultima modifica
+            ]);
+
+            // Log dell'operazione per debugging (opzionale)
+            if (config('app.debug')) {
+                \Log::info('Nuova soluzione creata da dashboard staff', [
+                    'malfunzionamento_id' => $malfunzionamento->id,
+                    'prodotto_id' => $request->prodotto_id,
+                    'staff_id' => Auth::id(),
+                    'titolo' => $request->titolo
+                ]);
+            }
+
+            // Reindirizza alla dashboard staff con messaggio di successo
+            return redirect()->route('staff.dashboard')
+                            ->with('success', 'Nuova soluzione aggiunta con successo al prodotto: ' . 
+                                   $malfunzionamento->prodotto->nome);
+
+        } catch (\Exception $e) {
+            // Gestione errori: log dell'errore e messaggio utente
+            \Log::error('Errore creazione nuova soluzione', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id(),
+                'request_data' => $request->all()
+            ]);
+
+            // Reindirizza indietro con errore e mantiene i dati inseriti
+            return redirect()->back()
+                            ->withInput()
+                            ->with('error', 'Errore durante la creazione della soluzione. Riprova.');
+        }
+    }
+
+    /**
      * Mostra il form per creare un nuovo malfunzionamento
      * 
      * @param int $productId - ID del prodotto a cui aggiungere il malfunzionamento
