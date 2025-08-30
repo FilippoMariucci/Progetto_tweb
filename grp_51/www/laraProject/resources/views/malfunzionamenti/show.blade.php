@@ -167,14 +167,15 @@
                         </a>
                         
                         {{-- Segnala problema (per tecnici) --}}
-                        @if(auth()->user()->canViewMalfunzionamenti() && !auth()->user()->canManageMalfunzionamenti())
-                            <button type="button" 
-                                    class="btn btn-outline-warning segnala-btn"
-                                    onclick="segnalaMalfunzionamento({{ $malfunzionamento->id }})"
-                                    title="Segnala di aver riscontrato questo problema">
-                                <i class="bi bi-exclamation-circle me-1"></i>Ho Questo Problema
-                            </button>
-                        @endif
+                        {{-- Segnala problema (per tecnici e staff) --}}
+@if(auth()->user()->canViewMalfunzionamenti())
+    <button type="button" 
+            class="btn btn-outline-warning segnala-btn"
+            data-malfunzionamento-id="{{ $malfunzionamento->id }}"
+            title="Segnala di aver riscontrato questo problema">
+        <i class="bi bi-exclamation-circle me-1"></i>Ho Questo Problema
+    </button>
+@endif
                         
                         {{-- Modifica (per staff) --}}
                         @if(auth()->user()->canManageMalfunzionamenti())

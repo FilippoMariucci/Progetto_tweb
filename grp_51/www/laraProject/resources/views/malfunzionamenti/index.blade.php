@@ -316,42 +316,43 @@
                                             </div>
                                             
                                             {{-- Pulsanti azione --}}
-                                            <div class="d-flex gap-2 flex-wrap">
-                                                {{-- Visualizza dettagli --}}
-                                                <a href="{{ route('malfunzionamenti.show', [$prodotto, $malfunzionamento]) }}" 
-                                                   class="btn btn-outline-primary btn-sm">
-                                                    <i class="bi bi-eye me-1"></i>Visualizza Soluzione
-                                                </a>
-                                                
-                                                {{-- Segnala (per tecnici) --}}
-                                                @if(auth()->user()->canViewMalfunzionamenti() && !auth()->user()->canManageMalfunzionamenti())
-                                                    {{-- Segnala problema --}}
-                                                <button type="button" 
-                                                        class="btn btn-outline-warning segnala-btn"
-                                                        onclick="segnalaMalfunzionamento('{{ $malfunzionamento->id }}')"
-                                                        title="Segnala di aver riscontrato questo problema">
-                                                    <i class="bi bi-exclamation-circle me-1"></i>Ho Questo Problema
-                                                </button>
-                                                @endif
-                                                
-                                                {{-- Gestione (per staff) --}}
-                                                @if(auth()->user()->canManageMalfunzionamenti())
-                                                    <a href="{{ route('staff.malfunzionamenti.edit', [$prodotto, $malfunzionamento]) }}" class="btn btn-outline-secondary btn-sm">
-
-                                                        <i class="bi bi-pencil me-1"></i>Modifica
-                                                    </a>
-                                                    
-                                                    <form action="{{ route('staff.malfunzionamenti.destroy', [$prodotto, $malfunzionamento]) }}" method="POST" class="d-inline">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit" 
-                                                                class="btn btn-outline-danger btn-sm"
-                                                                onclick="return confirm('Eliminare questo malfunzionamento?')">
-                                                            <i class="bi bi-trash me-1"></i>Elimina
-                                                        </button>
-                                                    </form>
-                                                @endif
-                                            </div>
+<div class="d-flex gap-2 flex-wrap">
+    {{-- Visualizza dettagli --}}
+    <a href="{{ route('malfunzionamenti.show', [$prodotto, $malfunzionamento]) }}" 
+       class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-eye me-1"></i>Visualizza Soluzione
+    </a>
+    
+    {{-- Segnala (per TUTTI gli utenti autenticati di livello 2+) --}}
+    @if(auth()->user()->canViewMalfunzionamenti())
+        <button type="button" 
+                class="btn btn-outline-warning btn-sm segnala-btn"
+                onclick="segnalaMalfunzionamento('{{ $malfunzionamento->id }}')"
+                title="Segnala di aver riscontrato questo problema">
+            <i class="bi bi-exclamation-circle me-1"></i>Ho Questo Problema
+        </button>
+    @endif
+    
+    {{-- Gestione (per staff) --}}
+    @if(auth()->user()->canManageMalfunzionamenti())
+        <a href="{{ route('staff.malfunzionamenti.edit', [$prodotto, $malfunzionamento]) }}" 
+           class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-pencil me-1"></i>Modifica
+        </a>
+        
+        <form action="{{ route('staff.malfunzionamenti.destroy', [$prodotto, $malfunzionamento]) }}" 
+              method="POST" 
+              class="d-inline">
+            @csrf
+            @method('DELETE')
+            <button type="submit" 
+                    class="btn btn-outline-danger btn-sm"
+                    onclick="return confirm('Eliminare questo malfunzionamento?')">
+                <i class="bi bi-trash me-1"></i>Elimina
+            </button>
+        </form>
+    @endif
+</div>
                                         </div>
                                     </div>
                                 </div>
@@ -465,7 +466,7 @@ $(document).ready(function() {
     console.log('Pagina malfunzionamenti caricata');
 
     // === IMPLEMENTAZIONE SEGNALAZIONE MALFUNZIONAMENTO ===
-    // Definisce la funzione globale chiamata dai bottoni onclick
+    // Definisce la funzione globale chiamata dai bottoni onclick (STESSA IMPLEMENTAZIONE DI ricerca.blade.php)
     window.segnalaMalfunzionamento = function(malfunzionamentoId) {
         if (!malfunzionamentoId) {
             alert('Errore: ID malfunzionamento non valido');
@@ -476,14 +477,16 @@ $(document).ready(function() {
             return;
         }
         
-        // Trova il bottone e mostra loading
-        const button = $(`button[onclick="segnalaMalfunzionamento(${malfunzionamentoId})"]`);
+        // Trova il bottone corretto usando l'onclick
+        const button = $(`button[onclick="segnalaMalfunzionamento('${malfunzionamentoId}')"]`);
         const originalText = button.html();
+        
+        // Mostra stato di caricamento
         button.html('<span class="spinner-border spinner-border-sm me-1"></span>Segnalando...').prop('disabled', true);
         
         // Chiamata AJAX per segnalare il malfunzionamento
         $.ajax({
-           url: `{{ url('/api/malfunzionamenti') }}/${malfunzionamentoId}/segnala`,
+            url: `{{ url('/api/malfunzionamenti') }}/${malfunzionamentoId}/segnala`,
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
@@ -492,16 +495,20 @@ $(document).ready(function() {
             timeout: 10000,
             success: function(response) {
                 if (response.success) {
-                    // Aggiorna il contatore delle segnalazioni
-                    $(`[data-segnalazioni-count="${malfunzionamentoId}"]`)
-                        .html(`<i class="bi bi-flag me-1"></i>${response.nuovo_count} segnalazioni`);
+                    // Aggiorna il contatore delle segnalazioni nella card
+                    button.closest('.card-body')
+                          .find('.bi-exclamation-triangle')
+                          .parent()
+                          .html(`<i class="bi bi-exclamation-triangle me-1"></i>${response.nuovo_count} segnalazioni`);
                     
                     // Cambia il pulsante per mostrare successo
-                    button.removeClass('btn-outline-success')
+                    button.removeClass('btn-outline-warning')
                           .addClass('btn-success')
                           .html('<i class="bi bi-check-circle me-1"></i>Segnalato')
-                          .prop('disabled', true);
+                          .prop('disabled', true)
+                          .removeAttr('onclick'); // Rimuove l'onclick handler
                     
+                    // Mostra messaggio di successo
                     showAlert(`Segnalazione registrata! Totale: ${response.nuovo_count}`, 'success');
                 } else {
                     throw new Error(response.message || 'Errore nella risposta');
@@ -542,53 +549,6 @@ $(document).ready(function() {
         $('#filter-form').submit();
     });
     
-    // === SEGNALAZIONE MALFUNZIONAMENTO (AJAX) ===
-    $('.segnala-btn').on('click', function() {
-        const btn = $(this);
-        const malfunzionamentoId = btn.data('malfunzionamento-id');
-        
-        if (!confirm('Vuoi segnalare di aver riscontrato questo problema?')) {
-            return;
-        }
-        
-        // Disabilita pulsante durante richiesta
-        btn.prop('disabled', true).html('<i class="bi bi-hourglass me-1"></i>Invio...');
-        
-        $.ajax({
-            url: `/api/malfunzionamenti/${malfunzionamentoId}/segnala`,
-            type: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function(response) {
-                if (response.success) {
-                    // Aggiorna contatore segnalazioni
-                    btn.closest('.card-body')
-                       .find('.bi-exclamation-triangle')
-                       .parent()
-                       .html(`<i class="bi bi-exclamation-triangle me-1"></i>${response.nuovo_count} segnalazioni`);
-                    
-                    // Cambia pulsante
-                    btn.removeClass('btn-outline-warning')
-                       .addClass('btn-outline-success')
-                       .html('<i class="bi bi-check me-1"></i>Segnalato')
-                       .prop('disabled', true);
-                    
-                    // Mostra messaggio successo
-                    showAlert('success', response.message || 'Segnalazione registrata');
-                }
-            },
-            error: function(xhr) {
-                console.error('Errore segnalazione:', xhr);
-                showAlert('danger', 'Errore durante la segnalazione');
-                
-                // Riabilita pulsante
-                btn.prop('disabled', false)
-                   .html('<i class="bi bi-exclamation me-1"></i>Ho Questo Problema');
-            }
-        });
-    });
-    
     // === RICERCA LIVE (DEBOUNCED) ===
     let searchTimeout;
     $('#search').on('input', function() {
@@ -603,11 +563,14 @@ $(document).ready(function() {
         }
     });
     
-    // === FUNZIONE HELPER PER ALERT ===
-    function showAlert(type, message) {
+    // === FUNZIONE PER MOSTRARE ALERT ===
+    function showAlert(message, type = 'info', duration = 5000) {
+        $('.custom-alert').remove(); // Rimuove alert precedenti
+        
         const alertHtml = `
-            <div class="alert alert-${type} alert-dismissible fade show position-fixed" 
-                 style="top: 20px; right: 20px; z-index: 1055; min-width: 300px;">
+            <div class="alert alert-${type} alert-dismissible fade show custom-alert position-fixed" 
+                 style="top: 20px; right: 20px; z-index: 1060; min-width: 300px;">
+                <i class="bi bi-${type === 'success' ? 'check-circle' : 'x-circle'} me-2"></i>
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
@@ -615,10 +578,10 @@ $(document).ready(function() {
         
         $('body').append(alertHtml);
         
-        // Auto-rimuovi dopo 5 secondi
+        // Auto-rimozione dopo il tempo specificato
         setTimeout(() => {
-            $('.alert').fadeOut();
-        }, 5000);
+            $('.custom-alert').fadeOut(() => $('.custom-alert').remove());
+        }, duration);
     }
     
     console.log('JavaScript malfunzionamenti inizializzato');

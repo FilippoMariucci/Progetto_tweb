@@ -19,74 +19,76 @@ class ProdottoController extends Controller
      * Catalogo pubblico - accessibile a tutti senza autenticazione
      * Mostra solo informazioni base dei prodotti, NO malfunzionamenti
      */
-    public function indexPubblico(Request $request)
-    {
-        // Query base per prodotti attivi
-        $query = Prodotto::where('attivo', true);
-
-        // === GESTIONE RICERCA CON WILDCARD ===
-        if ($request->filled('search')) {
-            $searchTerm = $request->input('search');
-            
-            // Implementa ricerca con wildcard "*"
-            if (str_ends_with($searchTerm, '*')) {
-                $searchTerm = rtrim($searchTerm, '*');
-                $query->where('descrizione', 'LIKE', $searchTerm . '%');
-            } else {
-                $query->where('descrizione', 'LIKE', '%' . $searchTerm . '%');
-            }
-        }
-
-        // === FILTRO PER CATEGORIA ===
-        if ($request->filled('categoria')) {
-            $query->where('categoria', $request->input('categoria'));
-        }
-
-        // Esecuzione query con paginazione
-        $prodotti = $query->select(['id', 'nome', 'modello', 'descrizione', 'categoria', 'prezzo', 'foto'])
-            ->orderBy('nome')
-            ->paginate(12);
-
-        // CORREZIONE: Usa il metodo statico del Model per le categorie con etichette leggibili
-        $categorie = Prodotto::getCategorie(); // Questo restituisce array con chiave => etichetta
-        
-        // ALTERNATIVA: Se vuoi usare quelle dal database
-        // $categorie = Prodotto::where('attivo', true)
-        //     ->distinct()
-        //     ->whereNotNull('categoria')
-        //     ->pluck('categoria')
-        //     ->mapWithKeys(function($categoria) {
-        //         return [$categoria => ucfirst(str_replace('_', ' ', $categoria))];
-        //     });
-
-        // Statistiche pubbliche
-        $stats = [
-            'total_prodotti' => Prodotto::where('attivo', true)->count(),
-            'categorie_count' => count($categorie) // Usa count() invece di $categorie->count()
-        ];
-
-        return view('prodotti.index', compact('prodotti', 'categorie', 'stats'));
-    }
-
     /**
-     * Scheda prodotto pubblica - NO malfunzionamenti
-     * Solo informazioni tecniche base
-     */
-    public function showPubblico(Prodotto $prodotto)
-    {
-        // Verifica che il prodotto sia attivo
-        if (!$prodotto->attivo) {
-            abort(404, 'Prodotto non disponibile');
-        }
+ * Catalogo pubblico - accessibile a tutti senza autenticazione
+ * Mostra solo informazioni base dei prodotti, NO malfunzionamenti
+ */
+public function indexPubblico(Request $request)
+{
+    // Query base per prodotti attivi
+    $query = Prodotto::where('attivo', true);
 
-        // Carica solo informazioni base (NO malfunzionamenti)
-        $prodotto->load(['staffAssegnato:id,nome,cognome']);
-
-// Verifica che l'utente sia autenticato per caricare malfunzionamenti
-        $showMalfunzionamenti = false; // <-- AGGIUNGI QUESTA VARIABILE
+    // === GESTIONE RICERCA CON WILDCARD ===
+    if ($request->filled('search')) {
+        $searchTerm = $request->input('search');
         
-        return view('prodotti.show', compact('prodotto', 'showMalfunzionamenti'));
+        // Implementa ricerca con wildcard "*"
+        if (str_ends_with($searchTerm, '*')) {
+            $searchTerm = rtrim($searchTerm, '*');
+            $query->where('descrizione', 'LIKE', $searchTerm . '%');
+        } else {
+            $query->where('descrizione', 'LIKE', '%' . $searchTerm . '%');
+        }
     }
+
+    // === FILTRO PER CATEGORIA ===
+    if ($request->filled('categoria')) {
+        $query->where('categoria', $request->input('categoria'));
+    }
+
+    // Esecuzione query con paginazione - SOLO campi pubblici
+    $prodotti = $query->select([
+            'id', 'nome', 'modello', 'descrizione', 
+            'categoria', 'prezzo', 'foto'
+        ])
+        ->orderBy('nome')
+        ->paginate(12);
+
+    // Categorie per filtri
+    $categorie = Prodotto::getCategorie();
+
+    // Statistiche pubbliche (SENZA malfunzionamenti)
+    $stats = [
+        'total_prodotti' => Prodotto::where('attivo', true)->count(),
+        'categorie_count' => count($categorie),
+        'version' => 'pubblico' // Flag per la vista
+    ];
+
+    // IMPORTANTE: Usa vista specifica per il pubblico
+    return view('prodotti.pubblico.index', compact('prodotti', 'categorie', 'stats'));
+}
+
+/**
+ * Scheda prodotto pubblica - NO malfunzionamenti
+ * Solo informazioni tecniche base
+ */
+public function showPubblico(Prodotto $prodotto)
+{
+    // Verifica che il prodotto sia attivo
+    if (!$prodotto->attivo) {
+        abort(404, 'Prodotto non disponibile');
+    }
+
+    // Carica solo informazioni base (NO malfunzionamenti)
+    $prodotto->load(['staffAssegnato:id,nome,cognome']);
+
+    // IMPORTANTE: Flag per nascondere malfunzionamenti nella vista
+    $showMalfunzionamenti = false;
+    $isPublicView = true; // Flag aggiuntivo
+    
+    // Usa vista pubblica specifica
+    return view('prodotti.pubblico.show', compact('prodotto', 'showMalfunzionamenti', 'isPublicView'));
+}
 
     // ================================================
     // METODI PER CATALOGO COMPLETO (Livello 2+)

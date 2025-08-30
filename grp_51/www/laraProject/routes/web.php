@@ -35,7 +35,7 @@ Route::post('/contatti/invia', [HomeController::class, 'inviaContatto'])->name('
 
 // === CATALOGO PRODOTTI PUBBLICO (senza malfunzionamenti) ===
 // Visualizzazione lista prodotti per utenti non registrati
-Route::get('/prodotti', [ProdottoController::class, 'indexPubblico'])->name('prodotti.index');
+Route::get('/catalogo', [ProdottoController::class, 'indexPubblico'])->name('prodotti.index');
 
 // Dettaglio singolo prodotto (scheda tecnica senza malfunzionamenti)
 Route::get('/prodotti/{prodotto}', [ProdottoController::class, 'showPubblico'])->name('prodotti.show');
@@ -90,10 +90,10 @@ Route::prefix('api')->name('api.')->group(function () {
     Route::get('/prodotti/search', [ProdottoController::class, 'apiSearch'])->name('prodotti.search');
     
     // Lista prodotti per caricamento dinamico
-    Route::get('/prodotti', [ProdottoController::class, 'apiIndexPubblico'])->name('prodotti.index');
+    Route::get('/prodotti', [ProdottoController::class, 'apiIndexPubblico'])->name('prodotti.completo.index');
     
     // Dettagli prodotto singolo per modal o widget
-    Route::get('/prodotti/{prodotto}', [ProdottoController::class, 'apiShowPubblico'])->name('prodotti.show');
+    Route::get('/prodotti/{prodotto}', [ProdottoController::class, 'apiShowPubblico'])->name('prodotti.completo.show');
     
     // API per centri assistenza
     Route::get('/centri', [CentroAssistenzaController::class, 'apiIndex'])->name('centri.index');
@@ -132,6 +132,7 @@ Route::prefix('api')->name('api.')->group(function () {
             // Lista prodotti per tecnici
             Route::get('/prodotti/tech/all', [ProdottoController::class, 'apiIndexTech'])
                 ->name('prodotti.tech.all');
+
             
             // Segnalazione problema per incrementare contatori (QUESTA ERA CRITICA)
             Route::post('/malfunzionamenti/{malfunzionamento}/segnala', [MalfunzionamentoController::class, 'apiSegnala'])
