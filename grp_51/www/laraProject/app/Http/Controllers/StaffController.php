@@ -369,103 +369,156 @@ class StaffController extends Controller
      * @return \Illuminate\View\View
      */
     public function statistiche(Request $request)
-    {
-        $user = Auth::user();
-        $periodo = $request->input('periodo', 'mese'); // settimana, mese, trimestre, anno
-        
-        try {
-            // Calcolo date per il periodo selezionato
-            $dataInizio = match($periodo) {
-                'settimana' => now()->startOfWeek(),
-                'mese' => now()->startOfMonth(),
-                'trimestre' => now()->startOfQuarter(),
-                'anno' => now()->startOfYear(),
-                default => now()->startOfMonth()
-            };
+{
+    // Verifica autorizzazioni - solo staff (livello 3+)
+    if (!Auth::check() || !Auth::user()->canManageMalfunzionamenti()) {
+        abort(403, 'Accesso riservato allo staff aziendale');
+    }
+
+    $user = Auth::user();
+    $periodo = $request->input('periodo', 30); // Default 30 giorni
+    
+    try {
+        // === STATISTICHE GENERALI ===
+        $stats = [
+            // Contatori base
+            'prodotti_totali' => \App\Models\Prodotto::count(),
+            'malfunzionamenti_totali' => \App\Models\Malfunzionamento::count(),
             
-            // Statistiche principali del periodo
-            $stats = [
-                'prodotti_assegnati' => Prodotto::where('staff_assegnato_id', $user->id)->count(),
-                
-                'malfunzionamenti_gestiti' => Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
-                        $q->where('staff_assegnato_id', $user->id);
-                    })
-                    ->where('updated_at', '>=', $dataInizio)
-                    ->count(),
-                
-                'soluzioni_create' => Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
-                        $q->where('staff_assegnato_id', $user->id);
-                    })
-                    ->where('created_at', '>=', $dataInizio)
-                    ->whereNotNull('soluzione')
-                    ->where('soluzione', '!=', '')
-                    ->count(),
-                
-                'malfunzionamenti_per_gravita' => Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
-                        $q->where('staff_assegnato_id', $user->id);
-                    })
-                    ->selectRaw('gravita, COUNT(*) as count')
-                    ->groupBy('gravita')
-                    ->pluck('count', 'gravita')
-                    ->toArray(),
-                
-                'risolti_mese' => Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
-                        $q->where('staff_assegnato_id', $user->id);
-                    })
-                    ->where('updated_at', '>=', now()->startOfMonth())
-                    ->whereNotNull('soluzione')
-                    ->where('soluzione', '!=', '')
-                    ->count(),
-            ];
+            // Statistiche dell'utente corrente se il campo creato_da esiste
+            'soluzioni_create' => \Schema::hasColumn('malfunzionamenti', 'creato_da') 
+                ? \App\Models\Malfunzionamento::where('creato_da', $user->id)->count() 
+                : 0,
+            'soluzioni_modificate' => \Schema::hasColumn('malfunzionamenti', 'modificato_da') 
+                ? \App\Models\Malfunzionamento::where('modificato_da', $user->id)->count() 
+                : 0,
             
-            // Grafico attività mensile (ultimi 6 mesi)
-            $attivitaMensile = [];
+            // Statistiche per periodo
+            'soluzioni_periodo' => \Schema::hasColumn('malfunzionamenti', 'creato_da') 
+                ? \App\Models\Malfunzionamento::where('creato_da', $user->id)
+                    ->where('created_at', '>=', now()->subDays($periodo))
+                    ->count()
+                : 0,
+                
+            'modifiche_periodo' => \Schema::hasColumn('malfunzionamenti', 'modificato_da') 
+                ? \App\Models\Malfunzionamento::where('modificato_da', $user->id)
+                    ->where('updated_at', '>=', now()->subDays($periodo))
+                    ->count()
+                : 0,
+                
+            // Statistiche per gravità
+            'critiche_risolte' => \Schema::hasColumn('malfunzionamenti', 'creato_da') 
+                ? \App\Models\Malfunzionamento::where('creato_da', $user->id)
+                    ->where('gravita', 'critica')->count()
+                : 0,
+            'alte_risolte' => \Schema::hasColumn('malfunzionamenti', 'creato_da') 
+                ? \App\Models\Malfunzionamento::where('creato_da', $user->id)
+                    ->where('gravita', 'alta')->count()
+                : 0,
+            'medie_risolte' => \Schema::hasColumn('malfunzionamenti', 'creato_da') 
+                ? \App\Models\Malfunzionamento::where('creato_da', $user->id)
+                    ->where('gravita', 'media')->count()
+                : 0,
+            'basse_risolte' => \Schema::hasColumn('malfunzionamenti', 'creato_da') 
+                ? \App\Models\Malfunzionamento::where('creato_da', $user->id)
+                    ->where('gravita', 'bassa')->count()
+                : 0,
+        ];
+
+        // === ATTIVITÀ MENSILE (ultimi 6 mesi) ===
+        $attivitaMensile = [];
+        if (\Schema::hasColumn('malfunzionamenti', 'creato_da')) {
             for ($i = 5; $i >= 0; $i--) {
-                $mese = now()->copy()->subMonths($i);
+                $startOfMonth = now()->subMonths($i)->startOfMonth();
+                $endOfMonth = now()->subMonths($i)->endOfMonth();
+                
                 $attivitaMensile[] = [
-                    'mese' => $mese->format('M Y'),
-                    'soluzioni' => Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
-                            $q->where('staff_assegnato_id', $user->id);
-                        })
-                        ->whereYear('created_at', $mese->year)
-                        ->whereMonth('created_at', $mese->month)
-                        ->count()
+                    'mese' => $startOfMonth->format('M Y'),
+                    'soluzioni_create' => \App\Models\Malfunzionamento::where('creato_da', $user->id)
+                        ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
+                        ->count(),
+                    'soluzioni_modificate' => \App\Models\Malfunzionamento::where('modificato_da', $user->id)
+                        ->whereBetween('updated_at', [$startOfMonth, $endOfMonth])
+                        ->count(),
                 ];
             }
-            
-            // Top 5 prodotti più problematici assegnati all'utente
-            $prodottiProblematici = Prodotto::where('staff_assegnato_id', $user->id)
-                ->withCount(['malfunzionamenti as problemi_totali'])
-                ->withCount(['malfunzionamenti as problemi_critici' => function($q) {
-                    $q->where('gravita', 'critica');
-                }])
-                ->having('problemi_totali', '>', 0)
-                ->orderByDesc('problemi_critici')
-                ->orderByDesc('problemi_totali')
-                ->take(5)
-                ->get();
-            
-            return view('staff.statistiche', compact(
-                'user', 'stats', 'attivitaMensile', 'prodottiProblematici', 'periodo'
-            ));
-
-        } catch (\Exception $e) {
-            Log::error('Errore statistiche staff', [
-                'error' => $e->getMessage(),
-                'user_id' => $user->id,
-                'periodo' => $periodo
-            ]);
-
-            return view('staff.statistiche', [
-                'user' => $user,
-                'stats' => [],
-                'attivitaMensile' => [],
-                'prodottiProblematici' => collect(),
-                'periodo' => $periodo,
-                'error' => 'Errore nel caricamento delle statistiche'
-            ]);
         }
+
+        // === PRODOTTI PIÙ PROBLEMATICI ===
+        $prodottiProblematici = collect();
+        if (\Schema::hasColumn('malfunzionamenti', 'creato_da')) {
+            $prodottiProblematici = \App\Models\Prodotto::withCount([
+                    'malfunzionamenti as soluzioni_mie' => function ($query) use ($user) {
+                        $query->where('creato_da', $user->id);
+                    }
+                ])
+                ->having('soluzioni_mie', '>', 0)
+                ->orderByDesc('soluzioni_mie')
+                ->limit(10)
+                ->get();
+        }
+
+        // === ULTIME SOLUZIONI ===
+        $ultimeSoluzioni = collect();
+        if (\Schema::hasColumn('malfunzionamenti', 'creato_da')) {
+            $ultimeSoluzioni = \App\Models\Malfunzionamento::where('creato_da', $user->id)
+                ->with(['prodotto:id,nome,modello,categoria'])
+                ->orderBy('created_at', 'desc')
+                ->limit(10)
+                ->get();
+        }
+
+        // === SOLUZIONI PER CATEGORIA ===
+        $soluzioniPerCategoria = collect();
+        if (\Schema::hasColumn('malfunzionamenti', 'creato_da')) {
+            $soluzioniPerCategoria = \App\Models\Malfunzionamento::where('creato_da', $user->id)
+                ->join('prodotti', 'malfunzionamenti.prodotto_id', '=', 'prodotti.id')
+                ->selectRaw('prodotti.categoria, COUNT(*) as count')
+                ->groupBy('prodotti.categoria')
+                ->orderByDesc('count')
+                ->get();
+        }
+
+        return view('staff.statistiche', compact(
+            'user',
+            'stats', 
+            'attivitaMensile', 
+            'prodottiProblematici',
+            'ultimeSoluzioni',
+            'soluzioniPerCategoria',
+            'periodo'
+        ));
+
+    } catch (\Exception $e) {
+        \Log::error('Errore caricamento statistiche staff', [
+            'error' => $e->getMessage(),
+            'user_id' => $user->id,
+            'periodo' => $periodo
+        ]);
+        
+        return view('statistiche', [
+            'user' => $user,
+            'stats' => [
+                'prodotti_totali' => 0,
+                'malfunzionamenti_totali' => 0,
+                'soluzioni_create' => 0,
+                'soluzioni_modificate' => 0,
+                'soluzioni_periodo' => 0,
+                'modifiche_periodo' => 0,
+                'critiche_risolte' => 0,
+                'alte_risolte' => 0,
+                'medie_risolte' => 0,
+                'basse_risolte' => 0,
+            ],
+            'attivitaMensile' => [],
+            'prodottiProblematici' => collect(),
+            'ultimeSoluzioni' => collect(),
+            'soluzioniPerCategoria' => collect(),
+            'periodo' => $periodo,
+            'error' => 'Errore nel caricamento delle statistiche'
+        ]);
     }
+}
 
     /**
      * Report dettagliato delle attività dello staff
