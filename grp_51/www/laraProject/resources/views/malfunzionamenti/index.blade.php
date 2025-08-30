@@ -325,13 +325,13 @@
                                                 
                                                 {{-- Segnala (per tecnici) --}}
                                                 @if(auth()->user()->canViewMalfunzionamenti() && !auth()->user()->canManageMalfunzionamenti())
-                                                    <button type="button" 
-                                                            class="btn btn-outline-warning btn-sm segnala-btn"
-                                                            data-malfunzionamento-id="{{ $malfunzionamento->id }}"
-                                                            data-bs-toggle="tooltip"
-                                                            title="Ho riscontrato questo problema">
-                                                        <i class="bi bi-exclamation me-1"></i>Ho Questo Problema
-                                                    </button>
+                                                    {{-- Segnala problema --}}
+                                                <button type="button" 
+                                                        class="btn btn-outline-warning segnala-btn"
+                                                        onclick="segnalaMalfunzionamento('{{ $malfunzionamento->id }}')"
+                                                        title="Segnala di aver riscontrato questo problema">
+                                                    <i class="bi bi-exclamation-circle me-1"></i>Ho Questo Problema
+                                                </button>
                                                 @endif
                                                 
                                                 {{-- Gestione (per staff) --}}
@@ -463,6 +463,68 @@
 <script>
 $(document).ready(function() {
     console.log('Pagina malfunzionamenti caricata');
+
+    // === IMPLEMENTAZIONE SEGNALAZIONE MALFUNZIONAMENTO ===
+    // Definisce la funzione globale chiamata dai bottoni onclick
+    window.segnalaMalfunzionamento = function(malfunzionamentoId) {
+        if (!malfunzionamentoId) {
+            alert('Errore: ID malfunzionamento non valido');
+            return;
+        }
+        
+        if (!confirm('Confermi di aver riscontrato questo problema?')) {
+            return;
+        }
+        
+        // Trova il bottone e mostra loading
+        const button = $(`button[onclick="segnalaMalfunzionamento(${malfunzionamentoId})"]`);
+        const originalText = button.html();
+        button.html('<span class="spinner-border spinner-border-sm me-1"></span>Segnalando...').prop('disabled', true);
+        
+        // Chiamata AJAX per segnalare il malfunzionamento
+        $.ajax({
+           url: `{{ url('/api/malfunzionamenti') }}/${malfunzionamentoId}/segnala`,
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'Content-Type': 'application/json'
+            },
+            timeout: 10000,
+            success: function(response) {
+                if (response.success) {
+                    // Aggiorna il contatore delle segnalazioni
+                    $(`[data-segnalazioni-count="${malfunzionamentoId}"]`)
+                        .html(`<i class="bi bi-flag me-1"></i>${response.nuovo_count} segnalazioni`);
+                    
+                    // Cambia il pulsante per mostrare successo
+                    button.removeClass('btn-outline-success')
+                          .addClass('btn-success')
+                          .html('<i class="bi bi-check-circle me-1"></i>Segnalato')
+                          .prop('disabled', true);
+                    
+                    showAlert(`Segnalazione registrata! Totale: ${response.nuovo_count}`, 'success');
+                } else {
+                    throw new Error(response.message || 'Errore nella risposta');
+                }
+            },
+            error: function(xhr) {
+                console.error('Errore AJAX:', xhr);
+                let msg = 'Errore nella segnalazione del malfunzionamento';
+                
+                // Gestione messaggi di errore specifici
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    msg = xhr.responseJSON.message;
+                } else if (xhr.status === 403) {
+                    msg = 'Non hai i permessi per questa azione';
+                } else if (xhr.status === 404) {
+                    msg = 'Malfunzionamento non trovato';
+                }
+                
+                showAlert(msg, 'danger');
+                button.html(originalText).prop('disabled', false);
+            }
+        });
+    };
     
     // === DISABILITA AUTOCOMPLETE ===
     $('#search').attr({

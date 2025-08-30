@@ -170,7 +170,8 @@
                         @if(auth()->user()->canViewMalfunzionamenti() && !auth()->user()->canManageMalfunzionamenti())
                             <button type="button" 
                                     class="btn btn-outline-warning segnala-btn"
-                                    data-malfunzionamento-id="{{ $malfunzionamento->id }}">
+                                    onclick="segnalaMalfunzionamento({{ $malfunzionamento->id }})"
+                                    title="Segnala di aver riscontrato questo problema">
                                 <i class="bi bi-exclamation-circle me-1"></i>Ho Questo Problema
                             </button>
                         @endif

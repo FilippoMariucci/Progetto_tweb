@@ -512,34 +512,194 @@ public function debugStaffStats()
     /**
      * Dashboard tecnici centri assistenza (Livello 2)
      */
-    public function tecnicoDashboard()
-    {
-        if (!Auth::check() || !Auth::user()->isTecnico()) {
-            abort(403, 'Accesso riservato ai tecnici');
+   public function tecnicoDashboard()
+{
+    // Verifica autorizzazione
+    if (!Auth::check() || !Auth::user()->isTecnico()) {
+        abort(403, 'Accesso riservato ai tecnici');
+    }
+
+    $user = Auth::user();
+    
+    try {
+        // === CALCOLO SICURO DELLE STATISTICHE ===
+        
+        // Contatori base (sempre funzionano)
+        $totalProdotti = Prodotto::count();
+        $totalMalfunzionamenti = Malfunzionamento::count();
+        $totalCentri = CentroAssistenza::count();
+        
+        // Malfunzionamenti critici con controllo null
+        $malfunzionamentiCritici = Malfunzionamento::whereNotNull('gravita')
+            ->where('gravita', 'critica')
+            ->count();
+
+        // === CENTRO ASSISTENZA DEL TECNICO ===
+        $centroAssistenza = null;
+        if ($user->centro_assistenza_id) {
+            try {
+                $centroAssistenza = CentroAssistenza::find($user->centro_assistenza_id);
+            } catch (\Exception $e) {
+                \Log::warning('Errore caricamento centro assistenza', [
+                    'user_id' => $user->id,
+                    'centro_id' => $user->centro_assistenza_id,
+                    'error' => $e->getMessage()
+                ]);
+            }
         }
 
-        $user = Auth::user();
-        
-        // Centro di appartenenza del tecnico
-        $centro = $user->centroAssistenza;
+        // === MALFUNZIONAMENTI CRITICI RECENTI ===
+        $malfunzionamentiCriticiLista = collect();
+        try {
+            $malfunzionamentiCriticiLista = Malfunzionamento::where('gravita', 'critica')
+                ->with(['prodotto' => function($query) {
+                    $query->select('id', 'nome', 'modello', 'categoria');
+                }])
+                ->latest('created_at')
+                ->take(5)
+                ->get();
+        } catch (\Exception $e) {
+            \Log::warning('Errore caricamento malfunzionamenti critici', [
+                'error' => $e->getMessage()
+            ]);
+        }
 
-        // Prodotti più consultati
-        $prodottiConsultati = Prodotto::withCount('malfunzionamenti')
-            ->where('attivo', true)
-            ->orderBy('malfunzionamenti_count', 'desc')
-            ->limit(8)
-            ->get();
+        // === PRODOTTI PROBLEMATICI ===
+        $prodottiProblematici = collect();
+        try {
+            $prodottiProblematici = Prodotto::whereHas('malfunzionamenti', function($q) {
+                    $q->where('gravita', 'critica');
+                })
+                ->withCount([
+                    'malfunzionamenti',
+                    'malfunzionamenti as critici_count' => function($q) {
+                        $q->where('gravita', 'critica');
+                    }
+                ])
+                ->having('critici_count', '>', 0)
+                ->orderBy('critici_count', 'desc')
+                ->take(6)
+                ->get(['id', 'nome', 'modello', 'categoria']);
+        } catch (\Exception $e) {
+            \Log::warning('Errore caricamento prodotti problematici', [
+                'error' => $e->getMessage()
+            ]);
+        }
 
-        // Statistiche specifiche per il tecnico
+        // === MALFUNZIONAMENTI RECENTI PER TABELLA ===
+        $malfunzionamentiRecenti = collect();
+        try {
+            $malfunzionamentiRecenti = Malfunzionamento::with(['prodotto' => function($query) {
+                    $query->select('id', 'nome', 'modello');
+                }])
+                ->whereNotNull('gravita')
+                ->latest('updated_at')
+                ->take(8)
+                ->get();
+        } catch (\Exception $e) {
+            \Log::warning('Errore caricamento malfunzionamenti recenti', [
+                'error' => $e->getMessage()
+            ]);
+        }
+
+        // === DISTRIBUZIONE PER GRAVITA ===
+        $malfunzionamentiPerGravita = [];
+        try {
+            $distribuzione = Malfunzionamento::selectRaw('gravita, COUNT(*) as count')
+                ->whereNotNull('gravita')
+                ->groupBy('gravita')
+                ->pluck('count', 'gravita')
+                ->toArray();
+            
+            // Assicura che tutte le gravità siano presenti
+            $malfunzionamentiPerGravita = [
+                'critica' => $distribuzione['critica'] ?? 0,
+                'alta' => $distribuzione['alta'] ?? 0,  
+                'media' => $distribuzione['media'] ?? 0,
+                'bassa' => $distribuzione['bassa'] ?? 0,
+            ];
+        } catch (\Exception $e) {
+            \Log::warning('Errore calcolo distribuzione gravità', [
+                'error' => $e->getMessage()
+            ]);
+            
+            $malfunzionamentiPerGravita = [
+                'critica' => 0, 'alta' => 0, 'media' => 0, 'bassa' => 0
+            ];
+        }
+
+        // === ASSEMBLY FINALE STATISTICHE ===
         $stats = [
-            'centro_appartenenza' => $centro ? $centro->nome : 'Non assegnato',
-            'prodotti_disponibili' => Prodotto::where('attivo', true)->count(),
-            'soluzioni_disponibili' => Malfunzionamento::count(),
-            'categorie_prodotti' => Prodotto::distinct()->count('categoria'),
+            // Contatori principali (sempre presenti)
+            'total_prodotti' => $totalProdotti,
+            'total_malfunzionamenti' => $totalMalfunzionamenti,
+            'malfunzionamenti_critici' => $malfunzionamentiCritici,
+            'total_centri' => $totalCentri,
+            
+            // Dati relazionali (possono essere vuoti se ci sono errori)
+            'centro_assistenza' => $centroAssistenza,
+            'malfunzionamenti_critici_lista' => $malfunzionamentiCriticiLista,
+            'prodotti_problematici' => $prodottiProblematici,
+            'malfunzionamenti_per_gravita' => $malfunzionamentiPerGravita,
         ];
 
-        return view('tecnico.dashboard', compact('user', 'centro', 'prodottiConsultati', 'stats'));
+        // === PASSA DATI EXTRA ALLA VISTA ===
+        $extraData = [
+            'prodotti_critici' => $prodottiProblematici, // Per sezione prodotti critici
+            'malfunzionamenti_recenti' => $malfunzionamentiRecenti, // Per tabella recenti
+        ];
+
+        // Log successo per debug
+        \Log::info('Dashboard Tecnico caricata con successo', [
+            'user_id' => $user->id,
+            'username' => $user->username,
+            'total_prodotti' => $totalProdotti,
+            'total_malfunzionamenti' => $totalMalfunzionamenti,
+            'critici_count' => $malfunzionamentiCritici,
+            'prodotti_problematici_count' => $prodottiProblematici->count(),
+            'centro_assegnato' => $centroAssistenza ? $centroAssistenza->nome : 'Nessuno'
+        ]);
+
+        // === RETURN VISTA CORRETTA ===
+        return view('tecnico.dashboard', array_merge(
+            compact('user', 'stats'),
+            $extraData
+        ));
+
+    } catch (\Exception $e) {
+        // === GESTIONE ERRORI ROBUSTA ===
+        \Log::error('Errore Dashboard Tecnico', [
+            'user_id' => $user->id,
+            'error_message' => $e->getMessage(),
+            'error_file' => $e->getFile(),
+            'error_line' => $e->getLine()
+        ]);
+
+        // Statistiche di fallback
+        $stats = [
+            'total_prodotti' => 0,
+            'total_malfunzionamenti' => 0, 
+            'malfunzionamenti_critici' => 0,
+            'total_centri' => 0,
+            'centro_assistenza' => null,
+            'malfunzionamenti_critici_lista' => collect(),
+            'prodotti_problematici' => collect(),
+            'malfunzionamenti_per_gravita' => [
+                'critica' => 0, 'alta' => 0, 'media' => 0, 'bassa' => 0
+            ],
+        ];
+
+        $extraData = [
+            'prodotti_critici' => collect(),
+            'malfunzionamenti_recenti' => collect(),
+        ];
+
+        return view('tecnico.dashboard', array_merge(
+            compact('user', 'stats'),
+            $extraData
+        ))->with('warning', 'Alcune statistiche potrebbero non essere aggiornate');
     }
+}
 
     /**
      * Dashboard generale - Fallback per utenti pubblici

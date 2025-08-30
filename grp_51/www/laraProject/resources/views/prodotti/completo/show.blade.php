@@ -262,10 +262,10 @@
                                                 
                                                 {{-- Segnala problema --}}
                                                 <button type="button" 
-                                                        class="btn btn-outline-success btn-sm"
+                                                        class="btn btn-outline-warning segnala-btn"
                                                         onclick="segnalaMalfunzionamento({{ $malfunzionamento->id }})"
                                                         title="Segnala di aver riscontrato questo problema">
-                                                    <i class="bi bi-plus-circle me-1"></i>Segnala
+                                                    <i class="bi bi-exclamation-circle me-1"></i>Segnala
                                                 </button>
                                                 
                                                 {{-- Solo per staff: modifica/elimina --}}
