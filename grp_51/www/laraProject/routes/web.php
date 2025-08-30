@@ -276,8 +276,8 @@ Route::get('/storico-interventi', [AuthController::class, 'storicoInterventi'])
         Route::prefix('staff')->name('staff.')->group(function () {
             
             // === DASHBOARD STAFF ===
-            Route::get('/dashboard', [AuthController::class, 'staffDashboard'])->name('dashboard');
-            
+            Route::get('/dashboard', [StaffController::class, 'dashboard'])->name('dashboard');
+
             // === GESTIONE MALFUNZIONAMENTI (CRUD completo) ===
             
             // Dashboard generale malfunzionamenti per staff
