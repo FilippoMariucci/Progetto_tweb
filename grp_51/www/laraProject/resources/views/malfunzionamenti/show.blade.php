@@ -2,6 +2,7 @@
     Vista per visualizzare un singolo malfunzionamento con la sua soluzione completa
     Accessibile solo a tecnici (livello 2+) e staff (livello 3+)
     Percorso: resources/views/malfunzionamenti/show.blade.php
+    VERSIONE CORRETTA - Fix duplicazioni e funzionalità segnalazione
 --}}
 
 @extends('layouts.app')
@@ -20,7 +21,15 @@
                 </a>
             </li>
             <li class="breadcrumb-item">
-                <a href="{{ route('prodotti.show', $prodotto) }}" class="text-decoration-none">
+                @auth
+                    @if(auth()->user()->canViewMalfunzionamenti())
+                        <a href="{{ route('prodotti.completo.show', $prodotto) }}" class="text-decoration-none">
+                    @else
+                        <a href="{{ route('prodotti.show', $prodotto) }}" class="text-decoration-none">
+                    @endif
+                @else
+                    <a href="{{ route('prodotti.show', $prodotto) }}" class="text-decoration-none">
+                @endauth
                     {{ $prodotto->nome }}
                 </a>
             </li>
@@ -59,16 +68,16 @@
                             @endswitch
                             fs-6 px-3 py-2">
                             @switch($malfunzionamento->gravita)
-                                @case('critica') 🔴 CRITICA @break
-                                @case('alta') 🟡 ALTA @break
-                                @case('media') 🔵 MEDIA @break
-                                @default ⚪ BASSA
+                                @case('critica') CRITICA @break
+                                @case('alta') ALTA @break
+                                @case('media') MEDIA @break
+                                @default BASSA
                             @endswitch
                         </span>
                         
-                        {{-- Numero segnalazioni --}}
+                        {{-- Numero segnalazioni - ID per JavaScript --}}
                         <div class="text-end">
-                            <span class="badge bg-light text-dark">
+                            <span class="badge bg-light text-dark" id="segnalazioni-counter">
                                 <i class="bi bi-exclamation-triangle me-1"></i>
                                 {{ $malfunzionamento->numero_segnalazioni ?? 0 }} segnalazioni
                             </span>
@@ -158,7 +167,7 @@
                         @endif
                     </div>
                     
-                    {{-- Pulsanti di azione --}}
+                    {{-- === PULSANTI DI AZIONE === --}}
                     <div class="d-flex gap-2 flex-wrap">
                         
                         {{-- Torna all'elenco --}}
@@ -166,46 +175,48 @@
                             <i class="bi bi-arrow-left me-1"></i>Torna all'Elenco
                         </a>
                         
-                        {{-- Segnala problema (per tecnici) --}}
-                        {{-- Segnala problema (per tecnici e staff) --}}
-@if(auth()->user()->canViewMalfunzionamenti())
-    <button type="button" 
-            class="btn btn-outline-warning segnala-btn"
-            data-malfunzionamento-id="{{ $malfunzionamento->id }}"
-            title="Segnala di aver riscontrato questo problema">
-        <i class="bi bi-exclamation-circle me-1"></i>Ho Questo Problema
-    </button>
-@endif
+                        {{-- SEGNALA PROBLEMA (per tecnici e staff) --}}
+                        @auth
+                            @if(auth()->user()->canViewMalfunzionamenti())
+        <button type="button" 
+                class="btn btn-outline-warning btn-sm segnala-btn"
+                onclick="segnalaMalfunzionamento('{{ $malfunzionamento->id }}')"
+                title="Segnala di aver riscontrato questo problema">
+            <i class="bi bi-exclamation-circle me-1"></i>Ho Questo Problema
+        </button>
+    @endif
+                        @endauth
                         
-                        {{-- Modifica (per staff) --}}
-                        @if(auth()->user()->canManageMalfunzionamenti())
-                            <a href="{{ route('staff.malfunzionamenti.edit', [$malfunzionamento]) }}" 
- 
-                               class="btn btn-primary">
-                                <i class="bi bi-pencil me-1"></i>Modifica Soluzione
-                            </a>
-                            
-                            <form action="{{ route('staff.malfunzionamenti.destroy', $malfunzionamento) }}" method="POST" class="d-inline">
-
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" 
-                                        class="btn btn-outline-danger"
-                                        onclick="return confirm('Sei sicuro di voler eliminare questo malfunzionamento?')">
-                                    <i class="bi bi-trash me-1"></i>Elimina
-                                </button>
-                            </form>
-                        @endif
+                        {{-- MODIFICA E ELIMINA (solo per staff) --}}
+                        @auth
+                            @if(auth()->user()->canManageMalfunzionamenti())
+                                <a href="{{ route('staff.malfunzionamenti.edit', [$malfunzionamento]) }}" 
+                                   class="btn btn-primary">
+                                    <i class="bi bi-pencil me-1"></i>Modifica Soluzione
+                                </a>
+                                
+                                <form action="{{ route('staff.malfunzionamenti.destroy', $malfunzionamento) }}" 
+                                      method="POST" 
+                                      class="d-inline"
+                                      onsubmit="return confirm('Sei sicuro di voler eliminare questo malfunzionamento? Questa azione non può essere annullata.')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-outline-danger">
+                                        <i class="bi bi-trash me-1"></i>Elimina
+                                    </button>
+                                </form>
+                            @endif
+                        @endauth
                     </div>
                 </div>
             </div>
             
         </div>
         
-        {{-- === SIDEBAR === --}}
+        {{-- === SIDEBAR DESTRA === --}}
         <div class="col-lg-4">
             
-            {{-- Informazioni prodotto --}}
+            {{-- INFORMAZIONI PRODOTTO --}}
             <div class="card mb-4 border-0 shadow-sm">
                 <div class="card-header bg-primary text-white">
                     <h6 class="mb-0">
@@ -214,6 +225,7 @@
                 </div>
                 <div class="card-body">
                     <div class="d-flex align-items-center mb-3">
+                        {{-- Immagine prodotto --}}
                         @if($prodotto->foto)
                             <img src="{{ asset('storage/' . $prodotto->foto) }}" 
                                  class="rounded me-3" 
@@ -225,88 +237,57 @@
                                 <i class="bi bi-box text-muted"></i>
                             </div>
                         @endif
+                        
+                        {{-- Nome e modello --}}
                         <div>
                             <h6 class="mb-1">
-                                <a href="{{ route('prodotti.show', $prodotto) }}" class="text-decoration-none">
-                                    {{ $prodotto->nome }}
-                                </a>
+                                @auth
+                                    @if(auth()->user()->canViewMalfunzionamenti())
+                                        <a href="{{ route('prodotti.completo.show', $prodotto) }}" class="text-decoration-none">
+                                            {{ $prodotto->nome }}
+                                        </a>
+                                    @else
+                                        <a href="{{ route('prodotti.show', $prodotto) }}" class="text-decoration-none">
+                                            {{ $prodotto->nome }}
+                                        </a>
+                                    @endif
+                                @else
+                                    <a href="{{ route('prodotti.show', $prodotto) }}" class="text-decoration-none">
+                                        {{ $prodotto->nome }}
+                                    </a>
+                                @endauth
                             </h6>
                             @if($prodotto->modello)
-                                <small class="text-muted">{{ $prodotto->modello }}</small>
+                                <small class="text-muted">Modello: {{ $prodotto->modello }}</small>
                             @endif
                         </div>
                     </div>
-                    
-                    {{-- Sezione informazioni prodotto con routing corretto --}}
-<div class="d-flex align-items-center mb-3">
-    {{-- Immagine prodotto --}}
-    @if($prodotto->foto)
-        <img src="{{ $prodotto->foto_url ?? asset('images/prodotti/' . $prodotto->foto) }}" 
-             class="rounded me-3" 
-             style="width: 60px; height: 60px; object-fit: cover;"
-             alt="{{ $prodotto->nome }}">
-    @else
-        <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" 
-             style="width: 60px; height: 60px;">
-            <i class="bi bi-box text-muted"></i>
-        </div>
-    @endif
-    <div>
-        <h6 class="mb-1">
-            {{-- Link al prodotto con routing intelligente basato su autenticazione --}}
-            @auth
-                {{-- Se l'utente è autenticato e può vedere malfunzionamenti, vai alla vista completa --}}
-                @if(auth()->user()->canViewMalfunzionamenti())
-                    <a href="{{ route('prodotti.completo.show', $prodotto) }}" class="text-decoration-none">
-                        {{ $prodotto->nome }}
-                    </a>
-                @else
-                    {{-- Se autenticato ma senza permessi, vista pubblica --}}
-                    <a href="{{ route('prodotti.show', $prodotto) }}" class="text-decoration-none">
-                        {{ $prodotto->nome }}
-                    </a>
-                @endif
-            @else
-                {{-- Se non autenticato, vista pubblica --}}
-                <a href="{{ route('prodotti.show', $prodotto) }}" class="text-decoration-none">
-                    {{ $prodotto->nome }}
-                </a>
-            @endauth
-        </h6>
-        @if($prodotto->modello)
-            <small class="text-muted">{{ $prodotto->modello }}</small>
-        @endif
-    </div>
-</div>
 
-<div class="text-center">
-    {{-- PULSANTE CORRETTO con routing intelligente --}}
-    @auth
-        {{-- Se l'utente è autenticato e può vedere malfunzionamenti --}}
-        @if(auth()->user()->canViewMalfunzionamenti())
-            <a href="{{ route('prodotti.completo.show', $prodotto) }}" class="btn btn-outline-primary btn-sm w-100">
-                <i class="bi bi-eye me-1"></i>Vedi Dettagli Completi Prodotto
-                <span class="badge bg-warning text-dark ms-1">Con Malfunzionamenti</span>
-            </a>
-        @else
-            {{-- Se autenticato ma senza permessi per malfunzionamenti --}}
-            <a href="{{ route('prodotti.show', $prodotto) }}" class="btn btn-outline-primary btn-sm w-100">
-                <i class="bi bi-eye me-1"></i>Vedi Dettagli Prodotto
-                <span class="badge bg-info ms-1">Vista Base</span>
-            </a>
-        @endif
-    @else
-        {{-- Se non autenticato, vista pubblica --}}
-        <a href="{{ route('prodotti.show', $prodotto) }}" class="btn btn-outline-primary btn-sm w-100">
-            <i class="bi bi-eye me-1"></i>Vedi Dettagli Prodotto
-            <span class="badge bg-secondary ms-1">Pubblico</span>
-        </a>
-    @endauth
-</div>
+                    {{-- Pulsante dettagli prodotto --}}
+                    <div class="text-center">
+                        @auth
+                            @if(auth()->user()->canViewMalfunzionamenti())
+                                <a href="{{ route('prodotti.completo.show', $prodotto) }}" class="btn btn-outline-primary btn-sm w-100">
+                                    <i class="bi bi-eye me-1"></i>Vedi Dettagli Completi
+                                    <span class="badge bg-warning text-dark ms-1">Con Malfunzionamenti</span>
+                                </a>
+                            @else
+                                <a href="{{ route('prodotti.show', $prodotto) }}" class="btn btn-outline-primary btn-sm w-100">
+                                    <i class="bi bi-eye me-1"></i>Vedi Dettagli Prodotto
+                                    <span class="badge bg-info ms-1">Vista Base</span>
+                                </a>
+                            @endif
+                        @else
+                            <a href="{{ route('prodotti.show', $prodotto) }}" class="btn btn-outline-primary btn-sm w-100">
+                                <i class="bi bi-eye me-1"></i>Vedi Dettagli Prodotto
+                                <span class="badge bg-secondary ms-1">Pubblico</span>
+                            </a>
+                        @endauth
+                    </div>
                 </div>
             </div>
             
-            {{-- Cronologia e metadata --}}
+            {{-- CRONOLOGIA E METADATA --}}
             <div class="card mb-4 border-0 shadow-sm">
                 <div class="card-header bg-info text-white">
                     <h6 class="mb-0">
@@ -351,7 +332,7 @@
                 </div>
             </div>
             
-            {{-- Malfunzionamenti correlati (se disponibili) --}}
+            {{-- PROBLEMI CORRELATI --}}
             @if(isset($correlati) && $correlati->count() > 0)
                 <div class="card border-0 shadow-sm">
                     <div class="card-header bg-warning text-dark">
@@ -392,7 +373,7 @@
 </div>
 @endsection
 
-{{-- === STILI === --}}
+{{-- === STILI PERSONALIZZATI === --}}
 @push('styles')
 <style>
 /* Stili per la pagina di dettaglio malfunzionamento */
@@ -410,10 +391,20 @@ h1.h3 {
     line-height: 1.3;
 }
 
-/* Hover effects */
+/* Hover effects per le card */
 .card:hover {
     transform: translateY(-2px);
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Stili per il pulsante di segnalazione */
+.segnala-btn {
+    transition: all 0.3s ease;
+}
+
+.segnala-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(255, 193, 7, 0.3);
 }
 
 /* Responsive improvements */
@@ -424,7 +415,22 @@ h1.h3 {
     
     .d-flex.gap-2 > * {
         width: 100% !important;
+        margin-bottom: 0.5rem;
     }
+    
+    .d-flex.gap-2 > *:last-child {
+        margin-bottom: 0;
+    }
+}
+
+/* Stile per alert di successo/errore */
+.alert-floating {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1055;
+    min-width: 300px;
+    max-width: 500px;
 }
 </style>
 @endpush
@@ -435,57 +441,97 @@ h1.h3 {
 $(document).ready(function() {
     console.log('Pagina dettaglio malfunzionamento caricata');
     
-    // === SEGNALAZIONE MALFUNZIONAMENTO ===
-    $('.segnala-btn').on('click', function() {
-        const btn = $(this);
-        const malfunzionamentoId = btn.data('malfunzionamento-id');
-        
-        if (!confirm('Vuoi segnalare di aver riscontrato questo problema?')) {
+    // === DEBUG INIZIALE ===
+    console.log('CSRF Token:', $('meta[name="csrf-token"]').attr('content'));
+    console.log('Pulsanti segnala trovati:', $('.segnala-btn').length);
+    console.log('ID malfunzionamento:', $('.segnala-btn').data('malfunzionamento-id'));
+    
+    // === IMPLEMENTAZIONE SEGNALAZIONE MALFUNZIONAMENTO ===
+    // Definisce la funzione globale chiamata dai bottoni onclick (STESSA IMPLEMENTAZIONE DI ricerca.blade.php)
+    window.segnalaMalfunzionamento = function(malfunzionamentoId) {
+        if (!malfunzionamentoId) {
+            alert('Errore: ID malfunzionamento non valido');
             return;
         }
         
-        // Disabilita pulsante durante richiesta
-        btn.prop('disabled', true).html('<i class="bi bi-hourglass me-1"></i>Invio...');
+        if (!confirm('Confermi di aver riscontrato questo problema?')) {
+            return;
+        }
         
+        // Trova il bottone corretto usando l'onclick
+        const button = $(`button[onclick="segnalaMalfunzionamento('${malfunzionamentoId}')"]`);
+        const originalText = button.html();
+        
+        // Mostra stato di caricamento
+        button.html('<span class="spinner-border spinner-border-sm me-1"></span>Segnalando...').prop('disabled', true);
+        
+        // Chiamata AJAX per segnalare il malfunzionamento
         $.ajax({
-            url: `/api/malfunzionamenti/${malfunzionamentoId}/segnala`,
-            type: 'POST',
+            url: `{{ url('/api/malfunzionamenti') }}/${malfunzionamentoId}/segnala`,
+            method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'Content-Type': 'application/json'
             },
+            timeout: 10000,
             success: function(response) {
                 if (response.success) {
-                    // Aggiorna contatore
-                    $('.badge:contains("segnalazioni")')
-                        .html(`<i class="bi bi-exclamation-triangle me-1"></i>${response.nuovo_count} segnalazioni`);
+                    // Aggiorna il contatore delle segnalazioni nella card
+                    button.closest('.card-body')
+                          .find('.bi-exclamation-triangle')
+                          .parent()
+                          .html(`<i class="bi bi-exclamation-triangle me-1"></i>${response.nuovo_count} segnalazioni`);
                     
-                    // Cambia pulsante
-                    btn.removeClass('btn-outline-warning')
-                       .addClass('btn-outline-success')
-                       .html('<i class="bi bi-check me-1"></i>Segnalato')
-                       .prop('disabled', true);
+                    // Cambia il pulsante per mostrare successo
+                    button.removeClass('btn-outline-warning')
+                          .addClass('btn-success')
+                          .html('<i class="bi bi-check-circle me-1"></i>Segnalato')
+                          .prop('disabled', true)
+                          .removeAttr('onclick'); // Rimuove l'onclick handler
                     
-                    showAlert('success', 'Segnalazione registrata con successo!');
+                    // Mostra messaggio di successo
+                    showAlert(`Segnalazione registrata! Totale: ${response.nuovo_count}`, 'success');
+                } else {
+                    throw new Error(response.message || 'Errore nella risposta');
                 }
             },
             error: function(xhr) {
-                console.error('Errore segnalazione:', xhr);
-                showAlert('danger', 'Errore durante la segnalazione');
+                console.error('Errore AJAX:', xhr);
+                let msg = 'Errore nella segnalazione del malfunzionamento';
                 
-                // Riabilita pulsante
-                btn.prop('disabled', false)
-                   .html('<i class="bi bi-exclamation-circle me-1"></i>Ho Questo Problema');
+                // Gestione messaggi di errore specifici
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    msg = xhr.responseJSON.message;
+                } else if (xhr.status === 403) {
+                    msg = 'Non hai i permessi per questa azione';
+                } else if (xhr.status === 404) {
+                    msg = 'Malfunzionamento non trovato';
+                }
+                
+                showAlert(msg, 'danger');
+                button.html(originalText).prop('disabled', false);
             }
         });
-    });
+    };
     
     // === FUNZIONE HELPER PER ALERT ===
     function showAlert(type, message) {
+        // Rimuovi alert esistenti
+        $('.alert-floating').remove();
+        
+        const alertClass = `alert-${type}`;
+        const iconClass = {
+            'success': 'check-circle-fill',
+            'danger': 'exclamation-triangle-fill',
+            'warning': 'exclamation-triangle-fill',
+            'info': 'info-circle-fill'
+        };
+        
         const alertHtml = `
-            <div class="alert alert-${type} alert-dismissible fade show position-fixed" 
-                 style="top: 20px; right: 20px; z-index: 1055; min-width: 300px;">
+            <div class="alert ${alertClass} alert-dismissible fade show alert-floating">
+                <i class="bi bi-${iconClass[type] || 'info-circle-fill'} me-2"></i>
                 ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Chiudi"></button>
             </div>
         `;
         
@@ -493,7 +539,9 @@ $(document).ready(function() {
         
         // Auto-rimuovi dopo 5 secondi
         setTimeout(() => {
-            $('.alert').fadeOut();
+            $('.alert-floating').fadeOut(500, function() {
+                $(this).remove();
+            });
         }, 5000);
     }
     
@@ -509,7 +557,13 @@ $(document).ready(function() {
         }
     });
     
-    console.log('JavaScript dettaglio malfunzionamento inizializzato');
+    // === TOOLTIP INITIALIZATION ===
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    console.log('JavaScript dettaglio malfunzionamento inizializzato completamente');
 });
 </script>
 @endpush
