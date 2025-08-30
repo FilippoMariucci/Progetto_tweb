@@ -351,53 +351,190 @@ public function ricerca(Request $request)
     }
 
     /**
-     * Salva nuovo malfunzionamento
-     */
-    public function store(Request $request, Prodotto $prodotto)
+ * Salva nuovo malfunzionamento - VERSIONE CORRETTA
+ * Gestisce sia prodotto dalla route che prodotto dal form
+ */
+public function store(Request $request, Prodotto $prodotto = null)
     {
+        // === CONTROLLO AUTORIZZAZIONI ===
         if (!Auth::check() || !Auth::user()->canManageMalfunzionamenti()) {
-            abort(403, 'Non autorizzato');
+            abort(403, 'Non autorizzato a creare soluzioni');
         }
 
-        // Validazione completa
+        // === GESTIONE PRODOTTO DINAMICA ===
+        // Se non abbiamo $prodotto dalla route, lo prendiamo dal form
+        if (!$prodotto && $request->has('prodotto_id')) {
+            $prodotto = Prodotto::findOrFail($request->prodotto_id);
+        }
+        
+        // Se ancora non abbiamo un prodotto, errore
+        if (!$prodotto) {
+            return back()
+                ->withInput()
+                ->withErrors(['prodotto_id' => 'Devi selezionare un prodotto valido']);
+        }
+
+        // === VALIDAZIONE COMPLETA ALLINEATA ALLA MIGRATION ===
         $validated = $request->validate([
-            'titolo' => 'required|string|max:255',
-            'descrizione' => 'required|string',
+            // Campi del form
+            'prodotto_id' => 'nullable|exists:prodotti,id', // Opzionale se viene dalla route
+            'titolo' => 'required|string|min:5|max:255',
+            'descrizione' => 'required|string|min:10',
             'gravita' => 'required|in:bassa,media,alta,critica',
-            'soluzione' => 'required|string',
-            'strumenti_necessari' => 'nullable|string',
+            'soluzione' => 'required|string|min:10',
+            
+            // Campi opzionali ma utili
+            'difficolta' => 'nullable|in:facile,media,difficile,esperto',
+            'strumenti_necessari' => 'nullable|string|max:500',
             'tempo_stimato' => 'nullable|integer|min:1|max:999',
-            'difficolta' => 'required|in:facile,media,difficile,esperto',
-            'numero_segnalazioni' => 'nullable|integer|min:1',
+            'componente_difettoso' => 'nullable|string|max:255',
+            'codice_errore' => 'nullable|string|max:50',
+            
+            // Campi di gestione segnalazioni
+            'numero_segnalazioni' => 'nullable|integer|min:1|max:9999',
             'prima_segnalazione' => 'nullable|date|before_or_equal:today',
         ], [
-            'titolo.required' => 'Il titolo è obbligatorio',
+            // Messaggi di errore personalizzati
+            'titolo.required' => 'Il titolo del problema è obbligatorio',
+            'titolo.min' => 'Il titolo deve essere almeno 5 caratteri',
+            'titolo.max' => 'Il titolo non può superare 255 caratteri',
+            
             'descrizione.required' => 'La descrizione del problema è obbligatoria',
-            'soluzione.required' => 'La soluzione è obbligatoria',
-            'gravita.in' => 'Gravità non valida',
-            'difficolta.in' => 'Difficoltà non valida',
+            'descrizione.min' => 'La descrizione deve essere almeno 10 caratteri',
+            
+            'soluzione.required' => 'La soluzione tecnica è obbligatoria',
+            'soluzione.min' => 'La soluzione deve essere almeno 10 caratteri',
+            
+            'gravita.required' => 'Devi selezionare il livello di gravità',
+            'gravita.in' => 'Livello di gravità non valido',
+            
+            'difficolta.in' => 'Livello di difficoltà non valido',
             'tempo_stimato.max' => 'Il tempo stimato non può superare 999 minuti',
+            'tempo_stimato.min' => 'Il tempo stimato deve essere almeno 1 minuto',
+            
+            'prodotto_id.exists' => 'Il prodotto selezionato non esiste',
+            'numero_segnalazioni.min' => 'Il numero di segnalazioni deve essere almeno 1',
+            'numero_segnalazioni.max' => 'Il numero di segnalazioni non può superare 9999',
+            'prima_segnalazione.before_or_equal' => 'La data prima segnalazione non può essere futura'
         ]);
 
-        // Dati aggiuntivi
-        $validated['prodotto_id'] = $prodotto->id;
-        $validated['creato_da'] = Auth::id();
-        $validated['numero_segnalazioni'] = $validated['numero_segnalazioni'] ?? 1;
-        $validated['prima_segnalazione'] = $validated['prima_segnalazione'] ?? now()->toDateString();
-        $validated['ultima_segnalazione'] = now()->toDateString();
+        try {
+            // === PREPARAZIONE DATI COMPLETA ===
+            $data = [
+                // CAMPI OBBLIGATORI DALLA MIGRATION
+                'prodotto_id' => $prodotto->id, // Usa sempre il prodotto determinato sopra
+                'titolo' => trim($validated['titolo']),
+                'descrizione' => trim($validated['descrizione']),
+                'gravita' => $validated['gravita'],
+                'soluzione' => trim($validated['soluzione']),
+                'creato_da' => Auth::id(), // OBBLIGATORIO dalla migration
+                
+                // CAMPI CON VALORI DEFAULT APPROPRIATI
+                'difficolta' => $validated['difficolta'] ?? 'media',
+                'numero_segnalazioni' => $validated['numero_segnalazioni'] ?? 1,
+                'prima_segnalazione' => $validated['prima_segnalazione'] ?? now()->toDateString(),
+                'ultima_segnalazione' => now()->toDateString(), // Sempre oggi per nuove soluzioni
+            ];
+            
+            // === CAMPI OPZIONALI (solo se forniti e non vuoti) ===
+            if (!empty($validated['strumenti_necessari'])) {
+                $data['strumenti_necessari'] = trim($validated['strumenti_necessari']);
+            }
+            
+            if (!empty($validated['tempo_stimato']) && $validated['tempo_stimato'] > 0) {
+                $data['tempo_stimato'] = (int) $validated['tempo_stimato'];
+            }
+            
+            if (!empty($validated['componente_difettoso'])) {
+                $data['componente_difettoso'] = trim($validated['componente_difettoso']);
+            }
+            
+            if (!empty($validated['codice_errore'])) {
+                $data['codice_errore'] = trim($validated['codice_errore']);
+            }
 
-        // Creazione malfunzionamento
-        $malfunzionamento = Malfunzionamento::create($validated);
+            // === CREAZIONE MALFUNZIONAMENTO ===
+            $malfunzionamento = Malfunzionamento::create($data);
 
-        \Log::info('Nuovo malfunzionamento creato', [
-            'malfunzionamento_id' => $malfunzionamento->id,
-            'prodotto_id' => $prodotto->id,
-            'gravita' => $malfunzionamento->gravita,
-            'created_by' => Auth::id()
-        ]);
+            // === LOG DETTAGLIATO PER DEBUG ===
+            \Log::info('Nuovo malfunzionamento creato con successo', [
+                'malfunzionamento_id' => $malfunzionamento->id,
+                'prodotto_id' => $prodotto->id,
+                'prodotto_nome' => $prodotto->nome,
+                'titolo' => $malfunzionamento->titolo,
+                'gravita' => $malfunzionamento->gravita,
+                'difficolta' => $malfunzionamento->difficolta,
+                'created_by_user_id' => Auth::id(),
+                'created_by_username' => Auth::user()->username,
+                'created_via' => $request->has('prodotto_id') ? 'dashboard_selection' : 'product_page',
+                'timestamp' => now()->toISOString()
+            ]);
 
-        return redirect()->route('malfunzionamenti.show', [$prodotto, $malfunzionamento])
-            ->with('success', 'Malfunzionamento aggiunto con successo');
+            // === REDIRECT DINAMICO BASATO SUL CONTESTO ===
+            if ($request->has('prodotto_id') || $request->route()->getName() === 'staff.store.nuova.soluzione') {
+                // Se veniva dalla dashboard con selezione prodotto (nuova soluzione)
+                return redirect()->route('staff.dashboard')
+                    ->with('success', 
+                        "✅ Nuova soluzione aggiunta con successo!<br>" .
+                        "<strong>Prodotto:</strong> {$prodotto->nome}<br>" .
+                        "<strong>Titolo:</strong> {$malfunzionamento->titolo}"
+                    );
+            } else {
+                // Se veniva dalla pagina specifica del prodotto
+                return redirect()->route('malfunzionamenti.show', [$prodotto, $malfunzionamento])
+                    ->with('success', 
+                        "✅ Soluzione \"{$malfunzionamento->titolo}\" aggiunta con successo!"
+                    );
+            }
+
+        } catch (\Illuminate\Database\QueryException $e) {
+            // === GESTIONE ERRORI DATABASE SPECIFICI ===
+            \Log::error('Errore database durante creazione malfunzionamento', [
+                'error_message' => $e->getMessage(),
+                'error_code' => $e->getCode(),
+                'prodotto_id' => $prodotto->id,
+                'user_id' => Auth::id(),
+                'sql_state' => $e->errorInfo[0] ?? null,
+                'request_data' => $request->except(['_token']),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+
+            // Analizza il tipo di errore SQL per messaggio più specifico
+            $errorMessage = 'Errore nel database durante il salvataggio.';
+            
+            if (str_contains($e->getMessage(), 'foreign key constraint')) {
+                $errorMessage = 'Errore di integrità dei dati. Il prodotto selezionato potrebbe non essere più disponibile.';
+            } elseif (str_contains($e->getMessage(), 'cannot be null') || str_contains($e->getMessage(), 'NOT NULL')) {
+                $errorMessage = 'Alcuni campi obbligatori sono mancanti nel database. Controlla la configurazione.';
+            } elseif (str_contains($e->getMessage(), 'Duplicate entry')) {
+                $errorMessage = 'Questo malfunzionamento potrebbe già esistere per questo prodotto.';
+            } elseif (str_contains($e->getMessage(), 'Data too long')) {
+                $errorMessage = 'Uno o più campi superano la lunghezza massima consentita.';
+            }
+
+            return back()
+                ->withInput()
+                ->withErrors(['database' => $errorMessage])
+                ->with('error', 'Si è verificato un errore durante il salvataggio. Riprova.');
+
+        } catch (\Exception $e) {
+            // === GESTIONE ERRORI GENERICI ===
+            \Log::error('Errore generico durante creazione malfunzionamento', [
+                'error_message' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'prodotto_id' => $prodotto->id,
+                'user_id' => Auth::id(),
+                'request_data' => $request->except(['_token']),
+                'full_trace' => $e->getTraceAsString()
+            ]);
+
+            return back()
+                ->withInput()
+                ->withErrors(['general' => 'Errore imprevisto durante il salvataggio. Riprova o contatta l\'amministratore.'])
+                ->with('error', 'Si è verificato un errore imprevisto. Riprova tra qualche minuto.');
+        }
     }
 
    public function edit(Malfunzionamento $malfunzionamento)

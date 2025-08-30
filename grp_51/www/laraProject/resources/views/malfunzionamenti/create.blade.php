@@ -81,7 +81,7 @@
                     <form method="POST" 
                           action="{{ isset($isNuovaSoluzione) && $isNuovaSoluzione 
                                       ? route('staff.store.nuova.soluzione') 
-                                      : route('malfunzionamenti.store', $prodotto) }}" 
+                                      : route('staff.malfunzionamenti.store', $prodotto) }}" 
                           id="formNuovaSoluzione">
                         @csrf
                         
