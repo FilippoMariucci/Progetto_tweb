@@ -2,7 +2,7 @@
     Dashboard Tecnico - Sistema Assistenza Tecnica
     
     Accessibile solo a utenti con livello_accesso >= 2 (Tecnici)
-    Fornisce accesso completo a prodotti e malfunzionamenti
+    Layout semplificato con ricerca sopra strumenti e layout lineare
     
     Route: GET /tecnico/dashboard
     Controller: AuthController@tecnicoDashboard
@@ -10,10 +10,9 @@
     
     Funzionalità:
     - Panoramica generale dei problemi
-    - Ricerca rapida prodotti e malfunzionamenti  
+    - Ricerca rapida prodotti e malfunzionamenti sopra strumenti
     - Accesso a schede complete con malfunzionamenti
-    - Storico interventi personali
-    - Segnalazione problemi con wildcard search
+    - Layout lineare per strumenti e statistiche
 --}}
 
 @extends('layouts.app')
@@ -51,142 +50,8 @@
         </div>
     </div>
 
-    <div class="row g-4">
-        
-        {{-- === GESTIONE PRINCIPALE === --}}
-        <div class="col-lg-8">
-            <div class="card card-custom">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0">
-                        <i class="bi bi-wrench-adjustable me-2"></i>
-                        Strumenti Tecnici
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        
-                        {{-- Catalogo completo --}}
-                        <div class="col-md-6 col-lg-4">
-                            <a href="{{ route('prodotti.completo.index') }}" class="btn btn-info btn-lg w-100 h-100">
-                                <i class="bi bi-collection display-6 d-block mb-2"></i>
-                                <span class="fw-semibold">Catalogo Completo</span>
-                            </a>
-                        </div>
-                        
-                        {{-- Ricerca malfunzionamenti --}}
-                        <div class="col-md-6 col-lg-4">
-                            <a href="{{ route('malfunzionamenti.ricerca') }}" class="btn btn-warning btn-lg w-100 h-100">
-                                <i class="bi bi-search display-6 d-block mb-2"></i>
-                                <span class="fw-semibold">Cerca Soluzioni</span>
-                            </a>
-                        </div>
-                        
-                        {{-- Centri assistenza --}}
-                        <div class="col-md-6 col-lg-4">
-                            <a href="{{ route('centri.index') }}" class="btn btn-success btn-lg w-100 h-100">
-                                <i class="bi bi-geo-alt display-6 d-block mb-2"></i>
-                                <span class="fw-semibold">Centri Assistenza</span>
-                            </a>
-                        </div>
-                        
-                        {{-- Storico interventi --}}
-                        <div class="col-md-6 col-lg-4">
-                            <a href="{{ route('tecnico.interventi') }}" class="btn btn-primary btn-lg w-100 h-100">
-                                <i class="bi bi-clock-history display-6 d-block mb-2"></i>
-                                <span class="fw-semibold">Miei Interventi</span>
-                            </a>
-                        </div>
-                        
-                        {{-- Prodotti critici --}}
-                        <div class="col-md-6 col-lg-4">
-                            <a href="{{ route('prodotti.completo.index') }}?filter=critici" class="btn btn-danger btn-lg w-100 h-100">
-                                <i class="bi bi-exclamation-triangle display-6 d-block mb-2"></i>
-                                <span class="fw-semibold">Priorità Alta</span>
-                            </a>
-                        </div>
-                        
-                        {{-- Statistiche personali --}}
-                        <div class="col-md-6 col-lg-4">
-                            <a href="{{ route('tecnico.statistiche.view') }}" class="btn btn-secondary btn-lg w-100 h-100">
-                                <i class="bi bi-graph-up display-6 d-block mb-2"></i>
-                                <span class="fw-semibold">Le Mie Stats</span>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- === STATISTICHE GENERALI === --}}
-        <div class="col-lg-4">
-            <div class="card card-custom">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-graph-up text-success me-2"></i>
-                        Statistiche Sistema
-                    </h5>
-                </div>
-                <div class="card-body">
-                    @if(isset($stats) && count($stats) > 0)
-                        <div class="row g-3 text-center">
-                            {{-- Prodotti totali --}}
-                            @if(isset($stats['total_prodotti']))
-                                <div class="col-6">
-                                    <div class="p-3 bg-primary bg-opacity-10 rounded">
-                                        <i class="bi bi-box text-primary fs-1"></i>
-                                        <h4 class="mt-2 mb-1">{{ $stats['total_prodotti'] }}</h4>
-                                        <small class="text-muted">Prodotti</small>
-                                    </div>
-                                </div>
-                            @endif
-                            
-                            {{-- Malfunzionamenti totali --}}
-                            @if(isset($stats['total_malfunzionamenti']))
-                                <div class="col-6">
-                                    <div class="p-3 bg-warning bg-opacity-10 rounded">
-                                        <i class="bi bi-tools text-warning fs-1"></i>
-                                        <h4 class="mt-2 mb-1">{{ $stats['total_malfunzionamenti'] }}</h4>
-                                        <small class="text-muted">Soluzioni</small>
-                                    </div>
-                                </div>
-                            @endif
-                            
-                            {{-- Malfunzionamenti critici --}}
-                            @if(isset($stats['malfunzionamenti_critici']))
-                                <div class="col-6">
-                                    <div class="p-3 bg-danger bg-opacity-10 rounded">
-                                        <i class="bi bi-exclamation-triangle text-danger fs-1"></i>
-                                        <h4 class="mt-2 mb-1">{{ $stats['malfunzionamenti_critici'] }}</h4>
-                                        <small class="text-muted">Critici</small>
-                                    </div>
-                                </div>
-                            @endif
-                            
-                            {{-- Centri assistenza --}}
-                            @if(isset($stats['total_centri']))
-                                <div class="col-6">
-                                    <div class="p-3 bg-success bg-opacity-10 rounded">
-                                        <i class="bi bi-geo-alt text-success fs-1"></i>
-                                        <h4 class="mt-2 mb-1">{{ $stats['total_centri'] }}</h4>
-                                        <small class="text-muted">Centri</small>
-                                    </div>
-                                </div>
-                            @endif
-                        </div>
-                    @else
-                        {{-- Messaggio quando non ci sono statistiche --}}
-                        <div class="text-center py-4">
-                            <i class="bi bi-graph-up text-muted" style="font-size: 3rem;"></i>
-                            <p class="text-muted mt-2">Caricamento statistiche in corso...</p>
-                        </div>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {{-- === RICERCA RAPIDA === --}}
-    <div class="row mt-4">
+    {{-- === RICERCA RAPIDA - POSIZIONATA SOPRA STRUMENTI === --}}
+    <div class="row mb-4">
         <div class="col-12">
             <div class="card card-custom">
                 <div class="card-header bg-light">
@@ -245,6 +110,143 @@
                             <a href="{{ route('malfunzionamenti.ricerca') }}?q=perdita" class="badge bg-light text-dark me-1">perdita</a>
                         </small>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- === LAYOUT LINEARE: STRUMENTI E STATISTICHE === --}}
+    <div class="row g-4 mb-4">
+        
+        {{-- === STRUMENTI TECNICI - LAYOUT LINEARE === --}}
+        <div class="col-12">
+            <div class="card card-custom">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-wrench-adjustable me-2"></i>
+                        Strumenti Tecnici
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        
+                        {{-- Catalogo completo --}}
+                        <div class="col-lg-2 col-md-4 col-sm-6">
+                            <a href="{{ route('prodotti.completo.index') }}" class="btn btn-info btn-lg w-100 h-100">
+                                <i class="bi bi-collection display-6 d-block mb-2"></i>
+                                <span class="fw-semibold">Catalogo Completo</span>
+                            </a>
+                        </div>
+                        
+                        {{-- Ricerca malfunzionamenti --}}
+                        <div class="col-lg-2 col-md-4 col-sm-6">
+                            <a href="{{ route('malfunzionamenti.ricerca') }}" class="btn btn-warning btn-lg w-100 h-100">
+                                <i class="bi bi-search display-6 d-block mb-2"></i>
+                                <span class="fw-semibold">Cerca Soluzioni</span>
+                            </a>
+                        </div>
+                        
+                        {{-- Centri assistenza --}}
+                        <div class="col-lg-2 col-md-4 col-sm-6">
+                            <a href="{{ route('centri.index') }}" class="btn btn-success btn-lg w-100 h-100">
+                                <i class="bi bi-geo-alt display-6 d-block mb-2"></i>
+                                <span class="fw-semibold">Centri Assistenza</span>
+                            </a>
+                        </div>
+                        
+                        {{-- Storico interventi --}}
+                        <div class="col-lg-2 col-md-4 col-sm-6">
+                            <a href="{{ route('tecnico.interventi') }}" class="btn btn-primary btn-lg w-100 h-100">
+                                <i class="bi bi-clock-history display-6 d-block mb-2"></i>
+                                <span class="fw-semibold">Miei Interventi</span>
+                            </a>
+                        </div>
+                        
+                        {{-- Prodotti critici --}}
+                        <div class="col-lg-2 col-md-4 col-sm-6">
+                            <a href="{{ route('prodotti.completo.index') }}?filter=critici" class="btn btn-danger btn-lg w-100 h-100">
+                                <i class="bi bi-exclamation-triangle display-6 d-block mb-2"></i>
+                                <span class="fw-semibold">Priorità Alta</span>
+                            </a>
+                        </div>
+                        
+                        {{-- Statistiche personali --}}
+                        <div class="col-lg-2 col-md-4 col-sm-6">
+                            <a href="{{ route('tecnico.statistiche.view') }}" class="btn btn-secondary btn-lg w-100 h-100">
+                                <i class="bi bi-graph-up display-6 d-block mb-2"></i>
+                                <span class="fw-semibold">Le Mie Stats</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- === STATISTICHE SISTEMA - LAYOUT LINEARE === --}}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card card-custom">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-graph-up text-success me-2"></i>
+                        Statistiche Sistema
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if(isset($stats) && count($stats) > 0)
+                        <div class="row g-3 text-center">
+                            {{-- Prodotti totali --}}
+                            @if(isset($stats['total_prodotti']))
+                                <div class="col-lg-3 col-md-6">
+                                    <div class="p-3 bg-primary bg-opacity-10 rounded">
+                                        <i class="bi bi-box text-primary fs-1"></i>
+                                        <h4 class="mt-2 mb-1">{{ $stats['total_prodotti'] }}</h4>
+                                        <small class="text-muted">Prodotti</small>
+                                    </div>
+                                </div>
+                            @endif
+                            
+                            {{-- Malfunzionamenti totali --}}
+                            @if(isset($stats['total_malfunzionamenti']))
+                                <div class="col-lg-3 col-md-6">
+                                    <div class="p-3 bg-warning bg-opacity-10 rounded">
+                                        <i class="bi bi-tools text-warning fs-1"></i>
+                                        <h4 class="mt-2 mb-1">{{ $stats['total_malfunzionamenti'] }}</h4>
+                                        <small class="text-muted">Soluzioni</small>
+                                    </div>
+                                </div>
+                            @endif
+                            
+                            {{-- Malfunzionamenti critici --}}
+                            @if(isset($stats['malfunzionamenti_critici']))
+                                <div class="col-lg-3 col-md-6">
+                                    <div class="p-3 bg-danger bg-opacity-10 rounded">
+                                        <i class="bi bi-exclamation-triangle text-danger fs-1"></i>
+                                        <h4 class="mt-2 mb-1">{{ $stats['malfunzionamenti_critici'] }}</h4>
+                                        <small class="text-muted">Critici</small>
+                                    </div>
+                                </div>
+                            @endif
+                            
+                            {{-- Centri assistenza --}}
+                            @if(isset($stats['total_centri']))
+                                <div class="col-lg-3 col-md-6">
+                                    <div class="p-3 bg-success bg-opacity-10 rounded">
+                                        <i class="bi bi-geo-alt text-success fs-1"></i>
+                                        <h4 class="mt-2 mb-1">{{ $stats['total_centri'] }}</h4>
+                                        <small class="text-muted">Centri</small>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    @else
+                        {{-- Messaggio quando non ci sono statistiche --}}
+                        <div class="text-center py-4">
+                            <i class="bi bi-graph-up text-muted" style="font-size: 3rem;"></i>
+                            <p class="text-muted mt-2">Caricamento statistiche in corso...</p>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -472,30 +474,30 @@
 @push('scripts')
 <script>
 // =====================================================
-// DASHBOARD TECNICO - JavaScript Corretto
-// Fix per la ricerca non funzionante
+// DASHBOARD TECNICO - JavaScript Semplificato
+// Mantiene le funzionalità essenziali della ricerca
 // =====================================================
 
 $(document).ready(function() {
     // === CONFIGURAZIONE GLOBALE ===
     console.log('Dashboard Tecnico caricata per: {{ auth()->user()->nome_completo }}');
     
-    // URLs corretti per le API (basati sulle route del tuo web.php)
+    // URLs corretti per le API (basati sulle route del progetto)
     const API_URLS = {
-        // Ricerca prodotti per tecnici (route esistente nel ProdottoController)
+        // Ricerca prodotti per tecnici (con accesso ai malfunzionamenti)
         prodotti_search: '{{ route("api.prodotti.search.tech") }}',
         
-        // Ricerca malfunzionamenti (route esistente nel MalfunzionamentoController) 
+        // Ricerca malfunzionamenti (con filtri per tecnici)
         malfunzionamenti_search: '{{ route("api.malfunzionamenti.search") }}',
         
-        // Statistiche dashboard
+        // Statistiche dashboard in tempo reale
         stats_dashboard: '{{ route("api.stats.dashboard") }}',
         
-        // Segnalazione malfunzionamento
+        // Endpoint per segnalazione malfunzionamenti
         segnala_base_url: '{{ url("/api/malfunzionamenti") }}'
     };
     
-    // Token CSRF per tutte le richieste AJAX
+    // Token CSRF per sicurezza nelle richieste AJAX
     const CSRF_TOKEN = $('meta[name="csrf-token"]').attr('content');
     
     // Configurazione AJAX globale per includere sempre il CSRF token
@@ -507,29 +509,31 @@ $(document).ready(function() {
         }
     });
 
-    // === RICERCA CON SUGGERIMENTI AJAX CORRETTA ===
+    // === RICERCA CON SUGGERIMENTI AJAX ===
     let searchTimeout;
     
-    // Ricerca prodotti con debouncing e gestione wildcard
+    // Ricerca prodotti con debouncing per evitare troppe chiamate
     $('#searchProdotti').on('input', function() {
         const query = $(this).val().trim();
         
-        // Cancella timeout precedente per evitare troppe chiamate
+        // Cancella timeout precedente per ottimizzare le performance
         clearTimeout(searchTimeout);
         
         if (query.length >= 2) {
-            // Mostra loading
+            // Mostra indicatore di caricamento
             $(this).addClass('loading-input');
             
+            // Imposta delay di 300ms per ottimizzare le chiamate API
             searchTimeout = setTimeout(() => {
                 cercaProdottiAjax(query);
-            }, 300); // 300ms di delay
+            }, 300);
         } else {
+            // Query troppo corta: nascondi suggerimenti
             hideSuggestions();
         }
     });
     
-    // Ricerca malfunzionamenti con debouncing
+    // Ricerca malfunzionamenti con debouncing più lungo (ricerca più complessa)
     $('#searchMalfunzionamenti').on('input', function() {
         const query = $(this).val().trim();
         
@@ -538,9 +542,10 @@ $(document).ready(function() {
         if (query.length >= 3) {
             $(this).addClass('loading-input');
             
+            // Delay maggiore per malfunzionamenti (500ms) perché è una ricerca più complessa
             searchTimeout = setTimeout(() => {
                 cercaMalfunzionamentiAjax(query);
-            }, 500); // 500ms per malfunzionamenti (ricerca più complessa)
+            }, 500);
         } else {
             hideMalfunzionamentoSuggestions();
         }
@@ -553,10 +558,10 @@ $(document).ready(function() {
             method: 'GET',
             data: { 
                 q: query,
-                limit: 10 // Limita i risultati per performance
+                limit: 10 // Limita risultati per performance
             },
             success: function(response) {
-                // Rimuovi loading
+                // Rimuovi indicatore di loading
                 $('#searchProdotti').removeClass('loading-input');
                 
                 if (response.success && response.data && response.data.length > 0) {
@@ -591,7 +596,7 @@ $(document).ready(function() {
             data: { 
                 q: query,
                 limit: 8,
-                order: 'gravita' // Ordina per gravità di default
+                order: 'gravita' // Ordina per gravità (critici prima)
             },
             success: function(response) {
                 $('#searchMalfunzionamenti').removeClass('loading-input');
@@ -624,7 +629,7 @@ $(document).ready(function() {
         let html = '<div class="list-group position-absolute product-suggestions" style="z-index: 1000; max-height: 400px; overflow-y: auto; width: 100%; box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15); border-radius: 0.375rem;">';
         
         risultati.forEach(function(prodotto) {
-            // Icone per indicare problemi critici
+            // Icone per indicare se ci sono problemi critici
             const criticiIcon = prodotto.critici_count > 0 ? 
                 `<i class="bi bi-exclamation-triangle text-danger ms-1" title="${prodotto.critici_count} problemi critici"></i>` : '';
             
@@ -673,7 +678,7 @@ $(document).ready(function() {
         let html = '<div class="list-group position-absolute malfunction-suggestions" style="z-index: 1000; max-height: 350px; overflow-y: auto; width: 100%; box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15); border-radius: 0.375rem;">';
         
         risultati.forEach(function(malfunzionamento) {
-            // Colori badge per gravità
+            // Colori badge per gravità del problema
             const graviColor = {
                 'critica': 'danger',
                 'alta': 'warning', 
@@ -681,7 +686,7 @@ $(document).ready(function() {
                 'bassa': 'secondary'
             };
             
-            // Colori per difficoltà
+            // Colori per difficoltà di risoluzione
             const difficoltaColor = {
                 'esperto': 'danger',
                 'difficile': 'warning',
@@ -721,6 +726,7 @@ $(document).ready(function() {
         
         html += '</div>';
         
+        // Rimuovi suggerimenti precedenti e mostra nuovi
         hideMalfunzionamentoSuggestions();
         $(targetInput).parent().addClass('position-relative').append(html);
     }
@@ -742,10 +748,10 @@ $(document).ready(function() {
     function showErrorTooltip(selector, message) {
         const $element = $(selector);
         
-        // Rimuovi tooltip esistenti
+        // Rimuovi tooltip esistenti per evitare sovrapposizioni
         $element.tooltip('dispose');
         
-        // Aggiungi nuovo tooltip
+        // Aggiungi nuovo tooltip di errore
         $element.tooltip({
             title: message,
             placement: 'bottom',
@@ -753,35 +759,37 @@ $(document).ready(function() {
             customClass: 'error-tooltip'
         }).tooltip('show');
         
-        // Rimuovi dopo 3 secondi
+        // Rimuovi automaticamente dopo 3 secondi
         setTimeout(function() {
             $element.tooltip('dispose');
         }, 3000);
     }
     
-    // === FUNZIONE SEGNALA MALFUNZIONAMENTO CORRETTA ===
+    // === FUNZIONE SEGNALA MALFUNZIONAMENTO ===
     window.segnalaMalfunzionamento = function(malfunzionamentoId) {
+        // Richiedi conferma dall'utente prima di procedere
         if (!confirm('Confermi di aver riscontrato questo problema? Incrementerà il contatore delle segnalazioni.')) {
             return;
         }
         
-        // Disabilita temporaneamente il pulsante per evitare doppi click
+        // Trova il pulsante e disabilitalo temporaneamente per evitare doppi click
         const $button = $(`[onclick="segnalaMalfunzionamento(${malfunzionamentoId})"]`);
         $button.prop('disabled', true).addClass('loading');
         
+        // Esegui la chiamata AJAX per registrare la segnalazione
         $.ajax({
             url: `${API_URLS.segnala_base_url}/${malfunzionamentoId}/segnala`,
             method: 'POST',
-            data: JSON.stringify({}), // Body vuoto ma JSON valido
+            data: JSON.stringify({}), // Body vuoto ma JSON valido per Laravel
             success: function(response) {
                 if (response.success) {
                     // Mostra messaggio di successo
                     showAlert('Segnalazione registrata con successo!', 'success');
                     
-                    // Aggiorna il contatore visibile
+                    // Aggiorna il contatore visibile nella tabella
                     $(`#count-${malfunzionamentoId}`).text(response.nuovo_count);
                     
-                    // Animazione di feedback
+                    // Aggiungi animazione di feedback per mostrare l'aggiornamento
                     $(`#count-${malfunzionamentoId}`).addClass('badge-updated');
                     setTimeout(() => {
                         $(`#count-${malfunzionamentoId}`).removeClass('badge-updated');
@@ -801,6 +809,7 @@ $(document).ready(function() {
                 
                 let errorMsg = 'Errore nella segnalazione del malfunzionamento.';
                 
+                // Prova a estrarre messaggio di errore dalla risposta
                 try {
                     const response = JSON.parse(xhr.responseText);
                     errorMsg = response.message || errorMsg;
@@ -811,7 +820,7 @@ $(document).ready(function() {
                 showAlert(errorMsg, 'danger');
             },
             complete: function() {
-                // Riabilita il pulsante
+                // Riabilita il pulsante dopo la completazione (successo o errore)
                 $button.prop('disabled', false).removeClass('loading');
             }
         });
@@ -827,7 +836,7 @@ $(document).ready(function() {
             </div>
         `;
         
-        // Inserisci l'alert nel body
+        // Inserisci l'alert nel body per mostrarlo come toast
         $('body').append(alertHtml);
         
         // Rimuovi automaticamente dopo 5 secondi
@@ -847,13 +856,13 @@ $(document).ready(function() {
                 if (response.success && response.data) {
                     console.log('Statistiche aggiornate:', response.data);
                     
-                    // Aggiorna i valori nelle card statistiche se esistono
                     const stats = response.data;
                     
                     // Funzione helper per aggiornare statistiche con animazione
                     function updateStat(selector, newValue) {
                         const $element = $(selector);
                         if ($element.length && $element.text() !== newValue.toString()) {
+                            // Aggiungi classe per animazione di aggiornamento
                             $element.addClass('updating');
                             setTimeout(() => {
                                 $element.text(newValue).removeClass('updating');
@@ -861,7 +870,7 @@ $(document).ready(function() {
                         }
                     }
                     
-                    // Aggiorna le statistiche se gli elementi esistono
+                    // Aggiorna le statistiche se gli elementi esistono nel DOM
                     if (stats.total_prodotti !== undefined) {
                         updateStat('.stats-prodotti', stats.total_prodotti);
                     }
@@ -877,18 +886,18 @@ $(document).ready(function() {
                 }
             },
             error: function(xhr) {
-                // Errore silenzioso per non disturbare l'utente
+                // Errore silenzioso per non disturbare l'esperienza utente
                 console.warn('Aggiornamento statistiche fallito:', xhr.status);
             }
         });
     }
     
-    // Aggiorna statistiche ogni 10 minuti (600000ms)
+    // Avvia aggiornamento automatico statistiche ogni 10 minuti
     const statsUpdateInterval = setInterval(aggiornaStatistiche, 10 * 60 * 1000);
     
     // === GESTIONE EVENTI GENERALI ===
     
-    // Nascondi suggerimenti quando si clicca fuori
+    // Nascondi suggerimenti quando si clicca fuori dall'area di ricerca
     $(document).on('click', function(e) {
         if (!$(e.target).closest('#searchProdotti, #searchMalfunzionamenti, .product-suggestions, .malfunction-suggestions').length) {
             hideSuggestions();
@@ -896,7 +905,7 @@ $(document).ready(function() {
         }
     });
     
-    // Submit con Enter e gestione navigazione con frecce
+    // Gestione navigazione con tastiera nei suggerimenti
     $('#searchProdotti, #searchMalfunzionamenti').on('keydown', function(e) {
         const $suggestions = $(this).parent().find('.product-suggestions, .malfunction-suggestions');
         const $activeItem = $suggestions.find('.list-group-item.active');
@@ -907,7 +916,7 @@ $(document).ready(function() {
                     // Se c'è un elemento attivo, naviga ad esso
                     window.location.href = $activeItem.attr('href');
                 } else {
-                    // Altrimenti, submit del form
+                    // Altrimenti, submit del form normalmente
                     hideSuggestions();
                     hideMalfunzionamentoSuggestions();
                     $(this).closest('form').submit();
@@ -959,19 +968,19 @@ $(document).ready(function() {
             window.location.href = '{{ route("prodotti.completo.index") }}';
         }
         
-        // Ctrl + H = Vai alla home
+        // Ctrl + H = Vai alla dashboard principale
         if (e.ctrlKey && e.key === 'h') {
             e.preventDefault();
             window.location.href = '{{ route("dashboard") }}';
         }
     });
     
-    // === TOOLTIPS E ANIMAZIONI ===
+    // === INIZIALIZZAZIONE TOOLTIP E ANIMAZIONI ===
     
-    // Inizializza tooltip Bootstrap per elementi esistenti
+    // Inizializza tooltip Bootstrap per tutti gli elementi con data-bs-toggle="tooltip"
     $('[data-bs-toggle="tooltip"]').tooltip();
     
-    // Effetto hover sulle card statistiche con animazione migliorata
+    // Effetto hover migliorato per le card con animazione smooth
     $('.card.card-custom').hover(
         function() {
             $(this).addClass('shadow-lg').css('transform', 'translateY(-2px)');
@@ -983,7 +992,7 @@ $(document).ready(function() {
     
     // === FUNZIONI DI DEBUG E TESTING ===
     
-    // Test delle connessioni API
+    // Test delle connessioni API per verificare che tutto funzioni
     function testConnessioniAPI() {
         console.log('🧪 Test delle connessioni API...');
         
@@ -1005,7 +1014,7 @@ $(document).ready(function() {
     
     // === CLEANUP E FINALIZZAZIONE ===
     
-    // Pulizia quando si lascia la pagina
+    // Pulizia quando si lascia la pagina per evitare memory leaks
     $(window).on('beforeunload', function() {
         if (typeof statsUpdateInterval !== 'undefined') {
             clearInterval(statsUpdateInterval);
@@ -1016,12 +1025,12 @@ $(document).ready(function() {
     console.log('✅ Dashboard Tecnico inizializzata completamente');
     console.log('🔧 URLs API configurati:', API_URLS);
     console.log('🚀 Funzioni disponibili:', {
-        'segnalaMalfunzionamento()': 'Segnala un problema',
-        'testConnessioniAPI()': 'Test delle API',
-        'aggiornaStatistiche()': 'Forza aggiornamento stats'
+        'segnalaMalfunzionamento()': 'Segnala un problema riscontrato',
+        'testConnessioniAPI()': 'Test delle connessioni API',
+        'aggiornaStatistiche()': 'Forza aggiornamento statistiche'
     });
     
-    // Esponi funzioni per debugging nella console
+    // Esponi funzioni per debugging nella console del browser
     window.dashboardTecnico = {
         testAPI: testConnessioniAPI,
         updateStats: aggiornaStatistiche,
@@ -1051,8 +1060,8 @@ $(document).ready(function() {
 @push('styles')
 <style>
 /* =====================================================
-   DASHBOARD TECNICO - CSS Corretto
-   Fix per ricerca e animazioni non funzionanti
+   DASHBOARD TECNICO - CSS Semplificato
+   Layout lineare mantenendo le funzionalità originali
    ===================================================== */
 
 /* === STILI BASE PER DASHBOARD TECNICO === */
@@ -1080,7 +1089,7 @@ $(document).ready(function() {
     transform: scale(1.02);
 }
 
-/* Indicatore di loading per input */
+/* Indicatore di loading per input durante la ricerca */
 .loading-input {
     background-image: url("data:image/svg+xml,%3csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3e%3cg fill='none' fill-rule='evenodd'%3e%3cg fill='%236c757d'%3e%3ccircle cx='10' cy='10' r='1'%3e%3canimate attributeName='r' begin='0s' dur='1.8s' values='1; 4; 1' calcMode='spline' keyTimes='0; .5; 1' keySplines='0.165, 0.84, 0.44, 1; 0.3, 0.61, 0.355, 1' repeatCount='indefinite'/%3e%3canimate attributeName='stroke-opacity' begin='0s' dur='1.8s' values='1; 0; 1' calcMode='spline' keyTimes='0; .5; 1' keySplines='0.3, 0.61, 0.355, 1; 0.165, 0.84, 0.44, 1' repeatCount='indefinite'/%3e%3c/circle%3e%3c/g%3e%3c/g%3e%3c/svg%3e");
     background-repeat: no-repeat;
@@ -1143,7 +1152,7 @@ $(document).ready(function() {
     transition: all 0.2s ease;
 }
 
-/* Animazione per badge aggiornati */
+/* Animazione per badge aggiornati dopo segnalazione */
 .badge-updated {
     animation: badge-pulse 2s ease-in-out;
     transform: scale(1.2);
@@ -1164,7 +1173,7 @@ $(document).ready(function() {
     }
 }
 
-/* Colori personalizzati per gravità */
+/* Colori personalizzati per badge di gravità */
 .badge.bg-danger {
     background-color: #dc3545 !important;
     animation: pulse-danger 2s infinite ease-in-out;
@@ -1263,7 +1272,7 @@ $(document).ready(function() {
     100% { transform: rotate(360deg); }
 }
 
-/* Effetti hover per pulsanti grandi */
+/* Effetti hover per pulsanti grandi degli strumenti */
 .btn-lg:hover {
     transform: translateY(-2px);
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
@@ -1451,7 +1460,7 @@ mark, .highlight {
         font-size: 0.75rem;
     }
     
-    /* Alert responsive */
+    /* Alert responsive per mobile */
     .alert {
         position: static !important;
         margin: 0.5rem;
@@ -1461,8 +1470,10 @@ mark, .highlight {
 }
 
 @media (max-width: 576px) {
-    .col-lg-4, .col-md-6 {
-        margin-bottom: 1rem;
+    /* Layout compatto per schermi molto piccoli */
+    .col-lg-2 {
+        flex: 0 0 auto;
+        width: 50%; /* Due pulsanti per riga su mobile */
     }
     
     .row.g-4 {
@@ -1473,6 +1484,10 @@ mark, .highlight {
     /* Nasconde alcuni elementi non essenziali su schermi molto piccoli */
     .badge.bg-light.text-dark {
         display: none;
+    }
+    
+    .form-text {
+        font-size: 0.75rem;
     }
 }
 
