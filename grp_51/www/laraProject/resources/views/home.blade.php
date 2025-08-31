@@ -32,7 +32,7 @@
                         Accedi a soluzioni rapide per i malfunzionamenti più comuni e trova il centro assistenza più vicino.
                     </p>
                     <div class="d-flex flex-wrap gap-3 mb-4">
-                        <a href="{{ route('prodotti.index') }}" class="btn btn-warning btn-lg">
+                        <a href="{{ route('prodotti.pubblico.index') }}" class="btn btn-warning btn-lg">
                             <i class="bi bi-box me-2"></i>Esplora Catalogo
                         </a>
                         <a href="{{ route('centri.index') }}" class="btn btn-outline-light btn-lg">
@@ -83,7 +83,7 @@
                         <i class="bi bi-search text-primary me-2"></i>
                         Ricerca Rapida Prodotti
                     </h2>
-                    <form action="{{ route('prodotti.index') }}" method="GET" class="row g-3" id="search-form">
+                    <form action="{{ route('prodotti.pubblico.index') }}" method="GET" class="row g-3" id="search-form">
                         <div class="col-md-6">
                             <div class="position-relative">
                                 <input type="text" 
@@ -610,7 +610,7 @@
                         qualsiasi problema con i tuoi elettrodomestici.
                     </p>
                     <div class="d-flex flex-wrap justify-content-center gap-3">
-                        <a href="{{ route('prodotti.index') }}" class="btn btn-primary btn-lg">
+                        <a href="{{ route('prodotti.pubblico.index') }}" class="btn btn-primary btn-lg">
                             <i class="bi bi-search me-2"></i>Cerca Soluzione
                         </a>
                         <a href="{{ route('centri.index') }}" class="btn btn-outline-primary btn-lg">
@@ -768,7 +768,7 @@ $(document).ready(function() {
             
             response.data.forEach(function(prodotto) {
                 const fotoUrl = prodotto.foto_url || '/images/no-image.png';
-                const prodottoUrl = prodotto.url || `{{ route('prodotti.index') }}`;
+                const prodottoUrl = prodotto.url || `{{ route('prodotti.pubblico.index') }}`;
                 
                 html += `
                     <div class="col-md-6">
@@ -806,7 +806,7 @@ $(document).ready(function() {
             if (response.data.length >= 8) {
                 html += `
                     <div class="text-center mt-3">
-                        <a href="{{ route('prodotti.index') }}?search=${encodeURIComponent(query)}" 
+                        <a href="{{ route('prodotti.pubblico.index') }}?search=${encodeURIComponent(query)}" 
                            class="btn btn-outline-primary">
                             <i class="bi bi-arrow-right me-1"></i>
                             Vedi tutti i risultati per "${query}"
@@ -836,7 +836,7 @@ $(document).ready(function() {
                     <p class="text-muted small mb-3">
                         Non abbiamo trovato prodotti corrispondenti a "<strong>${query}</strong>"
                     </p>
-                    <a href="{{ route('prodotti.index') }}" class="btn btn-outline-primary btn-sm">
+                    <a href="{{ route('prodotti.pubblico.index') }}" class="btn btn-outline-primary btn-sm">
                         <i class="bi bi-grid me-1"></i>Sfoglia tutto il catalogo
                     </a>
                 </div>

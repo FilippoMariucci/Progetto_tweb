@@ -35,10 +35,10 @@ Route::post('/contatti/invia', [HomeController::class, 'inviaContatto'])->name('
 
 // === CATALOGO PRODOTTI PUBBLICO (senza malfunzionamenti) ===
 // Visualizzazione lista prodotti per utenti non registrati
-Route::get('/catalogo', [ProdottoController::class, 'indexPubblico'])->name('prodotti.index');
+Route::get('/catalogo', [ProdottoController::class, 'indexPubblico'])->name('prodotti.pubblico.index');
 
 // Dettaglio singolo prodotto (scheda tecnica senza malfunzionamenti)
-Route::get('/prodotti/{prodotto}', [ProdottoController::class, 'showPubblico'])->name('prodotti.show');
+Route::get('/prodotti/{prodotto}', [ProdottoController::class, 'showPubblico'])->name('prodotti.pubblico.show');
 
 // Filtraggio prodotti per categoria
 Route::get('/prodotti/categoria/{categoria}', [ProdottoController::class, 'categoria'])->name('prodotti.categoria');

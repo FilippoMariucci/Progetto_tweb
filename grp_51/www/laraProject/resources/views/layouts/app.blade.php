@@ -182,7 +182,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ route('prodotti.index') }}">
+                        <a class="nav-link" href="{{ route('prodotti.pubblico.index') }}">
                             <i class="bi bi-box me-1"></i>Catalogo Pubblico
                         </a>
                     </li>

@@ -57,8 +57,8 @@
             <div class="card shadow-sm border-0">
                 <div class="card-body py-3">
                     {{-- Form di ricerca con layout responsivo --}}
-                    <form method="GET" action="{{ route('prodotti.index') }}" class="row g-3">
-                        
+                    <form method="GET" action="{{ route('prodotti.pubblico.index') }}" class="row g-3">
+
                         {{-- Campo di ricerca principale con wildcard --}}
                         <div class="col-lg-6 col-md-8">
                             <label for="search" class="form-label fw-semibold text-primary">
@@ -109,7 +109,7 @@
                                     <i class="bi bi-search me-1"></i>Cerca
                                 </button>
                                 {{-- Pulsante reset filtri --}}
-                                <a href="{{ route('prodotti.index') }}" 
+                                <a href="{{ route('prodotti.pubblico.index') }}" 
                                    class="btn btn-outline-secondary btn-lg" 
                                    title="Rimuovi tutti i filtri">
                                     <i class="bi bi-arrow-clockwise"></i>
@@ -142,14 +142,14 @@
                     </span>
                     
                     {{-- Link "Tutte" sempre visibile --}}
-                    <a href="{{ route('prodotti.index') }}" 
+                    <a href="{{ route('prodotti.pubblico.index') }}" 
                        class="badge {{ !request('categoria') ? 'bg-primary' : 'bg-light text-dark border' }} fs-6 py-2 px-3 text-decoration-none">
                         Tutte ({{ $stats['total_prodotti'] ?? 0 }})
                     </a>
                     
                     {{-- Links per ogni categoria --}}
                     @foreach($categorie as $cat)
-                        <a href="{{ route('prodotti.index') }}?categoria={{ urlencode($cat) }}" 
+                        <a href="{{ route('prodotti.pubblico.index') }}?categoria={{ urlencode($cat) }}" 
                            class="badge {{ request('categoria') == $cat ? 'bg-primary' : 'bg-light text-dark border' }} fs-6 py-2 px-3 text-decoration-none">
                             {{ ucfirst(str_replace('_', ' ', $cat)) }}
                             {{-- Conta prodotti per categoria se disponibile --}}
@@ -185,7 +185,7 @@
                             </div>
                         </div>
                         <div class="col-lg-4 text-end mt-2 mt-lg-0">
-                            <a href="{{ route('prodotti.index') }}" class="btn btn-outline-info btn-sm">
+                            <a href="{{ route('prodotti.pubblico.index') }}" class="btn btn-outline-info btn-sm">
                                 <i class="bi bi-x-circle me-1"></i>Rimuovi filtri
                             </a>
                         </div>
@@ -237,7 +237,7 @@
                         {{-- Overlay con azioni rapide (visibile al hover) --}}
                         <div class="position-absolute bottom-0 start-0 w-100 p-3 product-overlay">
                             <div class="d-flex gap-2">
-                                <a href="{{ route('prodotti.show', $prodotto) }}" 
+                                <a href="{{ route('prodotti.pubblico.show', $prodotto) }}" 
                                    class="btn btn-light btn-sm flex-fill text-center">
                                     <i class="bi bi-eye me-1"></i>Dettagli
                                 </a>
@@ -289,7 +289,7 @@
 
                         {{-- Pulsante azione principale --}}
                         <div class="d-grid">
-                            <a href="{{ route('prodotti.show', $prodotto) }}" 
+                            <a href="{{ route('prodotti.pubblico.show', $prodotto) }}" 
                                class="btn btn-outline-primary btn-lg">
                                 <i class="bi bi-eye me-2"></i>
                                 Visualizza Scheda Tecnica
@@ -338,7 +338,7 @@
                                 </div>
                                 
                                 <div class="d-flex gap-3 justify-content-center flex-wrap">
-                                    <a href="{{ route('prodotti.index') }}" class="btn btn-primary">
+                                    <a href="{{ route('prodotti.pubblico.index') }}" class="btn btn-primary">
                                         <i class="bi bi-arrow-left me-1"></i>Vedi tutti i prodotti
                                     </a>
                                     <button type="button" class="btn btn-outline-secondary" onclick="$('#search').focus()">
