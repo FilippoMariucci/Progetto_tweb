@@ -18,12 +18,12 @@
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item">
-                        <a href="{{ route('prodotti.index') }}" class="text-decoration-none">
+                        <a href="{{ route('prodotti.pubblico.index') }}" class="text-decoration-none">
                             <i class="bi bi-box me-1"></i>Catalogo
                         </a>
                     </li>
                     <li class="breadcrumb-item">
-                        <a href="{{ route('prodotti.show', $prodotto) }}" class="text-decoration-none">
+                        <a href="{{ route('prodotti.pubblico.show', $prodotto) }}" class="text-decoration-none">
                             {{ $prodotto->nome }}
                         </a>
                     </li>

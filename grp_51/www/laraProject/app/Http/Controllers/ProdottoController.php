@@ -550,6 +550,19 @@ class ProdottoController extends Controller
         return view('admin.prodotti.index', compact('prodotti', 'staffMembers', 'stats'));
     }
 
+    public function adminIndex(Request $request)
+{
+    // Verifica autorizzazione
+    if (!Auth::check() || !Auth::user()->canManageProdotti()) {
+        abort(403, 'Accesso riservato agli amministratori');
+    }
+
+    // Se hai già il metodo index(), puoi semplicemente chiamarlo
+    return $this->index($request);
+
+    // OPPURE implementa una logica specifica per admin se necessario
+}
+
     // ================================================
     // API ENDPOINTS - CORRETTI
     // ================================================

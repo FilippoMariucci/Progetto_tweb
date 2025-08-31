@@ -442,10 +442,10 @@
                         <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary">
                             <i class="bi bi-house me-1"></i>Dashboard Generale
                         </a>
-                        <a href="{{ route('prodotti.index') }}" class="btn btn-outline-primary">
+                        <a href="{{ route('prodotti.pubblico.index') }}" class="btn btn-outline-primary">
                             <i class="bi bi-box me-1"></i>Vista Pubblica
                         </a>
-                        <a href="{{ route('prodotti.index') }}?view=tech" class="btn btn-outline-info">
+                        <a href="{{ route('prodotti.completo.index') }}?view=tech" class="btn btn-outline-info">
                             <i class="bi bi-tools me-1"></i>Vista Tecnico
                         </a>
                         <a href="{{ route('documentazione') }}" class="btn btn-outline-success" target="_blank">
