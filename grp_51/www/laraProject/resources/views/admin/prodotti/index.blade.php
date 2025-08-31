@@ -401,23 +401,21 @@
                                                     </a>
                                                 </li>
                                                 <li><hr class="dropdown-divider"></li>
-                                                @if($prodotto->attivo)
-                                                    <li>
-                                                        <a class="dropdown-item text-warning" 
-                                                           href="#" 
-                                                           onclick="toggleStatus({{ $prodotto->id }}, false)">
-                                                            <i class="bi bi-x-circle me-2"></i>Disattiva
-                                                        </a>
-                                                    </li>
-                                                @else
-                                                    <li>
-                                                        <a class="dropdown-item text-success" 
-                                                           href="#" 
-                                                           onclick="toggleStatus({{ $prodotto->id }}, true)">
-                                                            <i class="bi bi-check-circle me-2"></i>Attiva
-                                                        </a>
-                                                    </li>
-                                                @endif
+                                                {{-- Toggle stato attivo/inattivo --}}
+                    @if(Route::has('admin.prodotti.toggle-status'))
+                    <form action="{{ route('admin.prodotti.toggle-status', $prodotto) }}" 
+                          method="POST" 
+                          class="d-inline"
+                          onsubmit="return confirmToggleStatus({{ $prodotto->attivo ? 'true' : 'false' }})">
+                        @csrf
+                        <button type="submit" 
+                                class="btn {{ $prodotto->attivo ? 'btn-danger' : 'btn-success' }}"
+                                title="{{ $prodotto->attivo ? 'Disattiva prodotto' : 'Attiva prodotto' }}">
+                            <i class="bi bi-{{ $prodotto->attivo ? 'pause' : 'play' }} me-1"></i>
+                            {{ $prodotto->attivo ? 'Disattiva' : 'Attiva' }}
+                        </button>
+                    </form>
+                    @endif
                                                 <li>
                                                     <a class="dropdown-item text-danger" 
                                                        href="#" 

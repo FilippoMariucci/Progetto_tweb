@@ -397,7 +397,7 @@
                         @endif
 
                         @if($user->isStaff())
-                            <a href="{{ route('admin.assegnazioni', ['staff_id' => $user->id]) }}" class="btn btn-outline-primary btn-sm">
+                            <a href="{{ route('admin.assegnazioni.index', ['staff_id' => $user->id]) }}" class="btn btn-outline-primary btn-sm">
                                 <i class="bi bi-box-seam me-1"></i>Gestisci Prodotti
                             </a>
                         @endif

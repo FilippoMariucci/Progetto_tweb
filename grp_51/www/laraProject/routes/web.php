@@ -185,7 +185,7 @@ Route::prefix('api')->name('api.')->group(function () {
                 // === STATISTICHE AMMINISTRATIVE ===
                 
                 // Aggiornamento statistiche dashboard admin
-                Route::get('/stats-update', [AdminController::class, 'apiStatsUpdate'])->name('stats.update');
+                Route::get('/stats-update', [AdminController::class, 'statsUpdate'])->name('stats.update');
                 
                 // Controllo stato sistema
                 Route::get('/system-status', [AdminController::class, 'apiSystemStatus'])->name('system.status');
