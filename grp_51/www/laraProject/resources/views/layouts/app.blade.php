@@ -225,7 +225,7 @@
                         </li>
 
                         {{-- MENU SPECIALIZZATO PER TECNICI E SUPERIORI --}}
-                        @if($livello >= 2)
+                        @if($livello == 2||$livello == 3)
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
                                     <i class="bi bi-exclamation-triangle me-1"></i>Malfunzionamenti
@@ -240,7 +240,7 @@
                                             <i class="bi bi-list-ul me-1"></i>Elenco Problemi
                                         </a></li>
                                     @else
-                                        {{-- STAFF E ADMIN: Gestione completa --}}
+                                        {{-- STAFF: Gestione completa --}}
                                         <li><a class="dropdown-item" href="{{ route('prodotti.completo.index') }}">
                                             <i class="bi bi-box-seam me-1"></i>Catalogo Completo
                                         </a></li>
