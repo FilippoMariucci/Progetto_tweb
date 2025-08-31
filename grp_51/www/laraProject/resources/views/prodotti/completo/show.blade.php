@@ -278,7 +278,7 @@
                                                         </a>
                                                         
                                                         <form method="POST" 
-                                                              action="{{ route('staff.malfunzionamenti.destroy', $malfunzionamento) }}" 
+                                                              action="{{ route('staff.malfunzionamenti.destroy', [$prodotto, $malfunzionamento]) }}" 
                                                               class="d-inline"
                                                               onsubmit="return confirm('Confermi l\'eliminazione di questo malfunzionamento?')">
                                                             @csrf

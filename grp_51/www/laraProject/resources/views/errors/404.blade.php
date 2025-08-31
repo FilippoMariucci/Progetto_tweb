@@ -127,7 +127,7 @@
         </div>
         
         <div class="links">
-            <a href="{{ route('prodotti.index') }}">Prodotti</a>
+            <a href="{{ route('prodotti.pubblico.index') }}">Prodotti</a>
             <a href="{{ route('centri.index') }}">Centri Assistenza</a>
             <a href="{{ route('contatti') }}">Contatti</a>
             <a href="{{ route('login') }}">Accedi</a>

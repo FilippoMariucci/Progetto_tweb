@@ -272,7 +272,7 @@
                         <!-- === PULSANTI AZIONE === -->
                         <div class="d-flex justify-content-between align-items-center pt-3 border-top">
                             <div>
-                                <a href="{{ route('malfunzionamenti.show', [$prodotto, $malfunzionamento]) }}" class="btn btn-outline-secondary">
+                                <a href="{{ route('staff.malfunzionamenti.show', [$prodotto, $malfunzionamento]) }}" class="btn btn-outline-secondary">
                                     <i class="bi bi-arrow-left me-1"></i>Annulla
                                 </a>
                             </div>
@@ -444,7 +444,7 @@
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
-                        <a href="{{ route('staff.malfunzionamenti.index') }}" class="btn btn-outline-info btn-sm">
+                        <a href="{{ route('malfunzionamenti.ricerca') }}" class="btn btn-outline-info btn-sm">
                             <i class="bi bi-list me-1"></i>Tutte le Soluzioni
                         </a>
                         <a href="{{ route('staff.malfunzionamenti.create', $prodotto) }}" class="btn btn-outline-success btn-sm">
@@ -522,7 +522,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                <form action="{{ route('staff.malfunzionamenti.destroy', $malfunzionamento) }}" method="POST" style="display: inline;">
+                <form action="{{ route('staff.malfunzionamenti.destroy', [$prodotto, $malfunzionamento]) }}" method="POST" style="display: inline;">
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="btn btn-danger" id="confirmDeleteBtn" disabled>

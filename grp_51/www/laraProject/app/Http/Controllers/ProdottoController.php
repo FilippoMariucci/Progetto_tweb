@@ -422,6 +422,93 @@ class ProdottoController extends Controller
         }
     }
 
+    public function apiSearchTech(Request $request)
+    {
+        // Verifica autorizzazione
+        if (!Auth::check() || !Auth::user()->canViewMalfunzionamenti()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Accesso riservato ai tecnici'
+            ], 403);
+        }
+
+        try {
+            $request->validate([
+                'q' => 'required|string|min:1|max:100',
+            ]);
+
+            $searchTerm = trim($request->input('q'));
+
+            $query = Prodotto::where('attivo', true);
+
+            // Ricerca con wildcard
+            if (str_ends_with($searchTerm, '*')) {
+                $searchTerm = rtrim($searchTerm, '*');
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('nome', 'LIKE', $searchTerm . '%')
+                      ->orWhere('descrizione', 'LIKE', $searchTerm . '%')
+                      ->orWhere('modello', 'LIKE', $searchTerm . '%');
+                });
+            } else {
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('nome', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('descrizione', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('modello', 'LIKE', '%' . $searchTerm . '%');
+                });
+            }
+
+            // Include conteggio malfunzionamenti per vista tecnica
+            $prodotti = $query->withCount([
+                    'malfunzionamenti',
+                    'malfunzionamenti as critici_count' => function($query) {
+                        $query->where('gravita', 'critica');
+                    }
+                ])
+                ->with('staffAssegnato:id,nome,cognome')
+                ->select([
+                    'id', 'nome', 'modello', 'descrizione', 
+                    'categoria', 'prezzo', 'foto', 'staff_assegnato_id'
+                ])
+                ->orderBy('nome')
+                ->limit(20)
+                ->get();
+
+            // Formatta risultati per tecnici
+            $results = $prodotti->map(function($prodotto) {
+                return [
+                    'id' => $prodotto->id,
+                    'nome' => $prodotto->nome,
+                    'modello' => $prodotto->modello,
+                    'categoria' => $prodotto->categoria,
+                    'foto_url' => $prodotto->foto ? asset('storage/' . $prodotto->foto) : null,
+                    'malfunzionamenti_count' => $prodotto->malfunzionamenti_count,
+                    'critici_count' => $prodotto->critici_count,
+                    'staff_assegnato' => $prodotto->staffAssegnato ? $prodotto->staffAssegnato->nome_completo : null,
+                    'url' => route('prodotti.completo.show', $prodotto->id)
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $results,
+                'total' => $results->count(),
+                'search_term' => $request->input('q'),
+                'timestamp' => now()->toISOString()
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Errore in apiSearchTech', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Errore nella ricerca tecnica'
+            ], 500);
+        }
+    }
+
     // ================================================
     // METODO CATEGORIA GENERICO - CORRETTO
     // ================================================

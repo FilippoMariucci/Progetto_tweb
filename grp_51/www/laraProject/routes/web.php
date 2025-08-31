@@ -294,10 +294,10 @@ Route::get('/storico-interventi', [AuthController::class, 'storicoInterventi'])
             Route::get('/malfunzionamenti/{malfunzionamento}/edit', [MalfunzionamentoController::class, 'edit'])->name('malfunzionamenti.edit');
             
             // Aggiornamento malfunzionamento
-            Route::put('/malfunzionamenti/{malfunzionamento}', [MalfunzionamentoController::class, 'update'])->name('malfunzionamenti.update');
-            
-            // Eliminazione malfunzionamento
-            Route::delete('/malfunzionamenti/{malfunzionamento}', [MalfunzionamentoController::class, 'destroy'])->name('malfunzionamenti.destroy');
+            Route::put('/prodotti/{prodotto}/malfunzionamenti/{malfunzionamento}', [MalfunzionamentoController::class, 'update'])->name('malfunzionamenti.update');
+
+       Route::delete('/prodotti/{prodotto}/malfunzionamenti/{malfunzionamento}', [MalfunzionamentoController::class, 'destroy'])
+    ->name('malfunzionamenti.destroy');
             
             // Visualizzazione dettagliata per staff (con opzioni di modifica)
             Route::get('/prodotti/{prodotto}/malfunzionamenti/{malfunzionamento}', [MalfunzionamentoController::class, 'show'])->name('malfunzionamenti.show');
@@ -853,7 +853,7 @@ Route::fallback(function () {
             'user' => Auth::user(),
             'suggested_routes' => [
                 'Dashboard' => route('dashboard'),
-                'Prodotti' => route('prodotti.index'),
+                'Prodotti' => route('prodotti.pubblico.index'),
                 'Centri Assistenza' => route('centri.index'),
                 'Profilo' => route('profilo')
             ]

@@ -335,7 +335,7 @@
     
     {{-- Gestione (per staff) --}}
     @if(auth()->user()->canManageMalfunzionamenti())
-        <a href="{{ route('staff.malfunzionamenti.edit', [$prodotto, $malfunzionamento]) }}" 
+        <a href="{{ route('staff.malfunzionamenti.edit', [$malfunzionamento]) }}" 
            class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-pencil me-1"></i>Modifica
         </a>
@@ -401,7 +401,7 @@
                             <p class="text-muted">
                                 Non ci sono malfunzionamenti noti per questo prodotto.
                             </p>
-                            <a href="{{ route('prodotti.show', $prodotto) }}" class="btn btn-outline-primary">
+                            <a href="{{ route('prodotti.completo.show', $prodotto) }}" class="btn btn-outline-primary">
                                 <i class="bi bi-arrow-left me-1"></i>Torna al Prodotto
                             </a>
                         @endif
@@ -410,7 +410,7 @@
                         @auth
                             @if(auth()->user()->canManageMalfunzionamenti())
                                 <div class="mt-4">
-                                    <a href="{{ route('malfunzionamenti.create', $prodotto) }}" class="btn btn-primary">
+                                    <a href="{{ route('staff.malfunzionamenti.create', $prodotto) }}" class="btn btn-primary">
                                         <i class="bi bi-plus-circle me-1"></i>Aggiungi Primo Malfunzionamento
                                     </a>
                                 </div>

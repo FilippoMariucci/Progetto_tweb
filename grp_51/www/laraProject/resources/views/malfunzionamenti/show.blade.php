@@ -172,7 +172,7 @@
                         
                         {{-- Torna all'elenco --}}
                         <a href="{{ route('malfunzionamenti.index', $prodotto) }}" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-left me-1"></i>Torna all'Elenco
+                            <i class="bi bi-arrow-left me-1"></i>Torna all'Elenco Malfunzionamenti di {{ $prodotto->nome }}
                         </a>
                         
                         {{-- SEGNALA PROBLEMA (per tecnici e staff) --}}
@@ -195,16 +195,13 @@
                                     <i class="bi bi-pencil me-1"></i>Modifica Soluzione
                                 </a>
                                 
-                                <form action="{{ route('staff.malfunzionamenti.destroy', $malfunzionamento) }}" 
-                                      method="POST" 
-                                      class="d-inline"
-                                      onsubmit="return confirm('Sei sicuro di voler eliminare questo malfunzionamento? Questa azione non può essere annullata.')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-outline-danger">
-                                        <i class="bi bi-trash me-1"></i>Elimina
-                                    </button>
-                                </form>
+                                <form action="{{ route('staff.malfunzionamenti.destroy', [$prodotto, $malfunzionamento]) }}" method="POST" class="d-inline">
+    @csrf
+    @method('DELETE')
+    <button type="submit" class="btn btn-outline-danger">
+        <i class="bi bi-trash me-1"></i>Elimina
+    </button>
+</form>
                             @endif
                         @endauth
                     </div>
