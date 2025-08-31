@@ -101,7 +101,7 @@ class ProdottoController extends Controller
         ]);
         
         // CORREZIONE: Usa vista esistente con flag
-        return view('prodotti.show', compact('prodotto', 'showMalfunzionamenti', 'isPublicView'));
+        return view('prodotti.pubblico.show', compact('prodotto', 'showMalfunzionamenti', 'isPublicView'));
     }
 
     // ================================================
@@ -602,7 +602,7 @@ class ProdottoController extends Controller
                     'categoria' => $prodotto->categoria,
                     'prezzo' => $prodotto->prezzo ? '€ ' . number_format($prodotto->prezzo, 2, ',', '.') : null,
                     'foto_url' => $prodotto->foto ? asset('storage/' . $prodotto->foto) : null,
-                    'url' => route('prodotti.show', $prodotto->id)
+                    'url' => route('prodotti.pubblico.show', $prodotto->id)
                 ];
             });
 
@@ -657,7 +657,7 @@ class ProdottoController extends Controller
                     'categoria' => $prodotto->categoria,
                     'prezzo' => $prodotto->prezzo ? '€ ' . number_format($prodotto->prezzo, 2, ',', '.') : null,
                     'foto_url' => $prodotto->foto ? asset('storage/' . $prodotto->foto) : null,
-                    'url' => route('prodotti.show', $prodotto->id)
+                    'url' => route('prodotti.pubblico.show', $prodotto->id)
                 ];
             });
 

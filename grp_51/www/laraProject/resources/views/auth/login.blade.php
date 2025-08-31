@@ -103,7 +103,7 @@
                         </a>
                     </div>
                     <div class="col-6">
-                        <a href="{{ route('prodotti.index') }}" class="btn btn-outline-primary btn-sm w-100">
+                        <a href="{{ route('prodotti.pubblico.index') }}" class="btn btn-outline-primary btn-sm w-100">
                             <i class="bi bi-box me-1"></i>
                             Catalogo Pubblico
                         </a>
