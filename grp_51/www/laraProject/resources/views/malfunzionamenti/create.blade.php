@@ -85,50 +85,229 @@
                           id="formNuovaSoluzione">
                         @csrf
                         
-                        {{-- SELEZIONE PRODOTTO (solo per nuova soluzione dalla dashboard) --}}
-                        @if(isset($isNuovaSoluzione) && $isNuovaSoluzione)
-                            <div class="mb-4">
-                                <label for="prodotto_id" class="form-label fw-bold">
-                                    <i class="bi bi-box-seam text-primary me-2"></i>
-                                    Seleziona Prodotto <span class="text-danger">*</span>
-                                </label>
-                                
-                                <select class="form-select @error('prodotto_id') is-invalid @enderror" 
-                                        id="prodotto_id" 
-                                        name="prodotto_id" 
-                                        required>
-                                    <option value="">-- Scegli un prodotto --</option>
-                                    
-                                    {{-- Raggruppa i prodotti per categoria per facilitare la ricerca --}}
-                                    @php
-                                        $prodottiGrouped = $prodotti->groupBy('categoria');
-                                    @endphp
-                                    
-                                    @foreach($prodottiGrouped as $categoria => $prodottiCategoria)
-                                        <optgroup label="{{ ucfirst($categoria) }}">
-                                            @foreach($prodottiCategoria as $prod)
-                                                <option value="{{ $prod->id }}" 
-                                                        {{ old('prodotto_id') == $prod->id ? 'selected' : '' }}
-                                                        data-categoria="{{ $prod->categoria }}"
-                                                        data-modello="{{ $prod->modello }}">
-                                                    {{ $prod->nome }} 
-                                                    @if($prod->modello) - {{ $prod->modello }} @endif
-                                                </option>
-                                            @endforeach
-                                        </optgroup>
-                                    @endforeach
-                                </select>
-                                
-                                @error('prodotto_id')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                                
-                                <div class="form-text">
-                                    <i class="bi bi-info-circle me-1"></i>
-                                    I prodotti sono raggruppati per categoria per facilitare la ricerca
-                                </div>
+                        {{-- 
+    SEZIONE SELEZIONE PRODOTTO COMPLETA - SOLO PRODOTTI ASSEGNATI ALLO STAFF
+    Sostituisce la sezione originale nel template malfunzionamenti/create.blade.php
+--}}
+@if(isset($isNuovaSoluzione) && $isNuovaSoluzione)
+    
+    {{-- Alert informativo per sistema di assegnazione --}}
+    <div class="alert alert-success border-start border-success border-4 mb-4">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-shield-check me-3 fs-4"></i>
+            <div>
+                <h6 class="alert-heading mb-1">Sistema di Assegnazione Attivo</h6>
+                <p class="mb-0">
+                    Come membro dello staff, puoi creare soluzioni <strong>solo per i prodotti che ti sono stati assegnati</strong> dall'amministratore. 
+                    Questo garantisce una gestione organizzata e responsabile del catalogo prodotti.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    {{-- Statistiche prodotti assegnati --}}
+    @if(isset($statsAssegnati) && $statsAssegnati['totale'] > 0)
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body py-3">
+                <div class="row align-items-center">
+                    <div class="col-lg-8">
+                        <h6 class="mb-2">
+                            <i class="bi bi-graph-up text-success me-2"></i>
+                            Riepilogo dei Tuoi Prodotti Assegnati
+                        </h6>
+                        <div class="d-flex flex-wrap gap-3">
+                            <span class="badge bg-primary px-3 py-2">
+                                <i class="bi bi-box me-1"></i>{{ $statsAssegnati['totale'] }} Totali
+                            </span>
+                            @if($statsAssegnati['con_problemi'] > 0)
+                                <span class="badge bg-warning px-3 py-2">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>{{ $statsAssegnati['con_problemi'] }} Con Problemi
+                                </span>
+                            @endif
+                            <span class="badge bg-success px-3 py-2">
+                                <i class="bi bi-check-circle me-1"></i>{{ $statsAssegnati['senza_problemi'] }} Senza Problemi
+                            </span>
+                            <span class="badge bg-info px-3 py-2">
+                                <i class="bi bi-collection me-1"></i>{{ $statsAssegnati['per_categoria']->count() }} Categorie
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 text-end mt-2 mt-lg-0">
+                        <a href="{{ route('prodotto.completo.index') }}" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-list me-1"></i>Gestisci i Miei Prodotti
+                        </a>
+                    </div>
+                </div>
+                
+                {{-- Distribuzione per categoria se ci sono più categorie --}}
+                @if($statsAssegnati['per_categoria']->count() > 1)
+                    <hr class="my-3">
+                    <div class="row">
+                        <div class="col-12">
+                            <small class="text-muted fw-semibold d-block mb-2">Distribuzione per categoria:</small>
+                            <div class="d-flex flex-wrap gap-2">
+                                @foreach($statsAssegnati['per_categoria'] as $categoria => $count)
+                                    <span class="badge bg-secondary">
+                                        {{ ucfirst(str_replace('_', ' ', $categoria)) }}: {{ $count }}
+                                    </span>
+                                @endforeach
                             </div>
-                        @endif
+                        </div>
+                    </div>
+                @endif
+            </div>
+        </div>
+    @endif
+
+    {{-- Campo di selezione prodotto --}}
+    <div class="mb-4">
+        <label for="prodotto_id" class="form-label fw-bold">
+            <i class="bi bi-box-seam text-primary me-2"></i>
+            Seleziona Prodotto Assegnato <span class="text-danger">*</span>
+        </label>
+        
+        {{-- Verifica che ci siano prodotti assegnati disponibili --}}
+        @if(isset($prodotti) && $prodotti->count() > 0)
+            <select class="form-select @error('prodotto_id') is-invalid @enderror" 
+                    id="prodotto_id" 
+                    name="prodotto_id" 
+                    required>
+                <option value="">-- Scegli tra i tuoi {{ $prodotti->count() }} prodotti assegnati --</option>
+                
+                {{-- Raggruppa i prodotti per categoria per facilitare la ricerca --}}
+                @php
+                    $prodottiGrouped = $prodotti->groupBy('categoria');
+                @endphp
+                
+                @foreach($prodottiGrouped as $categoria => $prodottiCategoria)
+                    <optgroup label="🏷️ {{ ucfirst(str_replace('_', ' ', $categoria)) }} ({{ $prodottiCategoria->count() }} prodotti)">
+                        @foreach($prodottiCategoria as $prod)
+                            @php
+                                $problemiCount = $prod->malfunzionamenti->count() ?? 0;
+                                $criticiCount = $prod->malfunzionamenti->where('gravita', 'critica')->count() ?? 0;
+                            @endphp
+                            
+                            <option value="{{ $prod->id }}" 
+                                    {{ old('prodotto_id') == $prod->id ? 'selected' : '' }}
+                                    data-categoria="{{ $prod->categoria }}"
+                                    data-modello="{{ $prod->modello }}"
+                                    data-problemi="{{ $problemiCount }}"
+                                    data-critici="{{ $criticiCount }}"
+                                    data-codice="{{ $prod->codice ?? '' }}">
+                                
+                                {{ $prod->nome }}
+                                @if($prod->modello) - {{ $prod->modello }} @endif
+                                @if($prod->codice) [{{ $prod->codice }}] @endif
+                                
+                                {{-- Indicatori stato problemi --}}
+                                @if($problemiCount > 0)
+                                    ({{ $problemiCount }} problema{{ $problemiCount > 1 ? 'i' : '' }}
+                                    @if($criticiCount > 0)
+                                        - {{ $criticiCount }} critic{{ $criticiCount > 1 ? 'i' : 'o' }}
+                                    @endif
+                                    )
+                                @else
+                                    (nessun problema noto)
+                                @endif
+                            </option>
+                        @endforeach
+                    </optgroup>
+                @endforeach
+            </select>
+            
+            @error('prodotto_id')
+                <div class="invalid-feedback">{{ $message }}</div>
+            @enderror
+            
+            <div class="form-text">
+                <div class="d-flex align-items-start">
+                    <i class="bi bi-lightbulb text-warning me-2 mt-1"></i>
+                    <div>
+                        <strong>Suggerimenti per la selezione:</strong>
+                        <ul class="mb-0 mt-1 small">
+                            <li>I prodotti sono raggruppati per categoria per facilitare la ricerca</li>
+                            <li>I numeri tra parentesi indicano i problemi già noti per quel prodotto</li>
+                            <li>Considera di prioritizzare prodotti con molti problemi o critici</li>
+                            <li>Se non vedi il prodotto che cerchi, contatta l'amministratore</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+        @else
+            {{-- Caso: nessun prodotto assegnato --}}
+            <div class="alert alert-warning border-start border-warning border-4">
+                <div class="d-flex align-items-start">
+                    <i class="bi bi-exclamation-triangle me-3 fs-4 text-warning"></i>
+                    <div class="flex-grow-1">
+                        <h6 class="alert-heading mb-2">Nessun Prodotto Assegnato</h6>
+                        <p class="mb-3">
+                            <strong>{{ auth()->user()->nome_completo ?? auth()->user()->username }}</strong>, 
+                            non hai prodotti assegnati per la gestione delle soluzioni tecniche.
+                        </p>
+                        <p class="mb-3 small">
+                            Per creare nuove soluzioni, è necessario che l'amministratore ti assegni almeno un prodotto. 
+                            Questo sistema garantisce una gestione organizzata dove ogni membro dello staff 
+                            è responsabile di specifici prodotti del catalogo.
+                        </p>
+                        
+                        {{-- Azioni per risolvere --}}
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="{{ route('staff.dashboard') }}" class="btn btn-outline-warning btn-sm">
+                                <i class="bi bi-arrow-left me-1"></i>Torna alla Dashboard
+                            </a>
+                            @if(Route::has('contatti'))
+                                <a href="{{ route('contatti') }}" class="btn btn-warning btn-sm">
+                                    <i class="bi bi-envelope me-1"></i>Contatta l'Amministratore
+                                </a>
+                            @endif
+                            @if(Route::has('staff.prodotti.assegnati'))
+                                <a href="{{ route('staff.prodotti.assegnati') }}" class="btn btn-outline-info btn-sm">
+                                    <i class="bi bi-list me-1"></i>Verifica Assegnazioni
+                                </a>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {{-- Script per disabilitare il form se non ci sono prodotti --}}
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Disabilita tutti i campi del form se non ci sono prodotti assegnati
+                    const form = document.getElementById('formNuovaSoluzione');
+                    if (form) {
+                        const inputs = form.querySelectorAll('input:not([type="button"]), textarea, select, button[type="submit"]');
+                        inputs.forEach(input => {
+                            input.disabled = true;
+                            if (input.tagName.toLowerCase() === 'select') {
+                                input.innerHTML = '<option value="">Nessun prodotto assegnato</option>';
+                            } else if (input.tagName.toLowerCase() !== 'button') {
+                                input.placeholder = 'Richiedere assegnazione prodotti all\'amministratore';
+                            }
+                        });
+                        
+                        // Aggiungi messaggio informativo al form
+                        const alertDiv = document.createElement('div');
+                        alertDiv.className = 'alert alert-info mt-3';
+                        alertDiv.innerHTML = `
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Modulo disabilitato:</strong> 
+                            Senza prodotti assegnati non è possibile creare nuove soluzioni.
+                        `;
+                        form.appendChild(alertDiv);
+                    }
+                });
+            </script>
+        @endif
+    </div>
+    
+    {{-- Prodotto info card (popolata dinamicamente via JavaScript) --}}
+    <div id="prodotto-info-container">
+        {{-- Qui verrà inserita dinamicamente l'info card del prodotto selezionato --}}
+    </div>
+    
+@endif
 
                         {{-- TITOLO DEL MALFUNZIONAMENTO --}}
                         <div class="mb-3">
@@ -377,362 +556,131 @@ optgroup option {
 {{-- JavaScript per validazione e UX migliorata --}}
 @push('scripts')
 <script>
+// Gestione selezione prodotto con informazioni dettagliate
+@if(isset($isNuovaSoluzione) && $isNuovaSoluzione && isset($prodotti) && $prodotti->count() > 0)
 $(document).ready(function() {
-    // === INIZIALIZZAZIONE ===
-    console.log('Form Nuova Soluzione inizializzato');
     
-    // Variabili per il controllo del form
-    const form = $('#formNuovaSoluzione');
-    const prodottoSelect = $('#prodotto_id');
-    const titoloInput = $('#titolo');
-    const gravitaSelect = $('#gravita');
-    
-    // === GESTIONE SELEZIONE PRODOTTO ===
-    @if(isset($isNuovaSoluzione) && $isNuovaSoluzione)
-    // Solo se è una nuova soluzione con selezione prodotto
-    prodottoSelect.on('change', function() {
+    // Gestione selezione prodotto migliorata
+    $('#prodotto_id').on('change', function() {
         const selectedOption = $(this).find('option:selected');
-        const prodottoNome = selectedOption.text();
-        const categoria = selectedOption.data('categoria');
+        const prodottoId = selectedOption.val();
         
-        if (selectedOption.val()) {
-            // Aggiorna il titolo della pagina dinamicamente
-            document.title = 'Nuova Soluzione - ' + prodottoNome;
+        if (prodottoId) {
+            // Estrai dati dal prodotto selezionato
+            const prodottoData = {
+                id: prodottoId,
+                nome: selectedOption.text().split(' (')[0], // Rimuove info problemi
+                categoria: selectedOption.data('categoria'),
+                modello: selectedOption.data('modello'),
+                codice: selectedOption.data('codice'),
+                problemi: selectedOption.data('problemi') || 0,
+                critici: selectedOption.data('critici') || 0
+            };
             
-            // Mostra info sul prodotto selezionato
-            showProdottoInfo(selectedOption);
+            // Mostra info card dettagliata
+            showDetailedProdottoInfo(prodottoData);
             
-            // Focus automatico sul campo titolo
-            setTimeout(() => {
-                titoloInput.focus();
-            }, 300);
+            // Analytics
+            console.log('Prodotto assegnato selezionato:', prodottoData);
             
-            console.log('Prodotto selezionato:', {
-                id: selectedOption.val(),
-                nome: prodottoNome,
-                categoria: categoria
-            });
         } else {
-            // Rimuovi info prodotto se deselezionato
-            hideProdottoInfo();
+            // Nascondi info se deselezionato
+            hideDetailedProdottoInfo();
         }
     });
     
-    // Funzione per mostrare informazioni sul prodotto selezionato
-    function showProdottoInfo(option) {
-        // Rimuovi eventuali info precedenti
-        $('.prodotto-info-card').remove();
+    // Funzione per mostrare info dettagliate del prodotto
+    function showDetailedProdottoInfo(data) {
+        // Rimuovi info precedenti
+        $('#prodotto-info-container').empty();
         
-        // Crea card informativa
-        const prodottoNome = option.text();
-        const categoria = option.data('categoria');
-        const modello = option.data('modello');
+        // Determina lo stato del prodotto
+        let statoClass = 'success';
+        let statoIcon = 'check-circle';
+        let statoText = 'Nessun problema noto';
         
+        if (data.critici > 0) {
+            statoClass = 'danger';
+            statoIcon = 'exclamation-triangle';
+            statoText = `${data.critici} problema/i critico/i`;
+        } else if (data.problemi > 0) {
+            statoClass = 'warning';
+            statoIcon = 'exclamation-circle';
+            statoText = `${data.problemi} problema/i noto/i`;
+        }
+        
+        // Crea card informativa dettagliata
         const infoHtml = `
-            <div class="prodotto-info-card alert alert-light border-start border-primary border-3 mt-2 mb-3">
-                <div class="d-flex align-items-center">
-                    <i class="bi bi-info-circle text-primary me-2"></i>
-                    <div>
-                        <strong>Prodotto selezionato:</strong> ${prodottoNome}<br>
-                        <small class="text-muted">
-                            Categoria: ${categoria}${modello ? ' - Modello: ' + modello : ''}
-                        </small>
+            <div class="card border-start border-primary border-3 mb-4" id="selected-product-info">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <h6 class="card-title text-primary mb-2">
+                                <i class="bi bi-box-seam me-2"></i>
+                                Prodotto Selezionato
+                            </h6>
+                            <h5 class="mb-2">${data.nome}</h5>
+                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                <span class="badge bg-secondary">${data.categoria}</span>
+                                ${data.modello ? `<span class="badge bg-light text-dark">Modello: ${data.modello}</span>` : ''}
+                                ${data.codice ? `<span class="badge bg-light text-dark">Codice: ${data.codice}</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="col-lg-4 text-end">
+                            <div class="alert alert-${statoClass} py-2 mb-0">
+                                <i class="bi bi-${statoIcon} me-1"></i>
+                                <small><strong>${statoText}</strong></small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${data.problemi > 0 ? `
+                        <hr class="my-3">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-info-circle text-info me-2"></i>
+                            <small class="text-muted">
+                                <strong>Suggerimento:</strong> Questo prodotto ha già problemi noti. 
+                                La tua nuova soluzione può aiutare a risolvere un problema non ancora coperto 
+                                o migliorare soluzioni esistenti.
+                            </small>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="mt-3">
+                        <div class="btn-group btn-group-sm">
+                            <a href="/prodotti-completi/${data.id}" class="btn btn-outline-primary" target="_blank">
+                                <i class="bi bi-eye me-1"></i>Vedi Dettagli
+                            </a>
+                            ${data.problemi > 0 ? `
+                                <a href="/prodotti/${data.id}/malfunzionamenti" class="btn btn-outline-warning" target="_blank">
+                                    <i class="bi bi-list me-1"></i>Problemi Esistenti
+                                </a>
+                            ` : ''}
+                        </div>
                     </div>
                 </div>
             </div>
         `;
         
-        prodottoSelect.parent().after(infoHtml);
+        // Inserisci e anima
+        $('#prodotto-info-container').html(infoHtml);
+        $('#selected-product-info').hide().slideDown(400);
         
-        // Animazione di entrata
-        $('.prodotto-info-card').hide().slideDown(300);
+        // Focus automatico sul campo titolo dopo la selezione
+        setTimeout(() => {
+            $('#titolo').focus();
+        }, 500);
     }
     
     // Funzione per nascondere info prodotto
-    function hideProdottoInfo() {
-        $('.prodotto-info-card').slideUp(200, function() {
+    function hideDetailedProdottoInfo() {
+        $('#selected-product-info').slideUp(300, function() {
             $(this).remove();
         });
     }
-    @endif
     
-    // === VALIDAZIONE IN TEMPO REALE ===
-    
-    // Validazione titolo
-    titoloInput.on('input', function() {
-        const value = $(this).val().trim();
-        const length = value.length;
-        
-        // Aggiorna contatore caratteri
-        updateCharCounter(this, length, 255);
-        
-        // Validazione lunghezza
-        if (length > 0 && length <= 255) {
-            $(this).removeClass('is-invalid').addClass('is-valid');
-        } else {
-            $(this).removeClass('is-valid').addClass('is-invalid');
-        }
-    });
-    
-    // Validazione textarea (descrizione e soluzione)
-    $('textarea[required]').on('input', function() {
-        const value = $(this).val().trim();
-        
-        if (value.length > 10) { // Minimo 10 caratteri per desc/soluzione
-            $(this).removeClass('is-invalid').addClass('is-valid');
-        } else {
-            $(this).removeClass('is-valid').addClass('is-invalid');
-        }
-    });
-    
-    // Validazione select (gravità e eventuale prodotto)
-    $('select[required]').on('change', function() {
-        if ($(this).val()) {
-            $(this).removeClass('is-invalid').addClass('is-valid');
-        } else {
-            $(this).removeClass('is-valid').addClass('is-invalid');
-        }
-    });
-    
-    // === FUNZIONI UTILITY ===
-    
-    // Aggiorna contatore caratteri
-    function updateCharCounter(input, current, max) {
-        const $input = $(input);
-        let $counter = $input.siblings('.char-counter');
-        
-        // Crea contatore se non esiste
-        if ($counter.length === 0) {
-            $counter = $('<small class="char-counter text-muted float-end"></small>');
-            $input.parent().append($counter);
-        }
-        
-        // Aggiorna testo e colore
-        $counter.text(`${current}/${max}`);
-        
-        if (current > max * 0.9) {
-            $counter.removeClass('text-muted text-warning').addClass('text-danger');
-        } else if (current > max * 0.8) {
-            $counter.removeClass('text-muted text-danger').addClass('text-warning');
-        } else {
-            $counter.removeClass('text-warning text-danger').addClass('text-muted');
-        }
-    }
-    
-    // === GESTIONE INVIO FORM ===
-    form.on('submit', function(e) {
-        // Aggiungi classe per validazione Bootstrap
-        form.addClass('was-validated');
-        
-        // Controlla se il form è valido
-        if (!this.checkValidity()) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // Scorri al primo campo con errore
-            const firstInvalid = form.find('.is-invalid, :invalid').first();
-            if (firstInvalid.length) {
-                $('html, body').animate({
-                    scrollTop: firstInvalid.offset().top - 100
-                }, 500);
-                firstInvalid.focus();
-            }
-            
-            // Mostra messaggio di errore
-            showFormMessage('Compila tutti i campi obbligatori correttamente.', 'danger');
-            
-            return false;
-        }
-        
-        // Form valido - mostra loading
-        const submitBtn = form.find('button[type="submit"]');
-        const originalText = submitBtn.html();
-        
-        submitBtn.prop('disabled', true)
-               .html('<i class="bi bi-hourglass-split me-2"></i>Salvataggio...');
-        
-        // Se tutto ok, il form viene inviato normalmente
-        console.log('Form inviato con successo');
-    });
-    
-    // === FUNZIONI MESSAGGIO ===
-    function showFormMessage(message, type = 'info') {
-        // Rimuovi messaggi precedenti
-        $('.form-message').remove();
-        
-        // Crea nuovo messaggio
-        const alertHtml = `
-            <div class="form-message alert alert-${type} alert-dismissible fade show" role="alert">
-                <i class="bi bi-${type === 'danger' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        `;
-        
-        form.prepend(alertHtml);
-        
-        // Scorri al messaggio
-        $('html, body').animate({
-            scrollTop: $('.form-message').offset().top - 50
-        }, 300);
-        
-        // Auto-hide dopo 5 secondi per messaggi info
-        if (type === 'info') {
-            setTimeout(() => {
-                $('.form-message').alert('close');
-            }, 5000);
-        }
-    }
-    
-    // === AUTO-SAVE DRAFT (funzionalità avanzata) ===
-    let autoSaveTimer;
-    const AUTOSAVE_DELAY = 30000; // 30 secondi
-    
-    // Monitora modifiche nei campi principali per auto-save
-    form.find('input, textarea, select').on('input change', function() {
-        clearTimeout(autoSaveTimer);
-        
-        autoSaveTimer = setTimeout(() => {
-            saveDraft();
-        }, AUTOSAVE_DELAY);
-    });
-    
-    // Funzione per salvare bozza (localStorage)
-    function saveDraft() {
-        const formData = {
-            titolo: $('#titolo').val(),
-            descrizione: $('#descrizione').val(),
-            soluzione: $('#soluzione').val(),
-            gravita: $('#gravita').val(),
-            componente_difettoso: $('#componente_difettoso').val(),
-            codice_errore: $('#codice_errore').val(),
-            @if(isset($isNuovaSoluzione) && $isNuovaSoluzione)
-            prodotto_id: $('#prodotto_id').val(),
-            @endif
-            timestamp: Date.now()
-        };
-        
-        try {
-            localStorage.setItem('draft_nuova_soluzione', JSON.stringify(formData));
-            console.log('Bozza salvata automaticamente');
-            
-            // Mostra indicatore salvataggio
-            showSaveIndicator();
-        } catch (e) {
-            console.warn('Impossibile salvare bozza:', e);
-        }
-    }
-    
-    // Funzione per caricare bozza salvata
-    function loadDraft() {
-        try {
-            const savedDraft = localStorage.getItem('draft_nuova_soluzione');
-            if (!savedDraft) return;
-            
-            const draftData = JSON.parse(savedDraft);
-            const now = Date.now();
-            const draftAge = now - draftData.timestamp;
-            
-            // Carica solo se la bozza è recente (meno di 24 ore)
-            if (draftAge < 86400000) {
-                // Mostra opzione per ripristinare bozza
-                showDraftRestoreOption(draftData);
-            } else {
-                // Rimuovi bozza vecchia
-                localStorage.removeItem('draft_nuova_soluzione');
-            }
-        } catch (e) {
-            console.warn('Errore caricamento bozza:', e);
-            localStorage.removeItem('draft_nuova_soluzione');
-        }
-    }
-    
-    // Mostra opzione per ripristinare bozza
-    function showDraftRestoreOption(draftData) {
-        const restoreHtml = `
-            <div class="alert alert-warning alert-dismissible" id="draft-restore-alert">
-                <i class="bi bi-file-text me-2"></i>
-                <strong>Bozza trovata!</strong> È stata trovata una bozza salvata automaticamente.
-                <div class="mt-2">
-                    <button type="button" class="btn btn-sm btn-outline-warning me-2" onclick="restoreDraft()">
-                        <i class="bi bi-arrow-clockwise me-1"></i>Ripristina
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deleteDraft()">
-                        <i class="bi bi-trash me-1"></i>Elimina bozza
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        form.prepend(restoreHtml);
-    }
-    
-    // Indica salvataggio automatico
-    function showSaveIndicator() {
-        // Rimuovi indicatori precedenti
-        $('.save-indicator').remove();
-        
-        const indicator = $('<small class="save-indicator text-success position-fixed" style="top: 20px; right: 20px; z-index: 1050;"><i class="bi bi-check-circle me-1"></i>Bozza salvata</small>');
-        $('body').append(indicator);
-        
-        setTimeout(() => {
-            indicator.fadeOut(300, function() {
-                $(this).remove();
-            });
-        }, 2000);
-    }
-    
-    // === FUNZIONI GLOBALI PER GESTIONE BOZZE ===
-    window.restoreDraft = function() {
-        try {
-            const savedDraft = localStorage.getItem('draft_nuova_soluzione');
-            const draftData = JSON.parse(savedDraft);
-            
-            // Ripristina i valori nei campi
-            $('#titolo').val(draftData.titolo || '');
-            $('#descrizione').val(draftData.descrizione || '');
-            $('#soluzione').val(draftData.soluzione || '');
-            $('#gravita').val(draftData.gravita || '');
-            $('#componente_difettoso').val(draftData.componente_difettoso || '');
-            $('#codice_errore').val(draftData.codice_errore || '');
-            
-            @if(isset($isNuovaSoluzione) && $isNuovaSoluzione)
-            if (draftData.prodotto_id) {
-                $('#prodotto_id').val(draftData.prodotto_id).trigger('change');
-            }
-            @endif
-            
-            // Rimuovi alert
-            $('#draft-restore-alert').alert('close');
-            
-            showFormMessage('Bozza ripristinata con successo!', 'success');
-            
-        } catch (e) {
-            console.error('Errore ripristino bozza:', e);
-            showFormMessage('Errore durante il ripristino della bozza.', 'danger');
-        }
-    };
-    
-    window.deleteDraft = function() {
-        localStorage.removeItem('draft_nuova_soluzione');
-        $('#draft-restore-alert').alert('close');
-        console.log('Bozza eliminata');
-    };
-    
-    // === INIZIALIZZAZIONE FINALE ===
-    // Carica bozza salvata se disponibile
-    loadDraft();
-    
-    // Rimuovi bozza quando il form viene inviato con successo
-    form.on('submit', function() {
-        if (this.checkValidity()) {
-            setTimeout(() => {
-                localStorage.removeItem('draft_nuova_soluzione');
-            }, 1000);
-        }
-    });
-    
-    console.log('✅ Form Nuova Soluzione completamente inizializzato');
+    console.log('✅ Gestione prodotti assegnati inizializzata');
 });
+@endif
 </script>
 @endpush

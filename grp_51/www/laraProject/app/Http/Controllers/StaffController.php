@@ -608,35 +608,105 @@ class StaffController extends Controller
     }
 
     /**
-     * NUOVO METODO: Mostra il form per creare un nuovo malfunzionamento
-     * con possibilità di scegliere il prodotto dalla dashboard
-     * 
-     * @return \Illuminate\View\View
-     */
-    public function createNuovaSoluzione()
-    {
-        // Verifica che l'utente sia staff e autenticato
-        if (!Auth::check() || !Auth::user()->isStaff()) {
-            abort(403, 'Accesso riservato allo staff');
+ * METODO CORRETTO: Mostra il form per creare un nuovo malfunzionamento
+ * con possibilità di scegliere SOLO tra i prodotti assegnati allo staff
+ * 
+ * @return \Illuminate\View\View
+ */
+public function createNuovaSoluzione()
+{
+    // Verifica che l'utente sia staff e autenticato
+    if (!Auth::check() || !Auth::user()->isStaff()) {
+        abort(403, 'Accesso riservato allo staff');
+    }
+
+    $user = Auth::user();
+
+    // === RECUPERA SOLO I PRODOTTI ASSEGNATI ALL'UTENTE CORRENTE ===
+    try {
+        // Controlla se il campo staff_assegnato_id esiste
+        if (!Schema::hasColumn('prodotti', 'staff_assegnato_id')) {
+            Log::warning('Campo staff_assegnato_id non esiste - implementazione assegnazioni non attiva');
+            
+            // Fallback: se l'assegnazione non è implementata, mostra tutti i prodotti
+            $prodotti = Prodotto::where('attivo', true)
+                               ->orderBy('categoria')
+                               ->orderBy('nome')
+                               ->get();
+        } else {
+            // Query per prodotti assegnati specificamente all'utente corrente
+            $prodotti = Prodotto::where('staff_assegnato_id', $user->id)
+                               ->where('attivo', true)
+                               ->orderBy('categoria')
+                               ->orderBy('nome')
+                               ->get();
+            
+            Log::info('Prodotti assegnati caricati per staff', [
+                'user_id' => $user->id,
+                'username' => $user->username,
+                'prodotti_count' => $prodotti->count()
+            ]);
         }
 
-        // Recupera tutti i prodotti disponibili per la selezione
-        // Ordina per categoria e nome per facilitare la ricerca
-        $prodotti = Prodotto::orderBy('categoria')
-                           ->orderBy('nome')
-                           ->get();
+        // === VERIFICA CHE L'UTENTE ABBIA PRODOTTI ASSEGNATI ===
+        if ($prodotti->isEmpty()) {
+            Log::warning('Staff senza prodotti assegnati tenta di creare soluzione', [
+                'user_id' => $user->id,
+                'username' => $user->username
+            ]);
+
+            // Reindirizza alla dashboard con messaggio informativo
+            return redirect()->route('staff.dashboard')
+                           ->with('warning', 'Non hai prodotti assegnati. Contatta l\'amministratore per richiedere l\'assegnazione di prodotti da gestire.')
+                           ->with('info', 'Solo l\'amministratore può assegnare prodotti ai membri dello staff.');
+        }
+
+        // === STATISTICHE PRODOTTI ASSEGNATI ===
+        $statsAssegnati = [
+            'totale' => $prodotti->count(),
+            'per_categoria' => $prodotti->groupBy('categoria')->map(function($gruppo) {
+                return $gruppo->count();
+            })->sortDesc(),
+            'con_problemi' => $prodotti->filter(function($prodotto) {
+                return $prodotto->malfunzionamenti->count() > 0;
+            })->count(),
+            'senza_problemi' => $prodotti->filter(function($prodotto) {
+                return $prodotto->malfunzionamenti->count() === 0;
+            })->count()
+        ];
 
         // Crea un prodotto vuoto per mantenere compatibilità con la view esistente
-        // La view malfunzionamenti.create si aspetta una variabile $prodotto
-        $prodotto = null; // Sarà null per indicare che deve essere selezionato
+        $prodotto = null;
         
-        // Passa un flag per indicare che è una "nuova soluzione" dalla dashboard
+        // Flag per indicare che è una "nuova soluzione" dalla dashboard
         $isNuovaSoluzione = true;
         
-        // Restituisce la view malfunzionamenti.create con tutti i prodotti
-        // e il flag per modificare il comportamento della view
-        return view('malfunzionamenti.create', compact('prodotto', 'prodotti', 'isNuovaSoluzione'));
+        Log::info('Form nuova soluzione caricato con successo', [
+            'user_id' => $user->id,
+            'prodotti_disponibili' => $prodotti->count(),
+            'stats' => $statsAssegnati
+        ]);
+        
+        // Restituisce la view con i prodotti assegnati e le statistiche
+        return view('malfunzionamenti.create', compact(
+            'prodotto', 
+            'prodotti', 
+            'isNuovaSoluzione',
+            'statsAssegnati',
+            'user'
+        ));
+
+    } catch (\Exception $e) {
+        Log::error('Errore caricamento form nuova soluzione', [
+            'user_id' => $user->id,
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+
+        return redirect()->route('staff.dashboard')
+                       ->with('error', 'Errore nel caricamento del modulo per nuove soluzioni. Riprova più tardi.');
     }
+}
 
  /**
  * METODO CORRETTO: Salva un nuovo malfunzionamento creato dalla dashboard
