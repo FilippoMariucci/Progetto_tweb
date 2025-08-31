@@ -133,7 +133,7 @@
                         </div>
                     </div>
                     <div class="col-lg-4 text-end mt-2 mt-lg-0">
-                        <a href="{{ route('prodotto.completo.index') }}" class="btn btn-outline-primary btn-sm">
+                        <a href="{{ route('prodotti.completo.index') }}" class="btn btn-outline-primary btn-sm">
                             <i class="bi bi-list me-1"></i>Gestisci i Miei Prodotti
                         </a>
                     </div>
@@ -201,12 +201,21 @@
                                 
                                 {{-- Indicatori stato problemi --}}
                                 @if($problemiCount > 0)
-                                    ({{ $problemiCount }} problema{{ $problemiCount > 1 ? 'i' : '' }}
-                                    @if($criticiCount > 0)
-                                        - {{ $criticiCount }} critic{{ $criticiCount > 1 ? 'i' : 'o' }}
-                                    @endif
-                                    )
-                                @else
+                                    ({{ $problemiCount }} 
+@if($problemiCount == 1)
+    problema
+@else
+    problemi
+@endif
+@if($criticiCount > 0)
+    - {{ $criticiCount }} 
+    @if($criticiCount == 1)
+        critico
+    @else
+        critici
+    @endif
+@endif
+)
                                     (nessun problema noto)
                                 @endif
                             </option>
@@ -648,13 +657,13 @@ $(document).ready(function() {
                     
                     <div class="mt-3">
                         <div class="btn-group btn-group-sm">
-                            <a href="/prodotti-completi/${data.id}" class="btn btn-outline-primary" target="_blank">
-                                <i class="bi bi-eye me-1"></i>Vedi Dettagli
-                            </a>
+                            <a href="{{ url('prodotti-completi') }}/${data.id}" class="btn btn-outline-primary" target="_blank">
+            <i class="bi bi-eye me-1"></i>Vedi Dettagli
+        </a>
                             ${data.problemi > 0 ? `
-                                <a href="/prodotti/${data.id}/malfunzionamenti" class="btn btn-outline-warning" target="_blank">
-                                    <i class="bi bi-list me-1"></i>Problemi Esistenti
-                                </a>
+                                <a href="{{ url('prodotti') }}/${data.id}/malfunzionamenti" class="btn btn-outline-warning" target="_blank">
+                <i class="bi bi-list me-1"></i>Problemi Esistenti
+            </a>
                             ` : ''}
                         </div>
                     </div>
