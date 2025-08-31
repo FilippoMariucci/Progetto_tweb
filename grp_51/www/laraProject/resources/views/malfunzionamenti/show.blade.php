@@ -12,35 +12,7 @@
 @section('content')
 <div class="container mt-4">
     
-    {{-- === BREADCRUMB === --}}
-    <nav aria-label="breadcrumb" class="mb-4">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item">
-                <a href="{{ route('prodotti.pubblico.index') }}" class="text-decoration-none">
-                    <i class="bi bi-box me-1"></i>Catalogo
-                </a>
-            </li>
-            <li class="breadcrumb-item">
-                @auth
-                    @if(auth()->user()->canViewMalfunzionamenti())
-                        <a href="{{ route('prodotti.completo.show', $prodotto) }}" class="text-decoration-none">
-                    @else
-                        <a href="{{ route('prodotti.show', $prodotto) }}" class="text-decoration-none">
-                    @endif
-                @else
-                    <a href="{{ route('prodotti.show', $prodotto) }}" class="text-decoration-none">
-                @endauth
-                    {{ $prodotto->nome }}
-                </a>
-            </li>
-            <li class="breadcrumb-item">
-                <a href="{{ route('malfunzionamenti.index', $prodotto) }}" class="text-decoration-none">
-                    Malfunzionamenti
-                </a>
-            </li>
-            <li class="breadcrumb-item active" aria-current="page">{{ Str::limit($malfunzionamento->titolo, 30) }}</li>
-        </ol>
-    </nav>
+    
 
     <div class="row">
         

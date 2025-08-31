@@ -56,115 +56,67 @@
                 </div>
             </div>
 
-            {{-- Breadcrumb navigazione --}}
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item">
-                        <a href="{{ route('home') }}"><i class="bi bi-house"></i> Home</a>
-                    </li>
-                    <li class="breadcrumb-item">
-                        <a href="{{ route('dashboard') }}">Dashboard</a>
-                    </li>
-                    <li class="breadcrumb-item active">Staff Aziendale</li>
-                </ol>
-            </nav>
+            
+        </div>
+    </div>
+{{-- Statistiche principali molto compatte --}}
+<div class="row mb-3 g-2">
+    {{-- Card Prodotti Gestiti --}}
+    <div class="col-xl-3 col-lg-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-2 px-3">
+                <i class="bi bi-box-seam text-primary fs-3 mb-1"></i>
+                <h5 class="fw-bold mb-0 text-primary">{{ $stats['prodotti_assegnati'] ?? $stats['total_prodotti'] ?? 0 }}</h5>
+                <small class="text-muted d-block">Prodotti Gestiti</small>
+                <small class="badge bg-primary bg-opacity-10 text-primary mt-1">
+                    {{ isset($stats['prodotti_assegnati']) ? 'Assegnati' : 'Disponibili' }}
+                </small>
+            </div>
         </div>
     </div>
 
-    {{-- === STATISTICHE PRINCIPALI === --}}
-    <div class="row mb-4 g-3">
-        {{-- Card Prodotti Gestiti --}}
-        <div class="col-xl-3 col-lg-6">
-            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);">
-                <div class="card-body text-white">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i class="bi bi-box-seam display-4 opacity-75"></i>
-                        </div>
-                        <div class="flex-grow-1 ms-3 text-end">
-                            <h3 class="mb-0 fw-bold" id="prodotti-count">{{ $stats['prodotti_assegnati'] ?? $stats['total_prodotti'] ?? 0 }}</h3>
-                            <small class="text-white-50">Prodotti Gestiti</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer bg-transparent border-0 text-white-50">
-                    <small>
-                        <i class="bi bi-arrow-up me-1"></i>
-                        {{ isset($stats['prodotti_assegnati']) ? 'Assegnati a te' : 'Totali disponibili' }}
-                    </small>
-                </div>
-            </div>
-        </div>
-
-        {{-- Card Soluzioni Create --}}
-        <div class="col-xl-3 col-lg-6">
-            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
-                <div class="card-body text-white">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i class="bi bi-tools display-4 opacity-75"></i>
-                        </div>
-                        <div class="flex-grow-1 ms-3 text-end">
-                            <h3 class="mb-0 fw-bold" id="soluzioni-count">{{ $stats['soluzioni_create'] ?? 0 }}</h3>
-                            <small class="text-white-50">Soluzioni Create</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer bg-transparent border-0 text-white-50">
-                    <small>
-                        <i class="bi bi-check-circle me-1"></i>
-                        Implementate da te
-                    </small>
-                </div>
-            </div>
-        </div>
-
-        {{-- Card Problemi Critici --}}
-        <div class="col-xl-3 col-lg-6">
-            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);">
-                <div class="card-body text-white">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i class="bi bi-exclamation-triangle display-4 opacity-75"></i>
-                        </div>
-                        <div class="flex-grow-1 ms-3 text-end">
-                            <h3 class="mb-0 fw-bold" id="critici-count">{{ $stats['soluzioni_critiche'] ?? $stats['malfunzionamenti_critici'] ?? 0 }}</h3>
-                            <small class="text-white-50">Problemi Critici</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer bg-transparent border-0 text-white-50">
-                    <small>
-                        <i class="bi bi-clock me-1"></i>
-                        Richiedono attenzione
-                    </small>
-                </div>
-            </div>
-        </div>
-
-        {{-- Card Totale Database --}}
-        <div class="col-xl-3 col-lg-6">
-            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);">
-                <div class="card-body text-white">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i class="bi bi-database display-4 opacity-75"></i>
-                        </div>
-                        <div class="flex-grow-1 ms-3 text-end">
-                            <h3 class="mb-0 fw-bold" id="database-count">{{ $stats['total_malfunzionamenti'] ?? 0 }}</h3>
-                            <small class="text-white-50">Totale Soluzioni</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer bg-transparent border-0 text-white-50">
-                    <small>
-                        <i class="bi bi-graph-up me-1"></i>
-                        Nel sistema
-                    </small>
-                </div>
+    {{-- Card Soluzioni Create --}}
+    <div class="col-xl-3 col-lg-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-2 px-3">
+                <i class="bi bi-tools text-success fs-3 mb-1"></i>
+                <h5 class="fw-bold mb-0 text-success">{{ $stats['soluzioni_create'] ?? 0 }}</h5>
+                <small class="text-muted d-block">Soluzioni Create</small>
+                <small class="badge bg-success bg-opacity-10 text-success mt-1">
+                    Implementate
+                </small>
             </div>
         </div>
     </div>
+
+    {{-- Card Problemi Critici --}}
+    <div class="col-xl-3 col-lg-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-2 px-3">
+                <i class="bi bi-exclamation-triangle text-warning fs-3 mb-1"></i>
+                <h5 class="fw-bold mb-0 text-warning">{{ $stats['soluzioni_critiche'] ?? $stats['malfunzionamenti_critici'] ?? 0 }}</h5>
+                <small class="text-muted d-block">Problemi Critici</small>
+                <small class="badge bg-warning bg-opacity-10 text-warning mt-1">
+                    Attenzione
+                </small>
+            </div>
+        </div>
+    </div>
+
+    {{-- Card Totale Database --}}
+    <div class="col-xl-3 col-lg-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-2 px-3">
+                <i class="bi bi-database text-info fs-3 mb-1"></i>
+                <h5 class="fw-bold mb-0 text-info">{{ $stats['total_malfunzionamenti'] ?? 0 }}</h5>
+                <small class="text-muted d-block">Totale Soluzioni</small>
+                <small class="badge bg-info bg-opacity-10 text-info mt-1">
+                    Nel sistema
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
 
     {{-- === AZIONI RAPIDE === --}}
     <div class="row mb-4">
@@ -470,102 +422,95 @@
                 </div>
             </div>
 
-            {{-- Informazioni account --}}
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-light border-0">
-                    <h5 class="mb-0">
-                        <i class="bi bi-info-circle text-primary me-2"></i>
-                        Info Account
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-primary bg-opacity-10 rounded p-2 me-3">
-                            <i class="bi bi-calendar-check text-primary"></i>
-                        </div>
-                        <div>
-                            <small class="text-muted">Ultima modifica</small>
-                            <div class="fw-semibold">{{ $stats['ultima_modifica'] ?? 'Mai' }}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-success bg-opacity-10 rounded p-2 me-3">
-                            <i class="bi bi-shield-check text-success"></i>
-                        </div>
-                        <div>
-                            <small class="text-muted">Livello accesso</small>
-                            <div class="fw-semibold text-success">
-                                Livello 3 - Staff
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="d-flex align-items-center">
-                        <div class="bg-info bg-opacity-10 rounded p-2 me-3">
-                            <i class="bi bi-person text-info"></i>
-                        </div>
-                        <div>
-                            <small class="text-muted">Username</small>
-                            <div class="fw-semibold">{{ auth()->user()->username ?? 'N/A' }}</div>
-                        </div>
-                    </div>
-
-                    {{-- Link rapidi --}}
-                    <hr>
-                    <div class="d-grid gap-2">
-                        <a href="{{ route('profilo') }}" class="btn btn-outline-primary btn-sm">
-                            <i class="bi bi-person-gear me-1"></i>Modifica Profilo
-                        </a>
-                        <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary btn-sm">
-                            <i class="bi bi-house me-1"></i>Dashboard Generale
-                        </a>
-                    </div>
+            {{-- Sezione Info Account senza link rapidi --}}
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-light border-0">
+        <h5 class="mb-0">
+            <i class="bi bi-info-circle text-primary me-2"></i>
+            Info Account
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="d-flex align-items-center mb-3">
+            <div class="bg-primary bg-opacity-10 rounded p-2 me-3">
+                <i class="bi bi-calendar-check text-primary"></i>
+            </div>
+            <div>
+                <small class="text-muted">Ultima modifica</small>
+                <div class="fw-semibold">{{ $stats['ultima_modifica'] ?? 'Mai' }}</div>
+            </div>
+        </div>
+        
+        <div class="d-flex align-items-center mb-3">
+            <div class="bg-success bg-opacity-10 rounded p-2 me-3">
+                <i class="bi bi-shield-check text-success"></i>
+            </div>
+            <div>
+                <small class="text-muted">Livello accesso</small>
+                <div class="fw-semibold text-success">
+                    Livello 3 - Staff
                 </div>
             </div>
         </div>
+        
+        <div class="d-flex align-items-center">
+            <div class="bg-info bg-opacity-10 rounded p-2 me-3">
+                <i class="bi bi-person text-info"></i>
+            </div>
+            <div>
+                <small class="text-muted">Username</small>
+                <div class="fw-semibold">{{ auth()->user()->username ?? 'N/A' }}</div>
+            </div>
+        </div>
+
+        {{-- Rimossa la sezione link rapidi --}}
+    </div>
+</div>
+        </div>
     </div>
 
-    {{-- === SUGGERIMENTI E GUIDE === --}}
-    <div class="row">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-gradient text-white border-0" style="background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);">
-                    <h4 class="mb-0">
-                        <i class="bi bi-lightbulb me-2"></i>
-                        Suggerimenti per lo Staff
-                    </h4>
-                </div>
-                <div class="card-body">
-                    <div class="row g-4">
-                        <div class="col-md-4">
-                            <div class="d-flex">
-                                <div class="flex-shrink-0">
-                                    <div class="bg-success bg-opacity-10 rounded p-2">
-                                        <i class="bi bi-check-circle text-success"></i>
-                                    </div>
-                                </div>
-                                <div class="flex-grow-1 ms-3">
-                                    <h6 class="fw-semibold">Attenzione</h6>
-                                    <small class="text-muted">
-                                        Controlla sempre la gravità del problema prima di pubblicare la soluzione.
-                                    </small>
+    {{-- Suggerimenti per lo Staff - Versione più leggibile --}}
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-primary text-white border-0">
+                <h4 class="mb-0">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    Suggerimenti per lo Staff
+                </h4>
+                <small class="opacity-75">Consigli per un utilizzo ottimale del sistema</small>
+            </div>
+            <div class="card-body py-4">
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-start">
+                            <div class="flex-shrink-0">
+                                <div class="bg-success bg-opacity-15 rounded p-2">
+                                    <i class="bi bi-check-circle text-success"></i>
                                 </div>
                             </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h5 class="fw-bold text-dark mb-2">Controllo Qualità</h5>
+                                <p class="text-muted mb-0">
+                                    Controlla sempre la gravità del problema prima di pubblicare la soluzione. 
+                                    Verifica che tutte le informazioni siano accurate e complete.
+                                </p>
+                            </div>
                         </div>
-                        <div class="col-md-4">
-                            <div class="d-flex">
-                                <div class="flex-shrink-0">
-                                    <div class="bg-info bg-opacity-10 rounded p-2">
-                                        <i class="bi bi-lightbulb text-info"></i>
-                                    </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-start">
+                            <div class="flex-shrink-0">
+                                <div class="bg-info bg-opacity-15 rounded p-2">
+                                    <i class="bi bi-lightbulb text-info"></i>
                                 </div>
-                                <div class="flex-grow-1 ms-3">
-                                    <h6 class="fw-semibold">Consiglio</h6>
-                                    <small class="text-muted">
-                                        Usa il pulsante "Nuova Soluzione" per aggiungere rapidamente soluzioni senza navigare.
-                                    </small>
-                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h5 class="fw-bold text-dark mb-2">Efficienza</h5>
+                                <p class="text-muted mb-0">
+                                    Usa il pulsante "Nuova Soluzione" per aggiungere rapidamente soluzioni 
+                                    senza dover navigare attraverso il catalogo prodotti.
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -573,6 +518,7 @@
             </div>
         </div>
     </div>
+</div>
 
 </div>
 

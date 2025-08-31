@@ -30,14 +30,7 @@
                 </div>
             </div>
 
-            {{-- Breadcrumb --}}
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ route('home') }}">Home</a></li>
-                    <li class="breadcrumb-item"><a href="{{ route('tecnico.dashboard') }}">Dashboard Tecnico</a></li>
-                    <li class="breadcrumb-item active">Le mie Statistiche</li>
-                </ol>
-            </nav>
+            
         </div>
     </div>
 

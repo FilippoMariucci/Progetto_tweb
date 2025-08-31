@@ -166,11 +166,14 @@
                             </h5>
                             
                             {{-- Solo per staff: aggiungi nuovo --}}
-                            @if(auth()->user()->canManageMalfunzionamenti())
+                            @if(auth()->user()->isStaff() && $prodotto->staff_assegnato_id === auth()->id())
                                 <a href="{{ route('staff.malfunzionamenti.create', $prodotto) }}" 
                                    class="btn btn-dark btn-sm">
                                     <i class="bi bi-plus-circle me-1"></i>Aggiungi Nuovo
                                 </a>
+                                @else
+                                        <i class="bi bi-arrow-left me-1"></i>{{ Auth::user()->nome }} {{ Auth::user()->cognome }} non può aggiungere malfunzionamenti per questo prodotto
+                                    
                             @endif
                         </div>
                     </div>
@@ -317,7 +320,7 @@
                                         </p>
                                         
                                         {{-- Solo per staff: aggiungi primo malfunzionamento --}}
-                                        @if(auth()->user()->canManageMalfunzionamenti())
+                                        @if(auth()->user()->isStaff() && $prodotto->staff_assegnato_id === auth()->id())
                                             <div class="mt-3">
                                                 <a href="{{ route('staff.malfunzionamenti.create', $prodotto) }}" 
                                                    class="btn btn-outline-warning">
@@ -424,7 +427,7 @@
                         </a>
                         
                         {{-- Solo per staff: gestione --}}
-                        @if(auth()->user()->canManageMalfunzionamenti())
+                        @if(auth()->user()->isStaff() && $prodotto->staff_assegnato_id === auth()->id())
                             <hr>
                             <a href="{{ route('staff.malfunzionamenti.create', $prodotto) }}" 
                                class="btn btn-warning">
