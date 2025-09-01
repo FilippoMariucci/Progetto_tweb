@@ -6,14 +6,7 @@
 @section('content')
 <div class="container-fluid mt-4">
     
-    <!-- === BREADCRUMB === -->
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ route('home') }}">Home</a></li>
-            <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard Admin</a></li>
-            <li class="breadcrumb-item active">Gestione Prodotti</li>
-        </ol>
-    </nav>
+    
 
     <!-- === HEADER CON STATISTICHE === -->
     <div class="row mb-4">

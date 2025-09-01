@@ -752,7 +752,7 @@ function refreshAllStats() {
     
     // Usa la route corretta del tuo AdminController
     $.ajax({
-        url: '{{ route("api.admin.stats.update") }}',
+        url: '{{ route("api.admin.stats-update") }}',
         method: 'GET',
         success: function(response) {
             if (response.success) {
