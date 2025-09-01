@@ -432,18 +432,59 @@
                     </table>
                 </div>
                 
-                <!-- Paginazione -->
-                @if($prodotti->hasPages())
-                    <div class="d-flex justify-content-between align-items-center p-3 border-top">
-                        <div class="text-muted">
-                            Mostrando {{ $prodotti->firstItem() }}-{{ $prodotti->lastItem() }} 
-                            di {{ $prodotti->total() }} prodotti
-                        </div>
-                        <div>
-                            {{ $prodotti->links() }}
-                        </div>
-                    </div>
-                @endif
+               {{-- Paginazione piccola e allineata --}}
+    @if($prodotti->hasPages())
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    {{-- Info paginazione a sinistra --}}
+                    <small class="text-muted">
+                        {{ $prodotti->firstItem() }}-{{ $prodotti->lastItem() }} di {{ $prodotti->total() }}
+                    </small>
+                    
+                    {{-- Controlli paginazione piccoli a destra --}}
+                    <nav aria-label="Paginazione prodotti">
+                        <ul class="pagination pagination-sm mb-0">
+                            {{-- Previous --}}
+                            @if ($prodotti->onFirstPage())
+                                <li class="page-item disabled">
+                                    <span class="page-link">‹</span>
+                                </li>
+                            @else
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ $prodotti->appends(request()->query())->previousPageUrl() }}">‹</a>
+                                </li>
+                            @endif
+
+                            {{-- Numeri pagina --}}
+                            @foreach ($prodotti->getUrlRange(1, $prodotti->lastPage()) as $page => $url)
+                                @if ($page == $prodotti->currentPage())
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ $page }}</span>
+                                    </li>
+                                @else
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ $prodotti->appends(request()->query())->url($page) }}">{{ $page }}</a>
+                                    </li>
+                                @endif
+                            @endforeach
+
+                            {{-- Next --}}
+                            @if ($prodotti->hasMorePages())
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ $prodotti->appends(request()->query())->nextPageUrl() }}">›</a>
+                                </li>
+                            @else
+                                <li class="page-item disabled">
+                                    <span class="page-link">›</span>
+                                </li>
+                            @endif
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    @endif
             @else
                 <!-- Nessun Risultato -->
                 <div class="text-center py-5">
@@ -475,7 +516,110 @@
 @endsection
 
 @push('styles')
+
 <style>
+/* Stile paginazione compatta identico all'immagine */
+nav[aria-label="Paginazione prodotti"] .pagination,
+.pagination-compact .pagination,
+.pagination {
+    margin-bottom: 0 !important;
+    justify-content: center !important;
+    display: flex !important;
+    gap: 4px !important;
+}
+
+nav[aria-label="Paginazione prodotti"] .pagination .page-item,
+.pagination-compact .pagination .page-item,
+.pagination .page-item {
+    margin: 0 !important;
+}
+
+nav[aria-label="Paginazione prodotti"] .pagination .page-link,
+.pagination-compact .pagination .page-link,
+.pagination .page-link {
+    border: 1px solid #dee2e6 !important;
+    border-radius: 6px !important;
+    color: #6c757d !important;
+    background-color: #fff !important;
+    padding: 6px 12px !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 1.2 !important;
+    text-decoration: none !important;
+    margin: 0 !important;
+    min-width: 32px !important;
+    height: 32px !important;
+    text-align: center !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: none !important;
+}
+
+nav[aria-label="Paginazione prodotti"] .pagination .page-link:hover,
+.pagination-compact .pagination .page-link:hover,
+.pagination .page-link:hover {
+    color: #495057 !important;
+    background-color: #f8f9fa !important;
+    border-color: #dee2e6 !important;
+    text-decoration: none !important;
+    transform: none !important;
+}
+
+nav[aria-label="Paginazione prodotti"] .pagination .page-item.active .page-link,
+.pagination-compact .pagination .page-item.active .page-link,
+.pagination .page-item.active .page-link {
+    color: #fff !important;
+    background-color: #007bff !important;
+    border-color: #007bff !important;
+    font-weight: 500 !important;
+    z-index: 1 !important;
+}
+
+nav[aria-label="Paginazione prodotti"] .pagination .page-item.disabled .page-link,
+.pagination-compact .pagination .page-item.disabled .page-link,
+.pagination .page-item.disabled .page-link {
+    color: #6c757d !important;
+    background-color: #fff !important;
+    border-color: #dee2e6 !important;
+    opacity: 0.65 !important;
+    cursor: not-allowed !important;
+}
+
+/* Frecce specifiche - più piccole */
+nav[aria-label="Paginazione prodotti"] .pagination .page-link[rel="prev"],
+nav[aria-label="Paginazione prodotti"] .pagination .page-link[rel="next"],
+.pagination .page-link[rel="prev"],
+.pagination .page-link[rel="next"] {
+    font-size: 12px !important;
+    padding: 6px 10px !important;
+    min-width: 32px !important;
+}
+
+/* Rimuovi tutti gli stili extra che possono interferire */
+nav[aria-label="Paginazione prodotti"] .pagination .page-link:focus,
+.pagination .page-link:focus {
+    box-shadow: none !important;
+    outline: 2px solid #007bff !important;
+    outline-offset: 2px !important;
+}
+
+/* Su mobile ancora più compatto */
+@media (max-width: 768px) {
+    nav[aria-label="Paginazione prodotti"] .pagination .page-link,
+    .pagination .page-link {
+        padding: 4px 8px !important;
+        font-size: 12px !important;
+        min-width: 28px !important;
+        height: 28px !important;
+    }
+    
+    nav[aria-label="Paginazione prodotti"] .pagination,
+    .pagination {
+        gap: 2px !important;
+    }
+}
+
 .card-stats {
     border: none;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
