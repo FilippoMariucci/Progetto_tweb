@@ -317,7 +317,7 @@
         @endforelse
     </div>
 
-    {{-- Paginazione piccola e allineata --}}
+   {{-- Paginazione piccola e allineata --}}
     @if($prodotti->hasPages())
         <div class="row mt-4">
             <div class="col-12">

@@ -403,19 +403,17 @@
                                                 <li><hr class="dropdown-divider"></li>
                                                 {{-- Toggle stato attivo/inattivo --}}
                     @if(Route::has('admin.prodotti.toggle-status'))
-                    <form action="{{ route('admin.prodotti.toggle-status', $prodotto) }}" 
-                          method="POST" 
-                          class="d-inline"
-                          onsubmit="return confirmToggleStatus({{ $prodotto->attivo ? 'true' : 'false' }})">
-                        @csrf
-                        <button type="submit" 
-                                class="btn {{ $prodotto->attivo ? 'btn-danger' : 'btn-success' }}"
-                                title="{{ $prodotto->attivo ? 'Disattiva prodotto' : 'Attiva prodotto' }}">
-                            <i class="bi bi-{{ $prodotto->attivo ? 'pause' : 'play' }} me-1"></i>
-                            {{ $prodotto->attivo ? 'Disattiva' : 'Attiva' }}
-                        </button>
-                    </form>
-                    @endif
+    <form action="{{ route('admin.prodotti.toggle-status', $prodotto) }}" 
+          method="POST" 
+          onsubmit="return confirmToggleStatus({{ $prodotto->attivo ? 'true' : 'false' }})">
+        @csrf
+        <button type="submit" 
+                class="dropdown-item {{ $prodotto->attivo ? 'text-danger' : 'text-success' }}">
+            <i class="bi bi-{{ $prodotto->attivo ? 'pause' : 'play' }} me-2"></i>
+            {{ $prodotto->attivo ? 'Disattiva' : 'Attiva' }}
+        </button>
+    </form>
+@endif
                                                 <li>
                                                     <a class="dropdown-item text-danger" 
                                                        href="#" 

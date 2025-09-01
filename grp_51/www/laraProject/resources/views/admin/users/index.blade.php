@@ -376,17 +376,59 @@
                         </div>
 
                         <!-- Paginazione -->
-                        <div class="d-flex justify-content-between align-items-center mt-3">
-                            <div>
-                                <small class="text-muted">
-                                    Mostrando {{ $users->firstItem() ?? 0 }} - {{ $users->lastItem() ?? 0 }} 
-                                    di {{ $users->total() }} utenti
-                                </small>
-                            </div>
-                            <div>
-                                {{ $users->links() }}
-                            </div>
-                        </div>
+                        {{-- Paginazione piccola e allineata --}}
+    @if($prodotti->hasPages())
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    {{-- Info paginazione a sinistra --}}
+                    <small class="text-muted">
+                        {{ $prodotti->firstItem() }}-{{ $prodotti->lastItem() }} di {{ $prodotti->total() }}
+                    </small>
+                    
+                    {{-- Controlli paginazione piccoli a destra --}}
+                    <nav aria-label="Paginazione prodotti">
+                        <ul class="pagination pagination-sm mb-0">
+                            {{-- Previous --}}
+                            @if ($prodotti->onFirstPage())
+                                <li class="page-item disabled">
+                                    <span class="page-link">‹</span>
+                                </li>
+                            @else
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ $prodotti->appends(request()->query())->previousPageUrl() }}">‹</a>
+                                </li>
+                            @endif
+
+                            {{-- Numeri pagina --}}
+                            @foreach ($prodotti->getUrlRange(1, $prodotti->lastPage()) as $page => $url)
+                                @if ($page == $prodotti->currentPage())
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ $page }}</span>
+                                    </li>
+                                @else
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ $prodotti->appends(request()->query())->url($page) }}">{{ $page }}</a>
+                                    </li>
+                                @endif
+                            @endforeach
+
+                            {{-- Next --}}
+                            @if ($prodotti->hasMorePages())
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ $prodotti->appends(request()->query())->nextPageUrl() }}">›</a>
+                                </li>
+                            @else
+                                <li class="page-item disabled">
+                                    <span class="page-link">›</span>
+                                </li>
+                            @endif
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    @endif
                     @else
                         <div class="text-center py-5">
                             <i class="bi bi-people display-1 text-muted"></i>

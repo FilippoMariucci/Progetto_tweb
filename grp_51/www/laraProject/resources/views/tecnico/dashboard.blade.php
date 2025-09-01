@@ -193,61 +193,64 @@
                         Statistiche Sistema
                     </h5>
                 </div>
-                <div class="card-body">
-                    @if(isset($stats) && count($stats) > 0)
-                        <div class="row g-3 text-center">
-                            {{-- Prodotti totali --}}
-                            @if(isset($stats['total_prodotti']))
-                                <div class="col-lg-3 col-md-6">
-                                    <div class="p-3 bg-primary bg-opacity-10 rounded">
-                                        <i class="bi bi-box text-primary fs-1"></i>
-                                        <h4 class="mt-2 mb-1">{{ $stats['total_prodotti'] }}</h4>
-                                        <small class="text-muted">Prodotti</small>
-                                    </div>
-                                </div>
-                            @endif
-                            
-                            {{-- Malfunzionamenti totali --}}
-                            @if(isset($stats['total_malfunzionamenti']))
-                                <div class="col-lg-3 col-md-6">
-                                    <div class="p-3 bg-warning bg-opacity-10 rounded">
-                                        <i class="bi bi-tools text-warning fs-1"></i>
-                                        <h4 class="mt-2 mb-1">{{ $stats['total_malfunzionamenti'] }}</h4>
-                                        <small class="text-muted">Soluzioni</small>
-                                    </div>
-                                </div>
-                            @endif
-                            
-                            {{-- Malfunzionamenti critici --}}
-                            @if(isset($stats['malfunzionamenti_critici']))
-                                <div class="col-lg-3 col-md-6">
-                                    <div class="p-3 bg-danger bg-opacity-10 rounded">
-                                        <i class="bi bi-exclamation-triangle text-danger fs-1"></i>
-                                        <h4 class="mt-2 mb-1">{{ $stats['malfunzionamenti_critici'] }}</h4>
-                                        <small class="text-muted">Critici</small>
-                                    </div>
-                                </div>
-                            @endif
-                            
-                            {{-- Centri assistenza --}}
-                            @if(isset($stats['total_centri']))
-                                <div class="col-lg-3 col-md-6">
-                                    <div class="p-3 bg-success bg-opacity-10 rounded">
-                                        <i class="bi bi-geo-alt text-success fs-1"></i>
-                                        <h4 class="mt-2 mb-1">{{ $stats['total_centri'] }}</h4>
-                                        <small class="text-muted">Centri</small>
-                                    </div>
-                                </div>
-                            @endif
-                        </div>
-                    @else
-                        {{-- Messaggio quando non ci sono statistiche --}}
-                        <div class="text-center py-4">
-                            <i class="bi bi-graph-up text-muted" style="font-size: 3rem;"></i>
-                            <p class="text-muted mt-2">Caricamento statistiche in corso...</p>
-                        </div>
-                    @endif
+                {{-- === STATISTICHE SISTEMA - STILE COMPATTO COME STAFF === --}}
+    <div class="row mb-3 g-2">
+        {{-- Card Prodotti Totali --}}
+        <div class="col-xl-3 col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-2 px-3">
+                    <i class="bi bi-box-seam text-primary fs-3 mb-1"></i>
+                    <h5 class="fw-bold mb-0 text-primary">{{ $stats['total_prodotti'] ?? 0 }}</h5>
+                    <small class="text-muted d-block">Prodotti Catalogo</small>
+                    <small class="badge bg-primary bg-opacity-10 text-primary mt-1">
+                        Disponibili
+                    </small>
                 </div>
+            </div>
+        </div>
+
+        {{-- Card Soluzioni Totali --}}
+        <div class="col-xl-3 col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-2 px-3">
+                    <i class="bi bi-tools text-success fs-3 mb-1"></i>
+                    <h5 class="fw-bold mb-0 text-success">{{ $stats['total_malfunzionamenti'] ?? 0 }}</h5>
+                    <small class="text-muted d-block">Soluzioni Totali</small>
+                    <small class="badge bg-success bg-opacity-10 text-success mt-1">
+                        Nel Sistema
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        {{-- Card Problemi Critici --}}
+        <div class="col-xl-3 col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-2 px-3">
+                    <i class="bi bi-exclamation-triangle text-danger fs-3 mb-1"></i>
+                    <h5 class="fw-bold mb-0 text-danger">{{ $stats['malfunzionamenti_critici'] ?? 0 }}</h5>
+                    <small class="text-muted d-block">Problemi Critici</small>
+                    <small class="badge bg-danger bg-opacity-10 text-danger mt-1">
+                        Priorità Alta
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        {{-- Card Centri Assistenza --}}
+        <div class="col-xl-3 col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-2 px-3">
+                    <i class="bi bi-geo-alt text-info fs-3 mb-1"></i>
+                    <h5 class="fw-bold mb-0 text-info">{{ $stats['total_centri'] ?? 0 }}</h5>
+                    <small class="text-muted d-block">Centri Attivi</small>
+                    <small class="badge bg-info bg-opacity-10 text-info mt-1">
+                        Sul Territorio
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
             </div>
         </div>
     </div>
