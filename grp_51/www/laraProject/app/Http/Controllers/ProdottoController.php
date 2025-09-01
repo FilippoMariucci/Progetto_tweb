@@ -3,40 +3,40 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
 use App\Models\Prodotto;
 use App\Models\User;
-
-class ProdottoController extends Controller
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Controller per la gestione dei prodotti
- * VERSIONE CORRETTA - Sistema categorie unificato
+ * VERSIONE COMPLETA - Sistema categorie unificato implementato
  * 
  * Gestisce tutte le operazioni CRUD sui prodotti con sistema di categorie coerente
  * tra frontend pubblico, area tecnici, area staff e pannello amministratore
  */
+class ProdottoController extends Controller
 {
     // ================================================
-    // METODI PER CATALOGO PUBBLICO (Livello 1) - CORRETTI
+    // METODI PUBBLICI (Livello 1 - Accesso Libero)
     // ================================================
 
     /**
-     * Catalogo pubblico - accessibile a tutti senza autenticazione
-     * CORREZIONE: Usa vista esistente con flag per nascondere malfunzionamenti
+     * Catalogo pubblico prodotti (senza malfunzionamenti)
+     * Accessibile a tutti senza autenticazione
      */
     public function indexPubblico(Request $request)
     {
         // Query base per prodotti attivi
         $query = Prodotto::where('attivo', true);
 
-        // === GESTIONE RICERCA CON WILDCARD ===
+        // === RICERCA TESTUALE CON WILDCARD ===
         if ($request->filled('search')) {
             $searchTerm = $request->input('search');
             
-            // Implementa ricerca con wildcard "*" come da specifiche
+            // Supporto wildcard * alla fine del termine
             if (str_ends_with($searchTerm, '*')) {
                 $searchTerm = rtrim($searchTerm, '*');
                 $query->where(function($q) use ($searchTerm) {
@@ -66,7 +66,7 @@ class ProdottoController extends Controller
             ->orderBy('nome')
             ->paginate(12);
 
-        // Categorie per filtri - usa metodo corretto
+        // CORREZIONE: Usa sistema unificato per categorie
         $categorie = $this->getCategorie();
 
         // Statistiche pubbliche (SENZA malfunzionamenti)
@@ -74,10 +74,9 @@ class ProdottoController extends Controller
             'total_prodotti' => Prodotto::where('attivo', true)->count(),
             'categorie_count' => count($categorie),
             'per_categoria' => $this->getStatsPerCategoria(),
-            'version' => 'pubblico' // Flag per la vista
+            'version' => 'pubblico'
         ];
 
-        // CORREZIONE: Usa vista esistente ma con flag pubblico
         return view('prodotti.pubblico.index', compact('prodotti', 'categorie', 'stats'))
             ->with('isPublicView', true)
             ->with('showMalfunzionamenti', false);
@@ -85,7 +84,6 @@ class ProdottoController extends Controller
 
     /**
      * Scheda prodotto pubblica - NO malfunzionamenti
-     * CORREZIONE: Usa vista esistente con flag per nascondere malfunzionamenti
      */
     public function showPubblico(Prodotto $prodotto)
     {
@@ -108,17 +106,16 @@ class ProdottoController extends Controller
             'ip' => request()->ip()
         ]);
         
-        // CORREZIONE: Usa vista esistente con flag
         return view('prodotti.pubblico.show', compact('prodotto', 'showMalfunzionamenti', 'isPublicView'));
     }
 
     // ================================================
-    // METODI PER CATALOGO COMPLETO (Livello 2+) - INVARIATI
+    // METODI PER CATALOGO COMPLETO (Livello 2+)
     // ================================================
 
     /**
      * Catalogo completo per tecnici - CON malfunzionamenti
-     * Richiede autenticazione e livello 2+
+     * CORREZIONE: Usa sistema categorie unificato
      */
     public function indexCompleto(Request $request)
     {
@@ -167,7 +164,7 @@ class ProdottoController extends Controller
             }
         }
 
-        // Filtro per categoria
+        // CORREZIONE: Filtro per categoria
         if ($request->filled('categoria')) {
             $query->where('categoria', $request->input('categoria'));
         }
@@ -188,7 +185,7 @@ class ProdottoController extends Controller
             ->orderBy('nome')
             ->paginate(12);
 
-        // Categorie per filtri
+        // CORREZIONE: Usa sistema categorie unificato
         $categorie = $this->getCategorie();
 
         // Statistiche avanzate per tecnici
@@ -204,9 +201,6 @@ class ProdottoController extends Controller
             $stats['miei_prodotti'] = Prodotto::where('staff_assegnato_id', $user->id)
                 ->where('attivo', true)
                 ->count();
-            $stats['mie_soluzioni'] = \Schema::hasColumn('malfunzionamenti', 'creato_da') 
-                ? \App\Models\Malfunzionamento::where('creato_da', $user->id)->count() 
-                : 0;
         }
 
         // Determina quale vista usare in base al filtro
@@ -262,73 +256,11 @@ class ProdottoController extends Controller
     }
 
     // ================================================
-    // METODI HELPER PRIVATI - AGGIUNTI
-    // ================================================
-
-    /**
-     * Ottiene l'elenco delle categorie disponibili
-     * Helper per evitare errori se il metodo statico non esiste nel Model
-     */
-    private function getCategorie(): array
-    {
-        try {
-            // Prova prima il metodo statico del Model
-            if (method_exists(Prodotto::class, 'getCategorie')) {
-                return Prodotto::getCategorie();
-            }
-            
-            // Fallback: ottieni categorie dalla query
-            return Prodotto::where('attivo', true)
-                ->select('categoria')
-                ->distinct()
-                ->orderBy('categoria')
-                ->pluck('categoria')
-                ->toArray();
-                
-        } catch (\Exception $e) {
-            Log::error('Errore nel recupero categorie', [
-                'error' => $e->getMessage()
-            ]);
-            
-            // Fallback con categorie di default per elettrodomestici
-            return [
-                'elettrodomestici',
-                'cucina',
-                'lavanderia', 
-                'climatizzazione',
-                'piccoli_elettrodomestici'
-            ];
-        }
-    }
-
-    /**
-     * Calcola statistiche per categoria
-     */
-    private function getStatsPerCategoria(): array
-    {
-        try {
-            return Prodotto::where('attivo', true)
-                ->groupBy('categoria')
-                ->selectRaw('categoria, count(*) as count')
-                ->pluck('count', 'categoria')
-                ->toArray();
-        } catch (\Exception $e) {
-            Log::error('Errore nel calcolo stats per categoria', [
-                'error' => $e->getMessage()
-            ]);
-            
-            return [];
-        }
-    }
-
-    // ================================================
-    // RICERCA AVANZATA PER TECNICI - CORRETTA
+    // RICERCA AVANZATA PER TECNICI
     // ================================================
 
     /**
      * Ricerca avanzata nei prodotti per tecnici (Livello 2+)
-     * Route: GET /prodotti-completi/ricerca
-     * Name: prodotti.completo.ricerca
      */
     public function ricercaAvanzata(Request $request)
     {
@@ -410,7 +342,6 @@ class ProdottoController extends Controller
                 'user_id' => Auth::id()
             ]);
 
-            // Usa la vista completa esistente con i flag appropriati
             return view('prodotti.completo.index', compact('prodotti', 'stats', 'categorie'))
                 ->with('showMalfunzionamenti', true)
                 ->with('isPublicView', false)
@@ -424,156 +355,17 @@ class ProdottoController extends Controller
                 'user_id' => Auth::id()
             ]);
 
-            // Redirect con messaggio di errore
             return redirect()->route('prodotti.completo.index')
                 ->with('error', 'Errore durante la ricerca: ' . $e->getMessage());
         }
     }
 
-    public function apiSearchTech(Request $request)
-    {
-        // Verifica autorizzazione
-        if (!Auth::check() || !Auth::user()->canViewMalfunzionamenti()) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Accesso riservato ai tecnici'
-            ], 403);
-        }
-
-        try {
-            $request->validate([
-                'q' => 'required|string|min:1|max:100',
-            ]);
-
-            $searchTerm = trim($request->input('q'));
-
-            $query = Prodotto::where('attivo', true);
-
-            // Ricerca con wildcard
-            if (str_ends_with($searchTerm, '*')) {
-                $searchTerm = rtrim($searchTerm, '*');
-                $query->where(function($q) use ($searchTerm) {
-                    $q->where('nome', 'LIKE', $searchTerm . '%')
-                      ->orWhere('descrizione', 'LIKE', $searchTerm . '%')
-                      ->orWhere('modello', 'LIKE', $searchTerm . '%');
-                });
-            } else {
-                $query->where(function($q) use ($searchTerm) {
-                    $q->where('nome', 'LIKE', '%' . $searchTerm . '%')
-                      ->orWhere('descrizione', 'LIKE', '%' . $searchTerm . '%')
-                      ->orWhere('modello', 'LIKE', '%' . $searchTerm . '%');
-                });
-            }
-
-            // Include conteggio malfunzionamenti per vista tecnica
-            $prodotti = $query->withCount([
-                    'malfunzionamenti',
-                    'malfunzionamenti as critici_count' => function($query) {
-                        $query->where('gravita', 'critica');
-                    }
-                ])
-                ->with('staffAssegnato:id,nome,cognome')
-                ->select([
-                    'id', 'nome', 'modello', 'descrizione', 
-                    'categoria', 'prezzo', 'foto', 'staff_assegnato_id'
-                ])
-                ->orderBy('nome')
-                ->limit(20)
-                ->get();
-
-            // Formatta risultati per tecnici
-            $results = $prodotti->map(function($prodotto) {
-                return [
-                    'id' => $prodotto->id,
-                    'nome' => $prodotto->nome,
-                    'modello' => $prodotto->modello,
-                    'categoria' => $prodotto->categoria,
-                    'foto_url' => $prodotto->foto ? asset('storage/' . $prodotto->foto) : null,
-                    'malfunzionamenti_count' => $prodotto->malfunzionamenti_count,
-                    'critici_count' => $prodotto->critici_count,
-                    'staff_assegnato' => $prodotto->staffAssegnato ? $prodotto->staffAssegnato->nome_completo : null,
-                    'url' => route('prodotti.completo.show', $prodotto->id)
-                ];
-            });
-
-            return response()->json([
-                'success' => true,
-                'data' => $results,
-                'total' => $results->count(),
-                'search_term' => $request->input('q'),
-                'timestamp' => now()->toISOString()
-            ]);
-
-        } catch (\Exception $e) {
-            \Log::error('Errore in apiSearchTech', [
-                'error' => $e->getMessage(),
-                'user_id' => Auth::id()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'error' => 'Errore nella ricerca tecnica'
-            ], 500);
-        }
-    }
-
     // ================================================
-    // METODO CATEGORIA GENERICO - CORRETTO
+    // METODI AMMINISTRATIVI - CORREZIONE SISTEMA CATEGORIE
     // ================================================
 
     /**
-     * Visualizza prodotti per categoria specifica
-     * Usabile sia da pubblico che da utenti autenticati
-     */
-    public function categoria($categoria)
-    {
-        // Query base
-        $query = Prodotto::where('categoria', $categoria)->where('attivo', true);
-        
-        // Determina se l'utente può vedere malfunzionamenti
-        $canViewMalfunctions = Auth::check() && Auth::user()->canViewMalfunzionamenti();
-        
-        if ($canViewMalfunctions) {
-            // Per tecnici: includi conteggi malfunzionamenti
-            $prodotti = $query->withCount([
-                    'malfunzionamenti',
-                    'malfunzionamenti as critici_count' => function($query) {
-                        $query->where('gravita', 'critica');
-                    }
-                ])
-                ->with('staffAssegnato:id,nome,cognome')
-                ->paginate(12);
-        } else {
-            // Per pubblico: solo dati base
-            $prodotti = $query->select([
-                    'id', 'nome', 'modello', 'descrizione', 
-                    'categoria', 'prezzo', 'foto'
-                ])
-                ->paginate(12);
-        }
-        
-        $categorie = $this->getCategorie();
-
-        $stats = [
-            'total_prodotti' => $prodotti->total(),
-            'categoria_corrente' => $categoria,
-            'version' => $canViewMalfunctions ? 'completo' : 'pubblico'
-        ];
-
-        // Usa vista appropriata
-        $view = $canViewMalfunctions ? 'prodotti.completo.index' : 'prodotti.pubblico.index';
-
-        return view($view, compact('prodotti', 'categorie', 'stats'))
-            ->with('showMalfunzionamenti', $canViewMalfunctions)
-            ->with('isPublicView', !$canViewMalfunctions);
-    }
-
-    // ================================================
-    // METODI AMMINISTRATIVI - INVARIATI (da mantenere)
-    // ================================================
-
-    /**
-     * Lista prodotti per amministratori
+     * Lista prodotti per amministratori - CORREZIONE CATEGORIE
      */
     public function index(Request $request)
     {
@@ -593,17 +385,20 @@ class ProdottoController extends Controller
             }
         }
 
-        // Filtro per staff assegnato - CORREZIONE IMPORTANTE
+        // Filtro per staff assegnato
         if ($request->filled('staff_id')) {
             $staffId = $request->input('staff_id');
             
             if ($staffId === '0' || $staffId === 0) {
-                // Prodotti NON assegnati
                 $query->whereNull('staff_assegnato_id');
             } else {
-                // Prodotti assegnati a staff specifico
                 $query->where('staff_assegnato_id', $staffId);
             }
+        }
+
+        // CORREZIONE: Filtro per categoria
+        if ($request->filled('categoria')) {
+            $query->where('categoria', $request->input('categoria'));
         }
 
         // Filtro ricerca
@@ -633,6 +428,9 @@ class ProdottoController extends Controller
             ->orderBy('nome')
             ->get();
 
+        // CORREZIONE: Aggiungi categorie per filtro
+        $categorie = $this->getCategorie();
+
         // Statistiche admin
         $stats = [
             'total_prodotti' => Prodotto::count(),
@@ -642,218 +440,69 @@ class ProdottoController extends Controller
             'non_assegnati' => Prodotto::whereNull('staff_assegnato_id')->count(),
         ];
 
-        return view('admin.prodotti.index', compact('prodotti', 'staffMembers', 'stats'));
+        return view('admin.prodotti.index', compact('prodotti', 'staffMembers', 'stats', 'categorie'));
     }
-
-    public function adminIndex(Request $request)
-{
-    // Verifica autorizzazione
-    if (!Auth::check() || !Auth::user()->canManageProdotti()) {
-        abort(403, 'Accesso riservato agli amministratori');
-    }
-
-    // Se hai già il metodo index(), puoi semplicemente chiamarlo
-    return $this->index($request);
-
-    // OPPURE implementa una logica specifica per admin se necessario
-}
-
-    // ================================================
-    // API ENDPOINTS - CORRETTI
-    // ================================================
 
     /**
-     * API per ricerca prodotti AJAX (pubblico)
+     * Visualizza prodotti per categoria specifica - CORREZIONE
      */
-    public function apiSearch(Request $request)
+    public function categoria($categoria)
     {
-        try {
-            $request->validate([
-                'q' => 'required|string|min:1|max:100',
-            ]);
+        // Verifica che la categoria sia valida usando il sistema unificato
+        $categorieDisponibili = $this->getCategorie();
+        if (!array_key_exists($categoria, $categorieDisponibili)) {
+            abort(404, 'Categoria non trovata');
+        }
 
-            $searchTerm = trim($request->input('q'));
-            $query = Prodotto::where('attivo', true);
-
-            // Implementa ricerca con wildcard
-            if (str_ends_with($searchTerm, '*')) {
-                $searchTerm = rtrim($searchTerm, '*');
-                $query->where(function($q) use ($searchTerm) {
-                    $q->where('nome', 'LIKE', $searchTerm . '%')
-                      ->orWhere('descrizione', 'LIKE', $searchTerm . '%')
-                      ->orWhere('modello', 'LIKE', $searchTerm . '%');
-                });
-            } else {
-                $query->where(function($q) use ($searchTerm) {
-                    $q->where('nome', 'LIKE', '%' . $searchTerm . '%')
-                      ->orWhere('descrizione', 'LIKE', '%' . $searchTerm . '%')
-                      ->orWhere('modello', 'LIKE', '%' . $searchTerm . '%');
-                });
-            }
-
-            // Esegui query con limit
+        // Query base
+        $query = Prodotto::where('categoria', $categoria)->where('attivo', true);
+        
+        // Determina se l'utente può vedere malfunzionamenti
+        $canViewMalfunctions = Auth::check() && Auth::user()->canViewMalfunzionamenti();
+        
+        if ($canViewMalfunctions) {
+            // Per tecnici: includi conteggi malfunzionamenti
+            $prodotti = $query->withCount([
+                    'malfunzionamenti',
+                    'malfunzionamenti as critici_count' => function($query) {
+                        $query->where('gravita', 'critica');
+                    }
+                ])
+                ->with('staffAssegnato:id,nome,cognome')
+                ->paginate(12);
+        } else {
+            // Per pubblico: solo dati base
             $prodotti = $query->select([
                     'id', 'nome', 'modello', 'descrizione', 
                     'categoria', 'prezzo', 'foto'
                 ])
-                ->orderBy('nome')
-                ->limit(20)
-                ->get();
-
-            // Formatta risultati per API
-            $results = $prodotti->map(function($prodotto) {
-                return [
-                    'id' => $prodotto->id,
-                    'nome' => $prodotto->nome,
-                    'modello' => $prodotto->modello,
-                    'descrizione' => \Illuminate\Support\Str::limit($prodotto->descrizione, 100),
-                    'categoria' => $prodotto->categoria,
-                    'prezzo' => $prodotto->prezzo ? '€ ' . number_format($prodotto->prezzo, 2, ',', '.') : null,
-                    'foto_url' => $prodotto->foto ? asset('storage/' . $prodotto->foto) : null,
-                    'url' => route('prodotti.pubblico.show', $prodotto->id)
-                ];
-            });
-
-            return response()->json([
-                'success' => true,
-                'data' => $results,
-                'total' => $results->count(),
-                'search_term' => $request->input('q'),
-                'timestamp' => now()->toISOString()
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Errore in apiSearch', [
-                'error' => $e->getMessage(),
-                'search_term' => $request->input('q', 'N/A')
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'error' => 'Errore nella ricerca prodotti'
-            ], 500);
+                ->paginate(12);
         }
-    }
+        
+        // CORREZIONE: Usa sistema categorie unificato
+        $categorie = $categorieDisponibili;
 
-    /**
-     * API per lista prodotti pubblici
-     */
-    public function apiIndexPubblico(Request $request)
-    {
-        try {
-            $query = Prodotto::where('attivo', true);
+        $stats = [
+            'total_prodotti' => $prodotti->total(),
+            'categoria_corrente' => $categoria,
+            'categoria_label' => $categorieDisponibili[$categoria],
+            'version' => $canViewMalfunctions ? 'completo' : 'pubblico'
+        ];
 
-            // Filtro categoria
-            if ($request->filled('categoria')) {
-                $query->where('categoria', $request->input('categoria'));
-            }
+        // Usa vista appropriata
+        $view = $canViewMalfunctions ? 'prodotti.completo.index' : 'prodotti.pubblico.index';
 
-            $perPage = min($request->input('per_page', 12), 50);
-            
-            $prodotti = $query->select([
-                    'id', 'nome', 'modello', 'descrizione', 
-                    'categoria', 'prezzo', 'foto'
-                ])
-                ->orderBy('nome')
-                ->paginate($perPage);
-
-            $data = $prodotti->getCollection()->map(function($prodotto) {
-                return [
-                    'id' => $prodotto->id,
-                    'nome' => $prodotto->nome,
-                    'modello' => $prodotto->modello,
-                    'categoria' => $prodotto->categoria,
-                    'prezzo' => $prodotto->prezzo ? '€ ' . number_format($prodotto->prezzo, 2, ',', '.') : null,
-                    'foto_url' => $prodotto->foto ? asset('storage/' . $prodotto->foto) : null,
-                    'url' => route('prodotti.pubblico.show', $prodotto->id)
-                ];
-            });
-
-            return response()->json([
-                'success' => true,
-                'data' => $data,
-                'pagination' => [
-                    'current_page' => $prodotti->currentPage(),
-                    'last_page' => $prodotti->lastPage(),
-                    'per_page' => $prodotti->perPage(),
-                    'total' => $prodotti->total()
-                ],
-                'timestamp' => now()->toISOString()
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Errore in apiIndexPubblico', [
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'error' => 'Errore nel caricamento prodotti'
-            ], 500);
-        }
-    }
-
-    /**
-     * API per singolo prodotto pubblico
-     */
-    public function apiShowPubblico($id)
-    {
-        try {
-            $prodotto = Prodotto::where('attivo', true)->findOrFail($id);
-
-            $data = [
-                'id' => $prodotto->id,
-                'nome' => $prodotto->nome,
-                'modello' => $prodotto->modello,
-                'descrizione' => $prodotto->descrizione,
-                'categoria' => $prodotto->categoria,
-                'note_tecniche' => $prodotto->note_tecniche,
-                'modalita_installazione' => $prodotto->modalita_installazione,
-                'modalita_uso' => $prodotto->modalita_uso,
-                'prezzo' => $prodotto->prezzo ? '€ ' . number_format($prodotto->prezzo, 2, ',', '.') : null,
-                'foto_url' => $prodotto->foto ? asset('storage/' . $prodotto->foto) : null,
-                'created_at' => $prodotto->created_at->format('d/m/Y'),
-                'staff_assegnato' => $prodotto->staffAssegnato ? [
-                    'nome' => $prodotto->staffAssegnato->nome_completo
-                ] : null
-            ];
-
-            // Aggiungi malfunzionamenti solo se l'utente è autorizzato
-            if (Auth::check() && Auth::user()->canViewMalfunzionamenti()) {
-                $data['malfunzionamenti_count'] = $prodotto->malfunzionamenti()->count();
-            }
-
-            return response()->json([
-                'success' => true,
-                'data' => $data,
-                'timestamp' => now()->toISOString()
-            ]);
-
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Prodotto non trovato'
-            ], 404);
-
-        } catch (\Exception $e) {
-            Log::error('Errore in apiShowPubblico', [
-                'product_id' => $id,
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'error' => 'Errore nel caricamento prodotto'
-            ], 500);
-        }
+        return view($view, compact('prodotti', 'categorie', 'stats'))
+            ->with('showMalfunzionamenti', $canViewMalfunctions)
+            ->with('isPublicView', !$canViewMalfunctions);
     }
 
     // ================================================
-    // METODI CRUD AMMINISTRATIVI - INVARIATI
+    // METODI CRUD AMMINISTRATIVI - SISTEMA CATEGORIE UNIFICATO
     // ================================================
 
     /**
-     * Form creazione nuovo prodotto
+     * Form creazione nuovo prodotto - SISTEMA CATEGORIE UNIFICATO
      */
     public function create()
     {
@@ -861,12 +510,23 @@ class ProdottoController extends Controller
             abort(403, 'Non autorizzato a creare prodotti');
         }
 
+        // Staff members per assegnazione
         $staffMembers = User::where('livello_accesso', '3')
             ->select('id', 'nome', 'cognome')
             ->orderBy('nome')
             ->get();
 
-        return view('admin.prodotti.create', compact('staffMembers'));
+        // CORREZIONE: Usa il sistema unificato delle categorie
+        $categorie = Prodotto::getCategorieUnifico();
+
+        // Log per debugging
+        Log::info('Form creazione prodotto caricato', [
+            'admin_id' => Auth::id(),
+            'staff_disponibili' => $staffMembers->count(),
+            'categorie_disponibili' => count($categorie)
+        ]);
+
+        return view('admin.prodotti.create', compact('staffMembers', 'categorie'));
     }
 
     /**
@@ -900,6 +560,14 @@ class ProdottoController extends Controller
             'foto.max' => 'L\'immagine non può superare 2MB',
         ]);
 
+        // Verifica che la categoria sia valida
+        $categorieDisponibili = Prodotto::getCategorieUnifico();
+        if (!array_key_exists($validated['categoria'], $categorieDisponibili)) {
+            return back()->withErrors([
+                'categoria' => 'La categoria selezionata non è valida.'
+            ])->withInput();
+        }
+
         // Gestione upload foto
         if ($request->hasFile('foto')) {
             $validated['foto'] = $request->file('foto')->store('prodotti', 'public');
@@ -913,6 +581,7 @@ class ProdottoController extends Controller
         Log::info('Nuovo prodotto creato', [
             'prodotto_id' => $prodotto->id,
             'modello' => $prodotto->modello,
+            'categoria' => $prodotto->categoria,
             'created_by' => Auth::id()
         ]);
 
@@ -921,7 +590,7 @@ class ProdottoController extends Controller
     }
 
     /**
-     * Form modifica prodotto
+     * Form modifica prodotto - SISTEMA CATEGORIE UNIFICATO
      */
     public function edit(Prodotto $prodotto)
     {
@@ -929,12 +598,25 @@ class ProdottoController extends Controller
             abort(403, 'Non autorizzato a modificare prodotti');
         }
 
+        // Staff members per assegnazione
         $staffMembers = User::where('livello_accesso', '3')
             ->select('id', 'nome', 'cognome')
             ->orderBy('nome')
             ->get();
 
-        return view('admin.prodotti.edit', compact('prodotto', 'staffMembers'));
+        // CORREZIONE: Usa il sistema unificato delle categorie
+        $categorie = Prodotto::getCategorieUnifico();
+
+        // Log per debugging
+        Log::info('Form modifica prodotto caricato', [
+            'prodotto_id' => $prodotto->id,
+            'prodotto_nome' => $prodotto->nome,
+            'categoria_attuale' => $prodotto->categoria,
+            'admin_id' => Auth::id(),
+            'categorie_disponibili' => count($categorie)
+        ]);
+
+        return view('admin.prodotti.edit', compact('prodotto', 'staffMembers', 'categorie'));
     }
 
     /**
@@ -960,6 +642,14 @@ class ProdottoController extends Controller
             'attivo' => 'boolean',
         ]);
 
+        // Verifica che la categoria sia valida
+        $categorieDisponibili = Prodotto::getCategorieUnifico();
+        if (!array_key_exists($validated['categoria'], $categorieDisponibili)) {
+            return back()->withErrors([
+                'categoria' => 'La categoria selezionata non è valida.'
+            ])->withInput();
+        }
+
         // Gestione upload nuova foto
         if ($request->hasFile('foto')) {
             if ($prodotto->foto) {
@@ -973,6 +663,7 @@ class ProdottoController extends Controller
         Log::info('Prodotto aggiornato', [
             'prodotto_id' => $prodotto->id,
             'modello' => $prodotto->modello,
+            'categoria' => $prodotto->categoria,
             'updated_by' => Auth::id()
         ]);
 
@@ -996,60 +687,6 @@ class ProdottoController extends Controller
         ]);
 
         return view('admin.prodotti.show', compact('prodotto'));
-    }
-
-    /**
-     * Vista admin specifica per prodotti
-     */
-    public function adminShow(Prodotto $prodotto)
-    {
-        if (!Auth::check() || !Auth::user()->canManageProdotti()) {
-            abort(403, 'Accesso riservato agli amministratori');
-        }
-
-        $prodotto->load([
-            'malfunzionamenti' => function($query) {
-                $query->orderByRaw("FIELD(gravita, 'critica', 'alta', 'media', 'bassa')")
-                      ->orderBy('numero_segnalazioni', 'desc')
-                      ->orderBy('created_at', 'desc');
-            },
-            'malfunzionamenti.creatoBy:id,nome,cognome,livello_accesso',
-            'malfunzionamenti.modificatoBy:id,nome,cognome,livello_accesso',
-            'staffAssegnato:id,nome,cognome,livello_accesso,created_at',
-        ]);
-
-        // Statistiche avanzate per admin
-        $statistiche = [
-            'malfunzionamenti_totali' => $prodotto->malfunzionamenti->count(),
-            'malfunzionamenti_critici' => $prodotto->malfunzionamenti->where('gravita', 'critica')->count(),
-            'segnalazioni_totali' => $prodotto->malfunzionamenti->sum('numero_segnalazioni'),
-            'piu_segnalato' => $prodotto->malfunzionamenti->sortByDesc('numero_segnalazioni')->first(),
-        ];
-
-        // Prodotti correlati
-        $prodottiCorrelati = Prodotto::where('id', '!=', $prodotto->id)
-            ->where(function($query) use ($prodotto) {
-                $query->where('categoria', $prodotto->categoria)
-                      ->orWhere('staff_assegnato_id', $prodotto->staff_assegnato_id);
-            })
-            ->where('attivo', true)
-            ->withCount('malfunzionamenti')
-            ->limit(5)
-            ->get();
-
-        // Staff disponibili per riassegnazione
-        $staffDisponibili = User::where('livello_accesso', '3')
-            ->where('id', '!=', $prodotto->staff_assegnato_id)
-            ->select('id', 'nome', 'cognome')
-            ->orderBy('nome')
-            ->get();
-
-        return view('admin.prodotti.show', compact(
-            'prodotto',
-            'statistiche', 
-            'prodottiCorrelati',
-            'staffDisponibili'
-        ));
     }
 
     /**
@@ -1186,5 +823,467 @@ class ProdottoController extends Controller
                 'message' => 'Errore nell\'esecuzione dell\'azione.'
             ], 500);
         }
+    }
+
+    // ================================================
+    // API ENDPOINTS - SISTEMA CATEGORIE UNIFICATO
+    // ================================================
+
+    /**
+     * API per ricerca prodotti AJAX (pubblico) - CORREZIONE CATEGORIE
+     */
+    public function apiSearch(Request $request)
+    {
+        try {
+            $request->validate([
+                'q' => 'required|string|min:1|max:100',
+            ]);
+
+            $searchTerm = trim($request->input('q'));
+            $query = Prodotto::where('attivo', true);
+
+            // Implementa ricerca con wildcard
+            if (str_ends_with($searchTerm, '*')) {
+                $searchTerm = rtrim($searchTerm, '*');
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('nome', 'LIKE', $searchTerm . '%')
+                      ->orWhere('descrizione', 'LIKE', $searchTerm . '%')
+                      ->orWhere('modello', 'LIKE', $searchTerm . '%');
+                });
+            } else {
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('nome', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('descrizione', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('modello', 'LIKE', '%' . $searchTerm . '%');
+                });
+            }
+
+            // Esegui query con limit
+            $prodotti = $query->select([
+                    'id', 'nome', 'modello', 'descrizione', 
+                    'categoria', 'prezzo', 'foto'
+                ])
+                ->orderBy('nome')
+                ->limit(20)
+                ->get();
+
+            // CORREZIONE: Usa sistema categorie unificato per le etichette
+            $categorieLabels = $this->getCategorie();
+
+            // Formatta risultati per API
+            $results = $prodotti->map(function($prodotto) use ($categorieLabels) {
+                return [
+                    'id' => $prodotto->id,
+                    'nome' => $prodotto->nome,
+                    'modello' => $prodotto->modello,
+                    'descrizione' => \Illuminate\Support\Str::limit($prodotto->descrizione, 100),
+                    'categoria' => $prodotto->categoria,
+                    'categoria_label' => $categorieLabels[$prodotto->categoria] ?? ucfirst(str_replace('_', ' ', $prodotto->categoria)),
+                    'prezzo' => $prodotto->prezzo ? '€ ' . number_format($prodotto->prezzo, 2, ',', '.') : null,
+                    'foto_url' => $prodotto->foto ? asset('storage/' . $prodotto->foto) : null,
+                    'url' => route('prodotti.show', $prodotto->id)
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $results,
+                'total' => $results->count(),
+                'search_term' => $request->input('q'),
+                'timestamp' => now()->toISOString()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Errore in apiSearch', [
+                'error' => $e->getMessage(),
+                'search_term' => $request->input('q', 'N/A')
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Errore nella ricerca prodotti'
+            ], 500);
+        }
+    }
+
+    /**
+     * API per ricerca tecnica (tecnici e staff) - CORREZIONE CATEGORIE
+     */
+    public function apiSearchTech(Request $request)
+    {
+        // Verifica autorizzazione
+        if (!Auth::check() || !Auth::user()->canViewMalfunzionamenti()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Accesso riservato ai tecnici'
+            ], 403);
+        }
+
+        try {
+            $request->validate([
+                'q' => 'required|string|min:1|max:100',
+            ]);
+
+            $searchTerm = trim($request->input('q'));
+            $query = Prodotto::where('attivo', true);
+
+            // Ricerca con wildcard
+            if (str_ends_with($searchTerm, '*')) {
+                $searchTerm = rtrim($searchTerm, '*');
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('nome', 'LIKE', $searchTerm . '%')
+                      ->orWhere('descrizione', 'LIKE', $searchTerm . '%')
+                      ->orWhere('modello', 'LIKE', $searchTerm . '%');
+                });
+            } else {
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('nome', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('descrizione', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('modello', 'LIKE', '%' . $searchTerm . '%');
+                });
+            }
+
+            // Include conteggio malfunzionamenti per vista tecnica
+            $prodotti = $query->withCount([
+                    'malfunzionamenti',
+                    'malfunzionamenti as critici_count' => function($query) {
+                        $query->where('gravita', 'critica');
+                    }
+                ])
+                ->with('staffAssegnato:id,nome,cognome')
+                ->select([
+                    'id', 'nome', 'modello', 'descrizione', 
+                    'categoria', 'prezzo', 'foto', 'staff_assegnato_id'
+                ])
+                ->orderBy('nome')
+                ->limit(20)
+                ->get();
+
+            // CORREZIONE: Usa sistema categorie unificato per le etichette
+            $categorieLabels = $this->getCategorie();
+
+            // Formatta risultati per tecnici
+            $results = $prodotti->map(function($prodotto) use ($categorieLabels) {
+                return [
+                    'id' => $prodotto->id,
+                    'nome' => $prodotto->nome,
+                    'modello' => $prodotto->modello,
+                    'categoria' => $prodotto->categoria,
+                    'categoria_label' => $categorieLabels[$prodotto->categoria] ?? ucfirst(str_replace('_', ' ', $prodotto->categoria)),
+                    'foto_url' => $prodotto->foto ? asset('storage/' . $prodotto->foto) : null,
+                    'malfunzionamenti_count' => $prodotto->malfunzionamenti_count,
+                    'critici_count' => $prodotto->critici_count,
+                    'staff_assegnato' => $prodotto->staffAssegnato ? $prodotto->staffAssegnato->nome_completo : null,
+                    'url' => route('prodotti.completo.show', $prodotto->id)
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $results,
+                'total' => $results->count(),
+                'search_term' => $request->input('q'),
+                'timestamp' => now()->toISOString()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Errore in apiSearchTech', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Errore nella ricerca tecnica'
+            ], 500);
+        }
+    }
+
+    /**
+     * API per lista prodotti pubblici - CORREZIONE CATEGORIE
+     */
+    public function apiIndexPubblico(Request $request)
+    {
+        try {
+            $query = Prodotto::where('attivo', true);
+
+            // Filtro categoria
+            if ($request->filled('categoria')) {
+                $categoria = $request->input('categoria');
+                
+                // Verifica che la categoria sia valida
+                $categorieDisponibili = $this->getCategorie();
+                if (array_key_exists($categoria, $categorieDisponibili)) {
+                    $query->where('categoria', $categoria);
+                }
+            }
+
+            $perPage = min($request->input('per_page', 12), 50);
+            
+            $prodotti = $query->select([
+                    'id', 'nome', 'modello', 'descrizione', 
+                    'categoria', 'prezzo', 'foto'
+                ])
+                ->orderBy('nome')
+                ->paginate($perPage);
+
+            // CORREZIONE: Usa sistema categorie unificato per le etichette
+            $categorieLabels = $this->getCategorie();
+
+            $data = $prodotti->getCollection()->map(function($prodotto) use ($categorieLabels) {
+                return [
+                    'id' => $prodotto->id,
+                    'nome' => $prodotto->nome,
+                    'modello' => $prodotto->modello,
+                    'categoria' => $prodotto->categoria,
+                    'categoria_label' => $categorieLabels[$prodotto->categoria] ?? ucfirst(str_replace('_', ' ', $prodotto->categoria)),
+                    'prezzo' => $prodotto->prezzo ? '€ ' . number_format($prodotto->prezzo, 2, ',', '.') : null,
+                    'foto_url' => $prodotto->foto ? asset('storage/' . $prodotto->foto) : null,
+                    'url' => route('prodotti.show', $prodotto->id)
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $data,
+                'pagination' => [
+                    'current_page' => $prodotti->currentPage(),
+                    'last_page' => $prodotti->lastPage(),
+                    'per_page' => $prodotti->perPage(),
+                    'total' => $prodotti->total()
+                ],
+                'timestamp' => now()->toISOString()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Errore in apiIndexPubblico', [
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Errore nel caricamento prodotti'
+            ], 500);
+        }
+    }
+
+    /**
+     * API per singolo prodotto pubblico - CORREZIONE CATEGORIE
+     */
+    public function apiShowPubblico($id)
+    {
+        try {
+            $prodotto = Prodotto::where('attivo', true)->findOrFail($id);
+
+            // CORREZIONE: Usa sistema categorie unificato per l'etichetta
+            $categorieLabels = $this->getCategorie();
+
+            $data = [
+                'id' => $prodotto->id,
+                'nome' => $prodotto->nome,
+                'modello' => $prodotto->modello,
+                'descrizione' => $prodotto->descrizione,
+                'categoria' => $prodotto->categoria,
+                'categoria_label' => $categorieLabels[$prodotto->categoria] ?? ucfirst(str_replace('_', ' ', $prodotto->categoria)),
+                'note_tecniche' => $prodotto->note_tecniche,
+                'modalita_installazione' => $prodotto->modalita_installazione,
+                'modalita_uso' => $prodotto->modalita_uso,
+                'prezzo' => $prodotto->prezzo ? '€ ' . number_format($prodotto->prezzo, 2, ',', '.') : null,
+                'foto_url' => $prodotto->foto ? asset('storage/' . $prodotto->foto) : null,
+                'created_at' => $prodotto->created_at->format('d/m/Y'),
+                'staff_assegnato' => $prodotto->staffAssegnato ? [
+                    'nome' => $prodotto->staffAssegnato->nome_completo
+                ] : null
+            ];
+
+            // Aggiungi malfunzionamenti solo se l'utente è autorizzato
+            if (Auth::check() && Auth::user()->canViewMalfunzionamenti()) {
+                $data['malfunzionamenti_count'] = $prodotto->malfunzionamenti()->count();
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $data,
+                'timestamp' => now()->toISOString()
+            ]);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Prodotto non trovato'
+            ], 404);
+
+        } catch (\Exception $e) {
+            Log::error('Errore in apiShowPubblico', [
+                'product_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Errore nel caricamento prodotto'
+            ], 500);
+        }
+    }
+
+    // ================================================
+    // METODI HELPER PRIVATI - SISTEMA CATEGORIE UNIFICATO
+    // ================================================
+
+    /**
+     * CORREZIONE: Ottiene l'elenco delle categorie usando il sistema unificato
+     * Questo metodo ora usa sempre il sistema delle categorie definito nel modello Prodotto
+     */
+    private function getCategorie(): array
+    {
+        try {
+            // Usa SEMPRE il sistema unificato del modello
+            return Prodotto::getCategorieUnifico();
+            
+        } catch (\Exception $e) {
+            Log::error('Errore nel recupero categorie unificate', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            // Fallback con categorie di base in caso di errore
+            return [
+                'lavatrice' => 'Lavatrici',
+                'lavastoviglie' => 'Lavastoviglie',
+                'frigorifero' => 'Frigoriferi',
+                'forno' => 'Forni',
+                'altro' => 'Altro'
+            ];
+        }
+    }
+
+    /**
+     * NUOVO: Ottiene solo le categorie presenti effettivamente nel database
+     * Utile per i filtri dropdown (mostra solo categorie con prodotti)
+     */
+    private function getCategorieDisponibili(): array
+    {
+        try {
+            return Prodotto::getCategorieDisponibili();
+            
+        } catch (\Exception $e) {
+            Log::error('Errore nel recupero categorie disponibili', [
+                'error' => $e->getMessage()
+            ]);
+            
+            // Fallback: ottieni categorie dalla query diretta
+            $categoriePresenti = Prodotto::where('attivo', true)
+                ->distinct()
+                ->pluck('categoria')
+                ->toArray();
+                
+            $categorieComplete = $this->getCategorie();
+            
+            $result = [];
+            foreach ($categoriePresenti as $categoria) {
+                $result[$categoria] = $categorieComplete[$categoria] ?? ucfirst(str_replace('_', ' ', $categoria));
+            }
+            
+            return $result;
+        }
+    }
+
+    /**
+     * AGGIORNATO: Calcola statistiche per categoria usando sistema unificato
+     */
+    private function getStatsPerCategoria(): array
+    {
+        try {
+            $stats = Prodotto::where('attivo', true)
+                ->groupBy('categoria')
+                ->selectRaw('categoria, count(*) as count')
+                ->pluck('count', 'categoria')
+                ->toArray();
+            
+            // Aggiungi etichette leggibili
+            $categorieComplete = $this->getCategorie();
+            $result = [];
+            foreach ($stats as $categoria => $count) {
+                $result[$categoria] = [
+                    'count' => $count,
+                    'label' => $categorieComplete[$categoria] ?? ucfirst(str_replace('_', ' ', $categoria))
+                ];
+            }
+            
+            return $result;
+            
+        } catch (\Exception $e) {
+            Log::error('Errore nel calcolo stats per categoria', [
+                'error' => $e->getMessage()
+            ]);
+            
+            return [];
+        }
+    }
+
+    // ================================================
+    // METODI DI COMPATIBILITÀ
+    // ================================================
+
+    /**
+     * Alias per compatibilità con route esistenti
+     */
+    public function adminIndex(Request $request)
+    {
+        return $this->index($request);
+    }
+
+    /**
+     * Vista admin specifica per prodotti
+     */
+    public function adminShow(Prodotto $prodotto)
+    {
+        if (!Auth::check() || !Auth::user()->canManageProdotti()) {
+            abort(403, 'Accesso riservato agli amministratori');
+        }
+
+        $prodotto->load([
+            'malfunzionamenti' => function($query) {
+                $query->orderByRaw("FIELD(gravita, 'critica', 'alta', 'media', 'bassa')")
+                      ->orderBy('numero_segnalazioni', 'desc')
+                      ->orderBy('created_at', 'desc');
+            },
+            'malfunzionamenti.creatoBy:id,nome,cognome,livello_accesso',
+            'malfunzionamenti.modificatoBy:id,nome,cognome,livello_accesso',
+            'staffAssegnato:id,nome,cognome,livello_accesso,created_at',
+        ]);
+
+        // Statistiche avanzate per admin
+        $statistiche = [
+            'malfunzionamenti_totali' => $prodotto->malfunzionamenti->count(),
+            'malfunzionamenti_critici' => $prodotto->malfunzionamenti->where('gravita', 'critica')->count(),
+            'segnalazioni_totali' => $prodotto->malfunzionamenti->sum('numero_segnalazioni'),
+            'piu_segnalato' => $prodotto->malfunzionamenti->sortByDesc('numero_segnalazioni')->first(),
+        ];
+
+        // Prodotti correlati
+        $prodottiCorrelati = Prodotto::where('id', '!=', $prodotto->id)
+            ->where(function($query) use ($prodotto) {
+                $query->where('categoria', $prodotto->categoria)
+                      ->orWhere('staff_assegnato_id', $prodotto->staff_assegnato_id);
+            })
+            ->where('attivo', true)
+            ->withCount('malfunzionamenti')
+            ->limit(5)
+            ->get();
+
+        // Staff disponibili per riassegnazione
+        $staffDisponibili = User::where('livello_accesso', '3')
+            ->where('id', '!=', $prodotto->staff_assegnato_id)
+            ->select('id', 'nome', 'cognome')
+            ->orderBy('nome')
+            ->get();
+
+        return view('admin.prodotti.show', compact(
+            'prodotto',
+            'statistiche', 
+            'prodottiCorrelati',
+            'staffDisponibili'
+        ));
     }
 }

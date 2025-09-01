@@ -125,38 +125,57 @@
                                 </div>
 
                                 {{-- Categoria --}}
-                                <div class="mb-3">
-                                    <label for="categoria" class="form-label">
-                                        <i class="bi bi-grid me-1"></i>Categoria <span class="text-danger">*</span>
-                                    </label>
-                                    <select class="form-select @error('categoria') is-invalid @enderror" 
-                                            id="categoria" 
-                                            name="categoria" 
-                                            required>
-                                        <option value="">-- Seleziona categoria --</option>
-                                        <option value="elettrodomestici" {{ old('categoria', $prodotto->categoria) == 'elettrodomestici' ? 'selected' : '' }}>
-                                            Elettrodomestici
-                                        </option>
-                                        <option value="informatica" {{ old('categoria', $prodotto->categoria) == 'informatica' ? 'selected' : '' }}>
-                                            Informatica
-                                        </option>
-                                        <option value="climatizzatori" {{ old('categoria', $prodotto->categoria) == 'climatizzatori' ? 'selected' : '' }}>
-                                            Climatizzatori
-                                        </option>
-                                        <option value="industriali" {{ old('categoria', $prodotto->categoria) == 'industriali' ? 'selected' : '' }}>
-                                            Attrezzature Industriali
-                                        </option>
-                                        <option value="comunicazione" {{ old('categoria', $prodotto->categoria) == 'comunicazione' ? 'selected' : '' }}>
-                                            Apparati Comunicazione
-                                        </option>
-                                        <option value="sanitarie" {{ old('categoria', $prodotto->categoria) == 'sanitarie' ? 'selected' : '' }}>
-                                            Attrezzature Sanitarie
-                                        </option>
-                                    </select>
-                                    @error('categoria')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
+                                {{-- CORREZIONE: Sezione Categoria con Sistema Unificato nel Form Edit --}}
+<div class="mb-3">
+    <label for="categoria" class="form-label">
+        <i class="bi bi-grid me-1"></i>Categoria <span class="text-danger">*</span>
+    </label>
+    <select class="form-select @error('categoria') is-invalid @enderror" 
+            id="categoria" 
+            name="categoria" 
+            required>
+        <option value="">-- Seleziona categoria --</option>
+        {{-- 
+            CORREZIONE PRINCIPALE: Utilizza le categorie dal controller (sistema unificato)
+            invece delle categorie hardcoded 
+        --}}
+        @if(isset($categorie) && count($categorie) > 0)
+            {{-- Usa le categorie passate dal controller (sistema unificato) --}}
+            @foreach($categorie as $key => $label)
+                <option value="{{ $key }}" {{ old('categoria', $prodotto->categoria) == $key ? 'selected' : '' }}>
+                    {{ $label }}
+                </option>
+            @endforeach
+        @else
+            {{-- 
+                FALLBACK: Se per qualche motivo $categorie non è disponibile,
+                usa il metodo statico del modello direttamente nella vista 
+            --}}
+            @php
+                $categorieUnificate = \App\Models\Prodotto::getCategorieUnifico();
+            @endphp
+            @foreach($categorieUnificate as $key => $label)
+                <option value="{{ $key }}" {{ old('categoria', $prodotto->categoria) == $key ? 'selected' : '' }}>
+                    {{ $label }}
+                </option>
+            @endforeach
+        @endif
+    </select>
+    @error('categoria')
+        <div class="invalid-feedback">{{ $message }}</div>
+    @enderror
+    
+    {{-- Debug info solo in sviluppo --}}
+    @if(config('app.debug'))
+        <div class="form-text">
+            <small class="text-muted">
+                DEBUG: Categoria attuale = "{{ $prodotto->categoria }}" | 
+                Categorie disponibili: {{ isset($categorie) ? count($categorie) : 'Non passate dal controller' }}
+            </small>
+        </div>
+    @endif
+</div>
+
 
                                 {{-- Prezzo --}}
                                 <div class="mb-3">

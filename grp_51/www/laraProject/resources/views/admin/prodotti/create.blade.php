@@ -98,70 +98,57 @@
                         </div>
                         
                         <!-- Categoria e Prezzo -->
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label for="categoria" class="form-label fw-semibold">
-                                    <i class="bi bi-collection me-1"></i>Categoria *
-                                </label>
-                                <select class="form-select @error('categoria') is-invalid @enderror" 
-                                        id="categoria" 
-                                        name="categoria" 
-                                        required>
-                                    <option value="">Seleziona categoria</option>
-                                    <option value="lavatrice" {{ old('categoria') == 'lavatrice' ? 'selected' : '' }}>
-                                        🧺 Lavatrici
-                                    </option>
-                                    <option value="lavastoviglie" {{ old('categoria') == 'lavastoviglie' ? 'selected' : '' }}>
-                                        🍽️ Lavastoviglie
-                                    </option>
-                                    <option value="forno" {{ old('categoria') == 'forno' ? 'selected' : '' }}>
-                                        🔥 Forni
-                                    </option>
-                                    <option value="frigorifero" {{ old('categoria') == 'frigorifero' ? 'selected' : '' }}>
-                                        ❄️ Frigoriferi
-                                    </option>
-                                    <option value="asciugatrice" {{ old('categoria') == 'asciugatrice' ? 'selected' : '' }}>
-                                        🌬️ Asciugatrici
-                                    </option>
-                                    <option value="piano_cottura" {{ old('categoria') == 'piano_cottura' ? 'selected' : '' }}>
-                                        🔥 Piani Cottura
-                                    </option>
-                                    <option value="cappa" {{ old('categoria') == 'cappa' ? 'selected' : '' }}>
-                                        💨 Cappe Aspiranti
-                                    </option>
-                                    <option value="microonde" {{ old('categoria') == 'microonde' ? 'selected' : '' }}>
-                                        📡 Microonde
-                                    </option>
-                                    <option value="altro" {{ old('categoria') == 'altro' ? 'selected' : '' }}>
-                                        ⚙️ Altri Elettrodomestici
-                                    </option>
-                                </select>
-                                @error('categoria')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                            
-                            <div class="col-md-6">
-                                <label for="prezzo" class="form-label fw-semibold">
-                                    <i class="bi bi-currency-euro me-1"></i>Prezzo (€)
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text">€</span>
-                                    <input type="number" 
-                                           class="form-control @error('prezzo') is-invalid @enderror" 
-                                           id="prezzo" 
-                                           name="prezzo" 
-                                           value="{{ old('prezzo') }}"
-                                           min="0"
-                                           step="0.01"
-                                           placeholder="599.99">
-                                </div>
-                                <div class="form-text">Prezzo di listino (opzionale)</div>
-                                @error('prezzo')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                        </div>
+                        
+<div class="col-md-6">
+    <label for="categoria" class="form-label fw-semibold">
+        <i class="bi bi-collection me-1"></i>Categoria *
+    </label>
+    <select class="form-select @error('categoria') is-invalid @enderror" 
+            id="categoria" 
+            name="categoria" 
+            required>
+        <option value="">Seleziona categoria</option>
+        {{-- 
+            CORREZIONE PRINCIPALE: Utilizza le categorie dal sistema unificato
+            invece delle categorie hardcoded 
+        --}}
+        @if(isset($categorie) && count($categorie) > 0)
+            {{-- Usa le categorie passate dal controller (sistema unificato) --}}
+            @foreach($categorie as $key => $label)
+                <option value="{{ $key }}" {{ old('categoria') == $key ? 'selected' : '' }}>
+                    {{ $label }}
+                </option>
+            @endforeach
+        @else
+            {{-- 
+                FALLBACK: Se per qualche motivo $categorie non è disponibile,
+                usa il metodo statico del modello direttamente nella vista 
+            --}}
+            @php
+                $categorieUnificate = \App\Models\Prodotto::getCategorieUnifico();
+            @endphp
+            @foreach($categorieUnificate as $key => $label)
+                <option value="{{ $key }}" {{ old('categoria') == $key ? 'selected' : '' }}>
+                    {{ $label }}
+                </option>
+            @endforeach
+        @endif
+    </select>
+    @error('categoria')
+        <div class="invalid-feedback">{{ $message }}</div>
+    @enderror
+    
+    {{-- Aggiungi testo di aiuto con le categorie disponibili --}}
+    <div class="form-text">
+        Seleziona la categoria appropriata per il prodotto
+        <br><small class="text-muted">
+            Categorie disponibili: 
+            @if(isset($categorie))
+                {{ implode(', ', array_slice(array_values($categorie), 0, 3)) }}{{ count($categorie) > 3 ? '...' : '' }}
+            @endif
+        </small>
+    </div>
+</div>
                         
                         <!-- Descrizione -->
                         <div class="mb-4">
@@ -376,35 +363,71 @@
         <div class="col-lg-4">
             
             <!-- Guida Categorie -->
-            <div class="card card-custom mb-4">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i class="bi bi-collection text-primary me-2"></i>Categorie Prodotti
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="small">
-                        <div class="mb-2">
-                            <strong>🧺 Lavatrici:</strong> Tutti i modelli di lavatrici
-                        </div>
-                        <div class="mb-2">
-                            <strong>🍽️ Lavastoviglie:</strong> Lavastoviglie da incasso e libere
-                        </div>
-                        <div class="mb-2">
-                            <strong>🔥 Forni:</strong> Forni elettrici, gas e combinati
-                        </div>
-                        <div class="mb-2">
-                            <strong>❄️ Frigoriferi:</strong> Frigoriferi e congelatori
-                        </div>
-                        <div class="mb-2">
-                            <strong>🌬️ Asciugatrici:</strong> Asciugatrici a condensazione e pompa di calore
-                        </div>
-                        <div class="mb-0">
-                            <strong>⚙️ Altri:</strong> Tutti gli altri elettrodomestici
-                        </div>
+           
+<div class="card card-custom mb-4">
+    <div class="card-header">
+        <h6 class="mb-0">
+            <i class="bi bi-collection text-primary me-2"></i>Categorie Prodotti
+        </h6>
+    </div>
+    <div class="card-body">
+        <div class="small">
+            {{-- 
+                CORREZIONE: Genera dinamicamente la guida dalle categorie unificate
+                invece di avere descrizioni hardcoded 
+            --}}
+            @php
+                // Usa le categorie unificate con descrizioni personalizzate
+                $categorieGuida = [
+                    'lavatrice' => ['label' => 'Lavatrici', 'desc' => 'Lavatrici a carica frontale e dall\'alto'],
+                    'lavastoviglie' => ['label' => 'Lavastoviglie', 'desc' => 'Lavastoviglie da incasso e libere'],
+                    'frigorifero' => ['label' => 'Frigoriferi', 'desc' => 'Frigoriferi, congelatori e combinati'],
+                    'forno' => ['label' => 'Forni', 'desc' => 'Forni elettrici, gas e combinati'],
+                    'asciugatrice' => ['label' => 'Asciugatrici', 'desc' => 'Asciugatrici a condensazione e pompa di calore'],
+                    'piano_cottura' => ['label' => 'Piani Cottura', 'desc' => 'Piani a induzione, gas e elettrici'],
+                    'cappa' => ['label' => 'Cappe Aspiranti', 'desc' => 'Cappe a parete, isola e da incasso'],
+                    'microonde' => ['label' => 'Microonde', 'desc' => 'Microonde semplici e combinati'],
+                    'condizionatore' => ['label' => 'Condizionatori', 'desc' => 'Climatizzatori e split'],
+                    'aspirapolvere' => ['label' => 'Aspirapolvere', 'desc' => 'Robot e aspirapolvere tradizionali'],
+                    'ferro_stiro' => ['label' => 'Ferri da Stiro', 'desc' => 'Ferri con caldaia e tradizionali'],
+                    'macchina_caffe' => ['label' => 'Macchine Caffè', 'desc' => 'Espresso automatiche e manuali'],
+                    'scaldabagno' => ['label' => 'Scaldabagni', 'desc' => 'Boiler elettrici e a gas'],
+                    'caldaia' => ['label' => 'Caldaie', 'desc' => 'Caldaie murali e a basamento'],
+                    'altro' => ['label' => 'Altri Elettrodomestici', 'desc' => 'Tutti gli altri elettrodomestici']
+                ];
+                
+                // Ottieni solo le categorie effettivamente disponibili nel sistema
+                $categorieDisponibili = isset($categorie) && count($categorie) > 0 
+                    ? $categorie 
+                    : \App\Models\Prodotto::getCategorieUnifico();
+            @endphp
+            
+            @foreach($categorieDisponibili as $key => $label)
+                @if(isset($categorieGuida[$key]))
+                    <div class="mb-2">
+                        <strong>{{ $label }}:</strong> 
+                        <span class="text-muted">{{ $categorieGuida[$key]['desc'] }}</span>
                     </div>
-                </div>
+                @else
+                    {{-- Per categorie non mappate, usa una descrizione generica --}}
+                    <div class="mb-2">
+                        <strong>{{ $label }}:</strong> 
+                        <span class="text-muted">Prodotti della categoria {{ strtolower($label) }}</span>
+                    </div>
+                @endif
+            @endforeach
+            
+            {{-- Nota informativa sul sistema --}}
+            <hr class="my-2">
+            <div class="text-center">
+                <small class="text-muted fst-italic">
+                    Sistema di categorie unificato
+                    <br>{{ count($categorieDisponibili) }} categorie disponibili
+                </small>
             </div>
+        </div>
+    </div>
+</div>
             
             <!-- Statistiche Catalogo -->
             <div class="card card-custom mb-4">
@@ -971,20 +994,151 @@ function removeImage() {
  */
 function fillSampleData() {
     if (confirm('Vuoi riempire il form con dati di esempio? I dati attuali verranno sostituiti.')) {
-        $('#nome').val('Lavatrice EcoWash Pro');
-        $('#modello').val('EW-7000X');
-        $('#categoria').val('lavatrice');
-        $('#prezzo').val('699.99');
-        $('#descrizione').val('Lavatrice ad alta efficienza energetica con capacità di 7kg. Dotata di tecnologia inverter per un funzionamento silenzioso e programmi di lavaggio intelligenti. Ideale per famiglie di 3-4 persone.');
-        $('#note_tecniche').val('Capacità: 7kg\nVelocità centrifuga: 1400 giri/min\nClasse energetica: A+++\nDimensioni: 60x60x85 cm\nPotenza: 2100W\nCollegamento: 230V');
-        $('#modalita_installazione').val('1. Rimuovere imballaggio e blocchi di trasporto\n2. Posizionare su superficie piana e livellare\n3. Collegare tubo di scarico e carico acqua\n4. Collegare alimentazione elettrica\n5. Eseguire primo lavaggio a vuoto');
-        $('#modalita_uso').val('Selezionare il programma adatto al tipo di tessuto. Dosare il detersivo secondo le indicazioni. Per capi delicati utilizzare il programma apposito. Pulire regolarmente il filtro e il cassetto detersivo.');
-        $('#attivo').val('1');
+        // Ottieni la prima categoria disponibile dal dropdown
+        const categoriaSelect = document.getElementById('categoria');
+        const firstCategory = categoriaSelect.options[1]; // Prima opzione dopo "Seleziona categoria"
         
-        // Triggera gli eventi per aggiornare contatori
-        $('#descrizione, #note_tecniche, #modalita_installazione, #modalita_uso').trigger('input');
+        // Dati di esempio adattati alla categoria selezionata
+        let sampleData = getSampleDataForCategory(firstCategory ? firstCategory.value : 'altro');
         
-        alert('Dati di esempio inseriti!');
+        // Riempie i campi con i dati di esempio
+        document.getElementById('nome').value = sampleData.nome;
+        document.getElementById('modello').value = sampleData.modello;
+        document.getElementById('prezzo').value = sampleData.prezzo;
+        document.getElementById('descrizione').value = sampleData.descrizione;
+        document.getElementById('note_tecniche').value = sampleData.note_tecniche;
+        document.getElementById('modalita_installazione').value = sampleData.modalita_installazione;
+        document.getElementById('modalita_uso').value = sampleData.modalita_uso;
+        document.getElementById('attivo').value = '1';
+        
+        // Seleziona la categoria
+        if (firstCategory) {
+            categoriaSelect.value = firstCategory.value;
+        }
+        
+        // Triggera gli eventi per aggiornare contatori e validazione
+        ['#descrizione', '#note_tecniche', '#modalita_installazione', '#modalita_uso'].forEach(selector => {
+            $(selector).trigger('input');
+        });
+        
+        alert(`Dati di esempio inseriti per categoria: ${firstCategory ? firstCategory.text : 'Generico'}!`);
+    }
+}
+
+function getSampleDataForCategory(categoria) {
+    const sampleDataMap = {
+        'lavatrice': {
+            nome: 'Lavatrice EcoWash Pro',
+            modello: 'EW-7000X',
+            prezzo: '699.99',
+            descrizione: 'Lavatrice ad alta efficienza energetica con capacità di 7kg. Dotata di tecnologia inverter per un funzionamento silenzioso e programmi di lavaggio intelligenti. Ideale per famiglie di 3-4 persone.',
+            note_tecniche: 'Capacità: 7kg\nVelocità centrifuga: 1400 giri/min\nClasse energetica: A+++\nDimensioni: 60x60x85 cm\nPotenza: 2100W\nCollegamento: 230V',
+            modalita_installazione: '1. Rimuovere imballaggio e blocchi di trasporto\n2. Posizionare su superficie piana e livellare\n3. Collegare tubo di scarico e carico acqua\n4. Collegare alimentazione elettrica\n5. Eseguire primo lavaggio a vuoto',
+            modalita_uso: 'Selezionare il programma adatto al tipo di tessuto. Dosare il detersivo secondo le indicazioni. Per capi delicati utilizzare il programma apposito. Pulire regolarmente il filtro e il cassetto detersivo.'
+        },
+        
+        'lavastoviglie': {
+            nome: 'Lavastoviglie SilentClean',
+            modello: 'SC-6000',
+            prezzo: '549.99',
+            descrizione: 'Lavastoviglie da incasso ultra-silenziosa con 3° cestello per posate. 14 coperti, classe A+++, funzionamento silenzioso sotto i 42dB.',
+            note_tecniche: 'Capacità: 14 coperti\nRumorosità: 42dB\nClasse energetica: A+++\nDimensioni: 60x60x82 cm\n8 programmi di lavaggio\n3° cestello per posate',
+            modalita_installazione: '1. Preparare vano di incasso 60x60x82 cm\n2. Collegare scarico e carico acqua\n3. Collegamento elettrico 230V\n4. Fissare ai mobili laterali\n5. Test di funzionamento',
+            modalita_uso: 'Caricare stoviglie senza sovrapporle. Utilizzare sale rigenerante e brillantante. Selezionare programma adeguato al carico. Pulire filtri settimanalmente.'
+        },
+        
+        'frigorifero': {
+            nome: 'Frigorifero CoolFresh XL',
+            modello: 'CF-400L',
+            prezzo: '1299.99',
+            descrizione: 'Frigorifero combinato No Frost da 400L con dispenser acqua e ghiaccio. Controllo digitale della temperatura e sistema antibatterico.',
+            note_tecniche: 'Capacità: 400L (280L frigo + 120L freezer)\nClasse energetica: A++\nSistema No Frost\nDispenser acqua/ghiaccio\nDimensioni: 70x60x185 cm',
+            modalita_installazione: '1. Posizionare su superficie piana\n2. Lasciare 5cm di spazio sui lati\n3. Collegamento idrico per dispenser\n4. Collegamento elettrico\n5. Attesa 4 ore prima dell\'accensione',
+            modalita_uso: 'Regolare temperature: frigo +4°C, freezer -18°C. Sostituire filtro acqua ogni 6 mesi. Pulire bobine posteriori ogni 6 mesi. Non sovraccaricare i ripiani.'
+        },
+        
+        'forno': {
+            nome: 'Forno Multifunzione Chef Pro',
+            modello: 'CP-65L',
+            prezzo: '799.99',
+            descrizione: 'Forno elettrico multifunzione da 65L con pirolisi e 10 funzioni di cottura. Display touch e sonde temperatura.',
+            note_tecniche: 'Capacità: 65L\n10 funzioni cottura\nPirolisi autopulente\nTemperatura: 50-275°C\nClasse energetica: A\nDimensioni: 60x60x60 cm',
+            modalita_installazione: '1. Preparare vano incasso 60x60x60 cm\n2. Collegamento elettrico 380V\n3. Ventilazione retrostante\n4. Fissaggio con staffe\n5. Test funzionamento e calibrazione',
+            modalita_uso: 'Preriscaldare sempre il forno. Utilizzare funzione pirolisi per pulizia mensile. Posizionare cibi nel ripiano centrale per cottura uniforme. Utilizzare sonde per arrosti.'
+        },
+        
+        'piano_cottura': {
+            nome: 'Piano Cottura Induzione FlexCook',
+            modello: 'FC-4Z-IND',
+            prezzo: '899.99',
+            descrizione: 'Piano cottura a induzione da 60cm con 4 zone e area flessibile. Controlli touch e timer individuale per ogni zona.',
+            note_tecniche: '4 zone induzione\nZona flessibile centrale\nPotenza totale: 7200W\nControlli touch\nTimer individuale\nDimensioni: 60x52 cm',
+            modalita_installazione: '1. Taglio piano cucina 56x49 cm\n2. Collegamento elettrico 380V\n3. Ventilazione sottostante\n4. Sigillatura perimetrale\n5. Test funzionamento zone',
+            modalita_uso: 'Utilizzare solo pentole compatibili induzione. Pulizia con prodotti specifici per vetroceramica. Non utilizzare come piano di appoggio. Controllo touch con mani asciutte.'
+        }
+    };
+    
+    // Restituisce dati specifici per categoria o generici se non trovata
+    return sampleDataMap[categoria] || {
+        nome: `Prodotto ${categoria.charAt(0).toUpperCase() + categoria.slice(1)}`,
+        modello: 'MOD-2024',
+        prezzo: '399.99',
+        descrizione: `Prodotto di qualità per la categoria ${categoria}. Caratteristiche tecniche avanzate e design moderno per soddisfare ogni esigenza domestica.`,
+        note_tecniche: `Specifiche tecniche complete per ${categoria}.\nDimensioni standard.\nClasse energetica ottimale.\nGaranzia 2 anni.`,
+        modalita_installazione: `Installazione standard per prodotti ${categoria}.\nSeguire le istruzioni del manuale.\nRichiedere assistenza tecnica se necessario.`,
+        modalita_uso: `Utilizzo intuitive e sicuro.\nSegui le indicazioni per ${categoria}.\nManutenzione regolare consigliata.`
+    };
+}
+
+$(document).ready(function() {
+    // Gestione cambio categoria per aggiornare suggerimenti
+    $('#categoria').on('change', function() {
+        const selectedCategory = $(this).val();
+        const selectedText = $(this).find('option:selected').text();
+        
+        if (selectedCategory) {
+            // Aggiorna placeholder con suggerimenti specifici per categoria
+            updatePlaceholderForCategory(selectedCategory);
+            
+            // Log per debugging
+            console.log(`Categoria selezionata: ${selectedText} (${selectedCategory})`);
+        }
+    });
+});
+
+/**
+ * Aggiorna i placeholder dei campi in base alla categoria selezionata
+ */
+function updatePlaceholderForCategory(categoria) {
+    const placeholders = {
+        'lavatrice': {
+            nome: 'es: Lavatrice EcoWash Pro',
+            modello: 'es: EW-7000X',
+            descrizione: 'Caratteristiche tecniche, capacità di carico, efficienza energetica, programmi speciali...',
+            note_tecniche: 'Capacità di carico, giri centrifuga, classe energetica, dimensioni, potenza...'
+        },
+        'lavastoviglie': {
+            nome: 'es: Lavastoviglie SilentClean',
+            modello: 'es: SC-6000',
+            descrizione: 'Numero coperti, silenziosità, efficienza energetica, programmi di lavaggio...',
+            note_tecniche: 'Coperti, rumorosità in dB, classe energetica, dimensioni, programmi...'
+        },
+        'frigorifero': {
+            nome: 'es: Frigorifero CoolFresh XL',
+            modello: 'es: CF-400L',
+            descrizione: 'Capacità, sistema No Frost, dispenser, controllo temperatura digitale...',
+            note_tecniche: 'Capacità totale e per vano, classe energetica, sistema di raffreddamento...'
+        }
+        // Aggiungi altre categorie se necessario
+    };
+    
+    if (placeholders[categoria]) {
+        Object.keys(placeholders[categoria]).forEach(field => {
+            const element = document.getElementById(field);
+            if (element) {
+                element.placeholder = placeholders[categoria][field];
+            }
+        });
     }
 }
 
