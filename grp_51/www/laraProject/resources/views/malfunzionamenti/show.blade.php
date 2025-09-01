@@ -144,7 +144,7 @@
                         
                         {{-- Torna all'elenco --}}
                         <a href="{{ route('malfunzionamenti.index', $prodotto) }}" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-left me-1"></i>Torna all'Elenco Malfunzionamenti di {{ $prodotto->nome }}
+                            <i class="bi bi-arrow-left me-1"></i>Malfunzionamenti di {{ $prodotto->nome }}
                         </a>
                         
                         {{-- SEGNALA PROBLEMA (per tecnici e staff) --}}

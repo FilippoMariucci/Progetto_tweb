@@ -10,6 +10,14 @@ use App\Models\Prodotto;
 use App\Models\User;
 
 class ProdottoController extends Controller
+
+/**
+ * Controller per la gestione dei prodotti
+ * VERSIONE CORRETTA - Sistema categorie unificato
+ * 
+ * Gestisce tutte le operazioni CRUD sui prodotti con sistema di categorie coerente
+ * tra frontend pubblico, area tecnici, area staff e pannello amministratore
+ */
 {
     // ================================================
     // METODI PER CATALOGO PUBBLICO (Livello 1) - CORRETTI

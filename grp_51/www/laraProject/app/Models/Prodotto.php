@@ -136,25 +136,12 @@ class Prodotto extends Model
     }
 
     /**
-     * Label formattata per la categoria
+     * FIXED: Label formattata per la categoria - SISTEMA UNIFICATO
+     * Ora usa il mapping unificato delle categorie
      */
     public function getCategoriaLabelAttribute(): string
     {
-        $categorie = [
-            'elettrodomestici' => 'Elettrodomestici',
-            'informatica' => 'Informatica',
-            'climatizzatori' => 'Climatizzatori',
-            'industriali' => 'Attrezzature Industriali',
-            'comunicazione' => 'Apparati Comunicazione',
-            'sanitarie' => 'Attrezzature Sanitarie',
-            'climatizzazione' => 'Climatizzazione', 
-            'cucina' => 'Cucina',
-            'lavanderia' => 'Lavanderia',
-            'riscaldamento' => 'Riscaldamento',
-            'altro' => 'Altro'
-        ];
-
-        return $categorie[$this->categoria] ?? ucfirst(str_replace('_', ' ', $this->categoria));
+        return self::getCategorieUnifico()[$this->categoria] ?? ucfirst(str_replace('_', ' ', $this->categoria));
     }
 
     /**
@@ -227,7 +214,7 @@ class Prodotto extends Model
      */
     public function getCategoriaFormattataAttribute(): string
     {
-        return ucfirst(str_replace('_', ' ', $this->categoria));
+        return $this->categoria_label;
     }
 
     // ================================================
@@ -442,47 +429,83 @@ class Prodotto extends Model
     }
 
     // ================================================
-    // METODI STATICI
+    // METODI STATICI UNIFICATI - SISTEMA PRINCIPALE
     // ================================================
 
     /**
-     * Ottiene tutte le categorie disponibili secondo le specifiche del progetto
+     * SISTEMA UNIFICATO - Mappa definitiva delle categorie
+     * Questo è l'unico metodo che definisce le categorie, tutte le altre funzioni dovranno usarlo
+     * Basato sui dati del seeder e sulle categorie presenti nel database
      */
-    public static function getCategorie(): array
+    public static function getCategorieUnifico(): array
     {
         return [
+            // Categorie principali da seeder (corrispondono ai valori reali nel database)
+            'lavatrice' => 'Lavatrici',
+            'lavastoviglie' => 'Lavastoviglie', 
+            'frigorifero' => 'Frigoriferi',
+            'forno' => 'Forni',
+            'asciugatrice' => 'Asciugatrici',
+            'piano_cottura' => 'Piani Cottura',
+            'cappa' => 'Cappe Aspiranti',
+            'microonde' => 'Microonde',
+            'condizionatore' => 'Condizionatori',
+            'aspirapolvere' => 'Aspirapolvere',
+            'ferro_stiro' => 'Ferri da Stiro',
+            'macchina_caffe' => 'Macchine Caffè',
+            'scaldabagno' => 'Scaldabagni',
+            'caldaia' => 'Caldaie',
+            
+            // Categorie aggiuntive supportate (possono essere create in futuro)
+            'climatizzatori' => 'Climatizzatori',
             'elettrodomestici' => 'Elettrodomestici',
             'informatica' => 'Informatica',
-            'climatizzatori' => 'Climatizzatori',
             'industriali' => 'Attrezzature Industriali',
             'comunicazione' => 'Apparati Comunicazione',
-            'sanitarie' => 'Attrezzature Sanitarie'
+            'sanitarie' => 'Attrezzature Sanitarie',
+            'altro' => 'Altro'
         ];
     }
 
     /**
-     * Ottiene le categorie con conteggio prodotti
+     * DEPRECATO - Mantiene compatibilità vecchio codice
+     * @deprecated Utilizzare getCategorieUnifico() invece
+     */
+    public static function getCategorie(): array
+    {
+        return self::getCategorieUnifico();
+    }
+
+    /**
+     * Ottiene le categorie presenti effettivamente nel database con conteggio
+     * Utilizza il sistema unificato per le etichette
      */
     public static function getCategorieConConteggio(): array
     {
         try {
-            $categorie = self::getCategorie();
+            // Ottiene le categorie dal sistema unificato
+            $categorieComplete = self::getCategorieUnifico();
             
-            // Conta i prodotti per categoria
+            // Conta i prodotti per categoria presenti nel database
             $prodottiPerCategoria = self::where('attivo', true)
                 ->selectRaw('categoria, COUNT(*) as count')
                 ->groupBy('categoria')
                 ->pluck('count', 'categoria')
                 ->toArray();
 
-            // Unisci con le etichette
+            // Costruisce il risultato solo per le categorie che hanno prodotti
             $result = [];
-            foreach ($categorie as $key => $label) {
-                $result[$key] = [
-                    'label' => $label,
-                    'count' => $prodottiPerCategoria[$key] ?? 0
-                ];
+            foreach ($prodottiPerCategoria as $categoria => $count) {
+                if ($count > 0) { // Solo categorie con prodotti
+                    $result[$categoria] = [
+                        'label' => $categorieComplete[$categoria] ?? ucfirst(str_replace('_', ' ', $categoria)),
+                        'count' => $count
+                    ];
+                }
             }
+
+            // Ordina per nome categoria per consistenza UI
+            ksort($result);
 
             return $result;
 
@@ -491,11 +514,56 @@ class Prodotto extends Model
                 'error' => $e->getMessage()
             ]);
 
-            // Fallback
-            return array_map(function($label) {
-                return ['label' => $label, 'count' => 0];
-            }, self::getCategorie());
+            return [];
         }
+    }
+
+    /**
+     * Ottiene solo le categorie presenti nel database (senza conteggio)
+     * Utile per i filtri dropdown
+     */
+    public static function getCategorieDisponibili(): array
+    {
+        try {
+            $categoriePresenti = self::where('attivo', true)
+                ->distinct()
+                ->pluck('categoria')
+                ->toArray();
+
+            $categorieComplete = self::getCategorieUnifico();
+            
+            $result = [];
+            foreach ($categoriePresenti as $categoria) {
+                $result[$categoria] = $categorieComplete[$categoria] ?? ucfirst(str_replace('_', ' ', $categoria));
+            }
+
+            asort($result); // Ordina per etichetta
+            
+            return $result;
+
+        } catch (\Exception $e) {
+            \Log::error('Errore nel recupero categorie disponibili', [
+                'error' => $e->getMessage()
+            ]);
+
+            return [];
+        }
+    }
+
+    /**
+     * Verifica se una categoria è valida
+     */
+    public static function isCategoriaValida(string $categoria): bool
+    {
+        return array_key_exists($categoria, self::getCategorieUnifico());
+    }
+
+    /**
+     * Ottiene l'etichetta di una categoria
+     */
+    public static function getEtichettaCategoria(string $categoria): string
+    {
+        return self::getCategorieUnifico()[$categoria] ?? ucfirst(str_replace('_', ' ', $categoria));
     }
 
     /**
@@ -508,8 +576,8 @@ class Prodotto extends Model
         // Applica ricerca testuale
         $query->ricerca($termine);
 
-        // Filtra per categoria se specificata
-        if ($categoria) {
+        // Filtra per categoria se specificata e valida
+        if ($categoria && self::isCategoriaValida($categoria)) {
             $query->categoria($categoria);
         }
 

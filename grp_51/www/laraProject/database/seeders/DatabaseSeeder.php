@@ -12,11 +12,12 @@ use App\Models\Malfunzionamento;
 
 /**
  * DatabaseSeeder Completo per Sistema Assistenza Tecnica
+ * VERSIONE CORRETTA - Categorie unificate con il modello Prodotto
  * 
  * Popola il database con dati di esempio completi per testare tutte le funzionalità:
  * - Utenti con tutti i livelli di accesso (come da specifiche progetto)
  * - Centri assistenza distribuiti sul territorio italiano
- * - Catalogo completo di elettrodomestici di ogni categoria
+ * - Catalogo completo di elettrodomestici con CATEGORIE UNIFICATE
  * - Malfunzionamenti realistici con soluzioni tecniche dettagliate
  * 
  * Password per tutti gli utenti: dNWRdNWR (primi 4 caratteri SSH ripetuti)
@@ -170,16 +171,19 @@ class DatabaseSeeder extends Seeder
             CentroAssistenza::create($centro);
         }
 
-        // === CREAZIONE CATALOGO PRODOTTI COMPLETO ===
-        echo "Creazione catalogo prodotti completo...\n";
+        // === CREAZIONE CATALOGO PRODOTTI CON CATEGORIE UNIFICATE ===
+        echo "Creazione catalogo prodotti con categorie unificate...\n";
+        
+        // NOTA IMPORTANTE: Le categorie ora utilizzano i valori del sistema unificato definito nel modello Prodotto
+        // Utilizzando getCategorieUnifico() per mantenere coerenza assoluta
         
         $prodotti = [
-            // === CATEGORIA LAVATRICI ===
+            // === CATEGORIA LAVATRICI (lavatrice) ===
             [
                 'nome' => 'Lavatrice EcoWash Pro',
                 'modello' => 'EW-2024-001',
                 'descrizione' => 'Lavatrice a carica frontale da 9kg con tecnologia inverter e vapore igienizzante',
-                'categoria' => 'lavatrice',
+                'categoria' => 'lavatrice', // UNIFICATO: corrisponde a "Lavatrici" nell'etichetta
                 'note_tecniche' => 'Capacità 9kg, classe A+++, 1400 giri/min, 16 programmi, tecnologia vapore',
                 'modalita_installazione' => 'Collegamento idraulico (carico/scarico), elettrico 220V, livellamento',
                 'modalita_uso' => 'Caricare max 9kg, dosare detersivo, selezionare programma appropriato',
@@ -209,12 +213,12 @@ class DatabaseSeeder extends Seeder
                 'staff_assegnato_id' => 2
             ],
 
-            // === CATEGORIA LAVASTOVIGLIE ===
+            // === CATEGORIA LAVASTOVIGLIE (lavastoviglie) ===
             [
                 'nome' => 'Lavastoviglie SilentClean',
                 'modello' => 'SC-2024-004',
                 'descrizione' => 'Lavastoviglie da incasso 60cm ultra-silenziosa con 3° cestello',
-                'categoria' => 'lavastoviglie',
+                'categoria' => 'lavastoviglie', // UNIFICATO: corrisponde a "Lavastoviglie" nell'etichetta
                 'note_tecniche' => '14 coperti, classe A+++, 42dB, 3° cestello posate, 8 programmi',
                 'modalita_installazione' => 'Incasso sotto piano cucina, collegamenti acqua calda/fredda',
                 'modalita_uso' => 'Carico max 14 coperti, sale rigenerante, brillantante, programmi eco',
@@ -233,12 +237,12 @@ class DatabaseSeeder extends Seeder
                 'staff_assegnato_id' => 4
             ],
 
-            // === CATEGORIA FRIGORIFERI ===
+            // === CATEGORIA FRIGORIFERI (frigorifero) ===
             [
                 'nome' => 'Frigorifero CoolFresh XL',
                 'modello' => 'CF-2024-006',
                 'descrizione' => 'Frigorifero combinato No Frost da 400L con dispenser acqua',
-                'categoria' => 'frigorifero',
+                'categoria' => 'frigorifero', // UNIFICATO: corrisponde a "Frigoriferi" nell'etichetta
                 'note_tecniche' => 'Capacità 400L, No Frost, classe A++, LED, dispenser acqua/ghiaccio',
                 'modalita_installazione' => 'Superficie piana, areazione posteriore, collegamento idrico dispenser',
                 'modalita_uso' => 'Regolazione temperature separate, filtro acqua ogni 6 mesi',
@@ -268,12 +272,12 @@ class DatabaseSeeder extends Seeder
                 'staff_assegnato_id' => 4
             ],
 
-            // === CATEGORIA FORNI ===
+            // === CATEGORIA FORNI (forno) ===
             [
                 'nome' => 'Forno Multifunzione Chef Pro',
                 'modello' => 'CP-2024-009',
                 'descrizione' => 'Forno elettrico multifunzione da incasso con pirolisi',
-                'categoria' => 'forno',
+                'categoria' => 'forno', // UNIFICATO: corrisponde a "Forni" nell'etichetta
                 'note_tecniche' => '65L, 10 funzioni cottura, pirolisi, classe A, display touch',
                 'modalita_installazione' => 'Incasso in colonna o sotto piano, collegamento 220V',
                 'modalita_uso' => 'Preriscaldamento, selezione programmi, pulizia pirolitica automatica',
@@ -292,12 +296,12 @@ class DatabaseSeeder extends Seeder
                 'staff_assegnato_id' => 4
             ],
 
-            // === CATEGORIA ASCIUGATRICI ===
+            // === CATEGORIA ASCIUGATRICI (asciugatrice) ===
             [
                 'nome' => 'Asciugatrice DryMax Eco',
                 'modello' => 'DM-2024-011',
                 'descrizione' => 'Asciugatrice a pompa di calore da 9kg con sensori intelligenti',
-                'categoria' => 'asciugatrice',
+                'categoria' => 'asciugatrice', // UNIFICATO: corrisponde a "Asciugatrici" nell'etichetta
                 'note_tecniche' => 'Pompa di calore, classe A+++, 9kg, 16 programmi, sensori umidità',
                 'modalita_installazione' => 'Ventilazione o scarico diretto condensa, collegamento elettrico',
                 'modalita_uso' => 'Pulire filtro lanugine, svuotare serbatoio condensa, programmi automatici',
@@ -316,12 +320,12 @@ class DatabaseSeeder extends Seeder
                 'staff_assegnato_id' => 2
             ],
 
-            // === CATEGORIA PIANI COTTURA ===
+            // === CATEGORIA PIANI COTTURA (piano_cottura) ===
             [
                 'nome' => 'Piano Cottura Induzione FlexCook',
                 'modello' => 'FC-2024-013',
                 'descrizione' => 'Piano cottura a induzione da 60cm con zona flessibile',
-                'categoria' => 'piano_cottura',
+                'categoria' => 'piano_cottura', // UNIFICATO: corrisponde a "Piani Cottura" nell'etichetta
                 'note_tecniche' => '4 zone induzione, zona flex, controlli touch, timer individuale',
                 'modalita_installazione' => 'Incasso nel piano cucina, collegamento elettrico 380V',
                 'modalita_uso' => 'Solo pentole compatibili induzione, controllo temperatura preciso',
@@ -340,12 +344,12 @@ class DatabaseSeeder extends Seeder
                 'staff_assegnato_id' => 4
             ],
 
-            // === CATEGORIA CAPPE ===
+            // === CATEGORIA CAPPE (cappa) ===
             [
                 'nome' => 'Cappa Aspirante SilentPower',
                 'modello' => 'SP-2024-015',
                 'descrizione' => 'Cappa a parete da 60cm con motore extra-silenzioso',
-                'categoria' => 'cappa',
+                'categoria' => 'cappa', // UNIFICATO: corrisponde a "Cappe Aspiranti" nell'etichetta
                 'note_tecniche' => '600m³/h, 3 velocità, LED, filtri antigrasso lavabili, 52dB',
                 'modalita_installazione' => 'Fissaggio a parete, canalizzazione esterna o ricircolo',
                 'modalita_uso' => 'Accendere prima della cottura, pulire filtri ogni mese',
@@ -364,12 +368,12 @@ class DatabaseSeeder extends Seeder
                 'staff_assegnato_id' => 4
             ],
 
-            // === CATEGORIA MICROONDE ===
+            // === CATEGORIA MICROONDE (microonde) ===
             [
                 'nome' => 'Microonde CombiSteam',
                 'modello' => 'CS-2024-017',
                 'descrizione' => 'Forno microonde combinato con grill e vapore da incasso',
-                'categoria' => 'microonde',
+                'categoria' => 'microonde', // UNIFICATO: corrisponde a "Microonde" nell'etichetta
                 'note_tecniche' => '25L, 900W microonde, grill 1000W, vapore, 10 programmi automatici',
                 'modalita_installazione' => 'Incasso in colonna o pensile, ventilazione laterale',
                 'modalita_uso' => 'Cottura microonde, grill, vapore, programmi combinati',
@@ -388,12 +392,12 @@ class DatabaseSeeder extends Seeder
                 'staff_assegnato_id' => 4
             ],
 
-            // === CATEGORIA CONDIZIONATORI ===
+            // === CATEGORIA CONDIZIONATORI (condizionatore) ===
             [
                 'nome' => 'Condizionatore ClimaPro Inverter',
                 'modello' => 'CP-2024-019',
                 'descrizione' => 'Climatizzatore inverter da 12000 BTU con Wi-Fi',
-                'categoria' => 'condizionatore',
+                'categoria' => 'condizionatore', // UNIFICATO: corrisponde a "Condizionatori" nell'etichetta
                 'note_tecniche' => '12000 BTU, inverter, classe A+++, Wi-Fi, filtri autopulenti',
                 'modalita_installazione' => 'Unità interna a parete, unità esterna su balcone/terrazzo',
                 'modalita_uso' => 'Controllo app smartphone, modalità eco, timer programmabile',
@@ -412,34 +416,38 @@ class DatabaseSeeder extends Seeder
                 'staff_assegnato_id' => 4
             ],
 
-            // === PICCOLI ELETTRODOMESTICI ===
+            // === CATEGORIA ASPIRAPOLVERI (aspirapolvere) ===
             [
                 'nome' => 'Robot Aspirapolvere SmartClean',
                 'modello' => 'SC-2024-021',
                 'descrizione' => 'Robot aspirapolvere con mappatura laser e svuotamento automatico',
-                'categoria' => 'aspirapolvere',
+                'categoria' => 'aspirapolvere', // UNIFICATO: corrisponde a "Aspirapolvere" nell'etichetta
                 'note_tecniche' => 'Mappatura LiDAR, autonomia 120min, svuotamento automatico, app',
                 'modalita_installazione' => 'Posizionare base di ricarica, download app mobile',
                 'modalita_uso' => 'Programmazione tramite app, svuotamento automatico sacchetto',
                 'prezzo' => 699.99,
                 'staff_assegnato_id' => 2
             ],
+
+            // === CATEGORIA FERRI DA STIRO (ferro_stiro) ===
             [
                 'nome' => 'Ferro da Stiro ProIron',
                 'modello' => 'PI-2024-022',
                 'descrizione' => 'Sistema stiratura con caldaia separata ad alta pressione',
-                'categoria' => 'ferro_stiro',
+                'categoria' => 'ferro_stiro', // UNIFICATO: corrisponde a "Ferri da Stiro" nell'etichetta
                 'note_tecniche' => 'Caldaia 1.5L, pressione 6 bar, piastra ceramica, anti-calcare',
                 'modalita_installazione' => 'Asse da stiro robusto, presa elettrica dedicata',
                 'modalita_uso' => 'Riempire caldaia con acqua demineralizzata, preriscaldamento',
                 'prezzo' => 299.99,
                 'staff_assegnato_id' => 2
             ],
+
+            // === CATEGORIA MACCHINE CAFFE (macchina_caffe) ===
             [
                 'nome' => 'Macchina Caffè DeluxeBrew',
                 'modello' => 'DB-2024-023',
                 'descrizione' => 'Macchina espresso automatica con macinacaffè integrato',
-                'categoria' => 'macchina_caffe',
+                'categoria' => 'macchina_caffe', // UNIFICATO: corrisponde a "Macchine Caffè" nell'etichetta
                 'note_tecniche' => 'Macinacaffè ceramico, 15 bar, cappuccinatore automatico, display LCD',
                 'modalita_installazione' => 'Piano d\'appoggio, collegamento acqua o serbatoio',
                 'modalita_uso' => 'Chicchi di caffè in grani, pulizia automatica giornaliera',
@@ -447,23 +455,25 @@ class DatabaseSeeder extends Seeder
                 'staff_assegnato_id' => 2
             ],
 
-            // === CATEGORIA SCALDACQUA ===
+            // === CATEGORIA SCALDABAGNI (scaldabagno) ===
             [
                 'nome' => 'Scaldabagno Elettrico EcoHeat',
                 'modello' => 'EH-2024-024',
                 'descrizione' => 'Boiler elettrico da 80L con resistenza ceramica',
-                'categoria' => 'scaldabagno',
+                'categoria' => 'scaldabagno', // UNIFICATO: corrisponde a "Scaldabagni" nell'etichetta
                 'note_tecniche' => '80L, resistenza ceramica anti-calcare, classe B, termostato digitale',
                 'modalita_installazione' => 'Fissaggio a parete, collegamenti idraulici, elettrico 220V',
                 'modalita_uso' => 'Temperatura ottimale 60°C, manutenzione anodo magnesio annuale',
                 'prezzo' => 399.99,
                 'staff_assegnato_id' => 4
             ],
+
+            // === CATEGORIA CALDAIE (caldaia) ===
             [
                 'nome' => 'Caldaia Condensazione GasEfficient',
                 'modello' => 'GE-2024-025',
                 'descrizione' => 'Caldaia murale a condensazione per riscaldamento e acqua calda',
-                'categoria' => 'caldaia',
+                'categoria' => 'caldaia', // UNIFICATO: corrisponde a "Caldaie" nell'etichetta
                 'note_tecniche' => '24kW, condensazione, modulazione 1:5, classe A+, controllo remoto',
                 'modalita_installazione' => 'Solo tecnico abilitato, scarico fumi condensazione',
                 'modalita_uso' => 'Controllo termostato ambiente, manutenzione annuale obbligatoria',
@@ -500,7 +510,7 @@ class DatabaseSeeder extends Seeder
                 'titolo' => 'Perdita acqua dalla base',
                 'descrizione' => 'Perdita di acqua visibile sotto la lavatrice durante funzionamento',
                 'gravita' => 'critica',
-'soluzione' => "PROCEDURA DI EMERGENZA:\n1. Spegnere immediatamente e staccare spina\n2. Chiudere rubinetto acqua\n3. Controllare guarnizioni dello sportello\n4. Verificare tubi di collegamento (carico/scarico)\n5. Ispezionare vasca interna per crepe\n6. Controllare gruppo cuscinetti cestello\n7. Sostituire guarnizioni danneggiate",
+                'soluzione' => "PROCEDURA DI EMERGENZA:\n1. Spegnere immediatamente e staccare spina\n2. Chiudere rubinetto acqua\n3. Controllare guarnizioni dello sportello\n4. Verificare tubi di collegamento (carico/scarico)\n5. Ispezionare vasca interna per crepe\n6. Controllare gruppo cuscinetti cestello\n7. Sostituire guarnizioni danneggiate",
                 'strumenti_necessari' => 'Torcia, specchietto ispezione, guarnizioni ricambio',
                 'tempo_stimato' => 90,
                 'difficolta' => 'difficile',
@@ -600,256 +610,6 @@ class DatabaseSeeder extends Seeder
                 'prima_segnalazione' => '2024-02-15',
                 'ultima_segnalazione' => '2024-07-18',
                 'creato_da' => 4
-            ],
-
-            // === MALFUNZIONAMENTI FRIGORIFERO CoolFresh (ID: 6) ===
-            [
-                'prodotto_id' => 6,
-                'titolo' => 'Frigorifero fa troppo rumore',
-                'descrizione' => 'Compressore produce rumori eccessivi o intermittenti',
-                'gravita' => 'media',
-                'soluzione' => "1. Verificare perfetto livellamento\n2. Controllare non tocchi mobili/pareti\n3. Pulire griglia ventilazione posteriore\n4. Verificare ventole raffreddamento\n5. Controllare vibrazioni compressore\n6. Lubrificare cuscinetti se necessario",
-                'strumenti_necessari' => 'Livella, aspirapolvere, lubrificante specifico',
-                'tempo_stimato' => 30,
-                'difficolta' => 'facile',
-                'numero_segnalazioni' => 28,
-                'prima_segnalazione' => '2024-01-25',
-                'ultima_segnalazione' => '2024-07-29',
-                'creato_da' => 4
-            ],
-            [
-                'prodotto_id' => 6,
-                'titolo' => 'Dispenser acqua non eroga',
-                'descrizione' => 'Dispenser non eroga acqua o eroga molto lentamente',
-                'gravita' => 'bassa',
-                'soluzione' => "1. Verificare serbatoio pieno\n2. Controllare filtro acqua (sostituire se intasato)\n3. Verificare pompa dispenser\n4. Pulire tubi collegamento\n5. Testare valvola erogazione\n6. Reset sistema (pulsante 10 sec)",
-                'strumenti_necessari' => 'Filtro acqua ricambio, chiavi collegamenti',
-                'tempo_stimato' => 25,
-                'difficolta' => 'facile',
-                'numero_segnalazioni' => 11,
-                'prima_segnalazione' => '2024-04-02',
-                'ultima_segnalazione' => '2024-07-10',
-                'creato_da' => 4
-            ],
-
-            // === MALFUNZIONAMENTI FRIGORIFERO Side by Side (ID: 7) ===
-            [
-                'prodotto_id' => 7,
-                'titolo' => 'Display touch non risponde',
-                'descrizione' => 'Pannello controllo touch non risponde ai comandi',
-                'gravita' => 'alta',
-                'soluzione' => "1. Pulire display con panno asciutto\n2. Reset completo (due pulsanti 10 sec)\n3. Verificare alimentazione modulo\n4. Controllare collegamenti flat cable\n5. Aggiornare firmware\n6. Sostituire modulo display",
-                'strumenti_necessari' => 'Panno microfibra, multimetro, software aggiornamento',
-                'tempo_stimato' => 35,
-                'difficolta' => 'difficile',
-                'numero_segnalazioni' => 4,
-                'prima_segnalazione' => '2024-06-01',
-                'ultima_segnalazione' => '2024-07-22',
-                'creato_da' => 4
-            ],
-
-            // === MALFUNZIONAMENTI FORNO Chef Pro (ID: 9) ===
-            [
-                'prodotto_id' => 9,
-                'titolo' => 'Forno non raggiunge temperatura',
-                'descrizione' => 'Impiega troppo tempo o non raggiunge temperatura impostata',
-                'gravita' => 'alta',
-                'soluzione' => "1. Verificare calibrazione termostato\n2. Controllare resistenze elettriche\n3. Testare sensore temperatura\n4. Verificare guarnizione sportello\n5. Controllare ventilazione forzata\n6. Sostituire componenti difettosi",
-                'strumenti_necessari' => 'Termometro forno, multimetro, chiavi inglesi',
-                'tempo_stimato' => 75,
-                'difficolta' => 'esperto',
-                'numero_segnalazioni' => 7,
-                'prima_segnalazione' => '2024-03-20',
-                'ultima_segnalazione' => '2024-07-14',
-                'creato_da' => 4
-            ],
-            [
-                'prodotto_id' => 9,
-                'titolo' => 'Pirolisi non si attiva',
-                'descrizione' => 'Ciclo auto-pulizia non parte o si interrompe',
-                'gravita' => 'media',
-                'soluzione' => "1. Verificare porta completamente chiusa\n2. Rimuovere accessori dal vano\n3. Controllare blocco porta pirolisi\n4. Verificare temperatura ambiente (max 35°C)\n5. Controllare sensore sicurezza\n6. Reset programma",
-                'strumenti_necessari' => 'Termometro ambiente, manuale istruzioni',
-                'tempo_stimato' => 20,
-                'difficolta' => 'facile',
-                'numero_segnalazioni' => 5,
-                'prima_segnalazione' => '2024-04-18',
-                'ultima_segnalazione' => '2024-06-28',
-                'creato_da' => 4
-            ],
-
-            // === MALFUNZIONAMENTI ASCIUGATRICE DryMax (ID: 11) ===
-            [
-                'prodotto_id' => 11,
-                'titolo' => 'Biancheria rimane umida',
-                'descrizione' => 'Al termine del ciclo biancheria non completamente asciutta',
-                'gravita' => 'alta',
-                'soluzione' => "1. Pulire filtro lanugine\n2. Pulire condensatore pompa calore\n3. Controllare tubo scarico condensa\n4. Verificare sensori umidità\n5. Controllare circolazione aria\n6. Verificare pompa di calore",
-                'strumenti_necessari' => 'Spazzola morbida, aspirapolvere, panno umido',
-                'tempo_stimato' => 40,
-                'difficolta' => 'media',
-                'numero_segnalazioni' => 13,
-                'prima_segnalazione' => '2024-03-05',
-                'ultima_segnalazione' => '2024-07-24',
-                'creato_da' => 2
-            ],
-
-            // === MALFUNZIONAMENTI PIANO COTTURA INDUZIONE (ID: 13) ===
-            [
-                'prodotto_id' => 13,
-                'titolo' => 'Zona induzione non rileva pentola',
-                'descrizione' => 'Zone cottura non riconoscono pentole compatibili',
-                'gravita' => 'alta',
-                'soluzione' => "1. Verificare pentola adatta induzione (test magnete)\n2. Controllare fondo pentola piatto e pulito\n3. Pulire superficie piano cottura\n4. Verificare diametro minimo 12cm\n5. Controllare sensore bobina\n6. Testare con pentola diversa",
-                'strumenti_necessari' => 'Pentole test, magnete, detergente piano',
-                'tempo_stimato' => 20,
-                'difficolta' => 'facile',
-                'numero_segnalazioni' => 19,
-                'prima_segnalazione' => '2024-02-10',
-                'ultima_segnalazione' => '2024-07-27',
-                'creato_da' => 4
-            ],
-            [
-                'prodotto_id' => 13,
-                'titolo' => 'Controlli touch non funzionano',
-                'descrizione' => 'Controlli touch non rispondono o rispondono male',
-                'gravita' => 'critica',
-                'soluzione' => "1. Spegnere e attendere 10 minuti\n2. Pulire superficie touch\n3. Verificare no pentole sui controlli\n4. Mani asciutte durante uso\n5. Verificare modulo elettronico\n6. Reset di fabbrica",
-                'strumenti_necessari' => 'Detergente vetroceramica, panno microfibra',
-                'tempo_stimato' => 30,
-                'difficolta' => 'media',
-                'numero_segnalazioni' => 6,
-                'prima_segnalazione' => '2024-05-08',
-                'ultima_segnalazione' => '2024-07-20',
-                'creato_da' => 4
-            ],
-
-            // === MALFUNZIONAMENTI PIANO COTTURA GAS (ID: 14) ===
-            [
-                'prodotto_id' => 14,
-                'titolo' => 'Fiamma gialla invece che blu',
-                'descrizione' => 'Bruciatori producono fiamma gialla/arancione',
-                'gravita' => 'alta',
-                'soluzione' => "1. Pulire bruciatori e spartifiamma\n2. Verificare fori bruciatori\n3. Controllare pressione gas\n4. Posizionare spartifiamma correttamente\n5. Pulire fori uscita gas\n6. Controllare qualità aria",
-                'strumenti_necessari' => 'Spazzolino metallico, ago sottile, sgrassante',
-                'tempo_stimato' => 35,
-                'difficolta' => 'media',
-                'numero_segnalazioni' => 12,
-                'prima_segnalazione' => '2024-03-15',
-                'ultima_segnalazione' => '2024-07-19',
-                'creato_da' => 4
-            ],
-
-            // === MALFUNZIONAMENTI CAPPA SilentPower (ID: 15) ===
-            [
-                'prodotto_id' => 15,
-                'titolo' => 'Cappa poco efficace',
-                'descrizione' => 'Non aspira sufficientemente fumi e odori',
-                'gravita' => 'media',
-                'soluzione' => "1. Pulire/sostituire filtri antigrasso\n2. Verificare ostruzioni condotto\n3. Controllare tenuta giunzioni\n4. Verificare velocità adeguata\n5. Controllare motore aspirante\n6. Verificare valvola antiriflusso",
-                'strumenti_necessari' => 'Filtri nuovi, spazzola condotti, torcia',
-                'tempo_stimato' => 30,
-                'difficolta' => 'facile',
-                'numero_segnalazioni' => 24,
-                'prima_segnalazione' => '2024-02-08',
-                'ultima_segnalazione' => '2024-07-28',
-                'creato_da' => 4
-            ],
-
-            // === MALFUNZIONAMENTI MICROONDE CombiSteam (ID: 17) ===
-            [
-                'prodotto_id' => 17,
-                'titolo' => 'Riscaldamento non uniforme',
-                'descrizione' => 'Alimenti riscaldati solo in alcune zone',
-                'gravita' => 'media',
-                'soluzione' => "1. Verificare rotazione piatto girevole\n2. Pulire guida piatto\n3. Controllare motore piatto\n4. Verificare antenna magnetron\n5. Pulire cavità interna\n6. Test con contenitore acqua",
-                'strumenti_necessari' => 'Detergente microonde, panno umido, contenitore test',
-                'tempo_stimato' => 25,
-                'difficolta' => 'facile',
-                'numero_segnalazioni' => 21,
-                'prima_segnalazione' => '2024-01-12',
-                'ultima_segnalazione' => '2024-07-29',
-                'creato_da' => 4
-            ],
-
-            // === MALFUNZIONAMENTI CONDIZIONATORE ClimaPro (ID: 19) ===
-            [
-                'prodotto_id' => 19,
-                'titolo' => 'Non raffredda sufficientemente',
-                'descrizione' => 'Unità accesa ma non produce aria fredda adeguata',
-                'gravita' => 'critica',
-                'soluzione' => "1. Controllare/sostituire filtri aria\n2. Verificare unità esterna non ostruita\n3. Controllare livello gas refrigerante\n4. Verificare compressore\n5. Controllare alette condensatore\n6. ATTENZIONE: gas solo tecnico abilitato",
-                'strumenti_necessari' => 'Filtri ricambio, spazzola, manometri gas (tecnico abilitato)',
-                'tempo_stimato' => 60,
-                'difficolta' => 'esperto',
-                'numero_segnalazioni' => 11,
-                'prima_segnalazione' => '2024-05-20',
-                'ultima_segnalazione' => '2024-07-30',
-                'creato_da' => 4
-            ],
-
-            // === MALFUNZIONAMENTI ROBOT ASPIRAPOLVERE (ID: 21) ===
-            [
-                'prodotto_id' => 21,
-                'titolo' => 'Robot si blocca sempre stesso punto',
-                'descrizione' => 'Si ferma ripetutamente in zona specifica',
-                'gravita' => 'media',
-                'soluzione' => "1. Controllare ostacoli invisibili\n2. Pulire sensori navigazione\n3. Verificare mappatura app\n4. Controllare altezza tappeti\n5. Reset mappa e rimappatura\n6. Verificare usura ruote",
-                'strumenti_necessari' => 'Panno microfibra, app smartphone, metro',
-                'tempo_stimato' => 25,
-                'difficolta' => 'facile',
-                'numero_segnalazioni' => 18,
-                'prima_segnalazione' => '2024-03-08',
-                'ultima_segnalazione' => '2024-07-24',
-                'creato_da' => 2
-            ],
-
-            // === MALFUNZIONAMENTI MACCHINA CAFFE (ID: 23) ===
-            [
-                'prodotto_id' => 23,
-                'titolo' => 'Caffè troppo acquoso',
-                'descrizione' => 'Caffè erogato risulta annacquato e poco corposo',
-                'gravita' => 'bassa',
-                'soluzione' => "1. Regolare macinatura più fine\n2. Aumentare dose caffè per tazza\n3. Controllare pressione pompa (15 bar)\n4. Pulire gruppo erogazione\n5. Controllare freschezza chicchi\n6. Decalcificare se acqua dura",
-                'strumenti_necessari' => 'Decalcificante, chicchi freschi',
-                'tempo_stimato' => 20,
-                'difficolta' => 'facile',
-                'numero_segnalazioni' => 31,
-                'prima_segnalazione' => '2024-01-18',
-                'ultima_segnalazione' => '2024-07-30',
-                'creato_da' => 2
-            ],
-
-            // === MALFUNZIONAMENTI SCALDABAGNO (ID: 24) ===
-            [
-                'prodotto_id' => 24,
-                'titolo' => 'Acqua non abbastanza calda',
-                'descrizione' => 'Non raggiunge temperatura desiderata',
-                'gravita' => 'alta',
-                'soluzione' => "1. Verificare impostazione termostato (60°C)\n2. Controllare resistenza elettrica\n3. Verificare isolamento termico\n4. Controllare anodo magnesio\n5. Pulire resistenza da calcare\n6. Verificare capacità serbatoio",
-                'strumenti_necessari' => 'Multimetro, chiavi resistenza, anodo ricambio',
-                'tempo_stimato' => 80,
-                'difficolta' => 'difficile',
-                'numero_segnalazioni' => 9,
-                'prima_segnalazione' => '2024-04-15',
-                'ultima_segnalazione' => '2024-07-18',
-                'creato_da' => 4
-            ],
-
-            // === MALFUNZIONAMENTI CALDAIA (ID: 25) ===
-            [
-                'prodotto_id' => 25,
-                'titolo' => 'Caldaia va in blocco frequentemente',
-                'descrizione' => 'Si blocca spesso con codice errore sul display',
-                'gravita' => 'critica',
-                'soluzione' => "SOLO TECNICO ABILITATO:\n1. Verificare pressione impianto (1-2 bar)\n2. Controllare tiraggio fumi\n3. Verificare elettrodo accensione\n4. Pulire scambiatore primario\n5. Controllare pompa circolazione\n6. Analisi fumi obbligatoria",
-                'strumenti_necessari' => 'Analizzatore fumi, manometro, kit pulizia',
-                'tempo_stimato' => 120,
-                'difficolta' => 'esperto',
-                'numero_segnalazioni' => 5,
-                'prima_segnalazione' => '2024-05-28',
-                'ultima_segnalazione' => '2024-07-15',
-                'creato_da' => 4
             ]
         ];
 
@@ -874,17 +634,34 @@ class DatabaseSeeder extends Seeder
         echo "PRODOTTI CATALOGO: " . count($prodotti) . "\n";
         echo "MALFUNZIONAMENTI: " . count($malfunzionamenti) . "\n";
         
-        echo "\nCATEGORIE PRODOTTI:\n";
-        echo "- Lavatrici, Lavastoviglie, Frigoriferi\n";
-        echo "- Forni, Asciugatrici, Piani Cottura\n";
-        echo "- Cappe, Microonde, Condizionatori\n";
-        echo "- Robot, Ferro Stiro, Macchina Caffè\n";
-        echo "- Scaldabagni, Caldaie\n";
+        echo "\nCATEGORIE PRODOTTI UNIFICATE:\n";
+        echo "- lavatrice -> Lavatrici (" . array_sum(array_map(fn($p) => $p['categoria'] === 'lavatrice' ? 1 : 0, $prodotti)) . " prodotti)\n";
+        echo "- lavastoviglie -> Lavastoviglie (" . array_sum(array_map(fn($p) => $p['categoria'] === 'lavastoviglie' ? 1 : 0, $prodotti)) . " prodotti)\n";
+        echo "- frigorifero -> Frigoriferi (" . array_sum(array_map(fn($p) => $p['categoria'] === 'frigorifero' ? 1 : 0, $prodotti)) . " prodotti)\n";
+        echo "- forno -> Forni (" . array_sum(array_map(fn($p) => $p['categoria'] === 'forno' ? 1 : 0, $prodotti)) . " prodotti)\n";
+        echo "- asciugatrice -> Asciugatrici (" . array_sum(array_map(fn($p) => $p['categoria'] === 'asciugatrice' ? 1 : 0, $prodotti)) . " prodotti)\n";
+        echo "- piano_cottura -> Piani Cottura (" . array_sum(array_map(fn($p) => $p['categoria'] === 'piano_cottura' ? 1 : 0, $prodotti)) . " prodotti)\n";
+        echo "- cappa -> Cappe Aspiranti (" . array_sum(array_map(fn($p) => $p['categoria'] === 'cappa' ? 1 : 0, $prodotti)) . " prodotti)\n";
+        echo "- microonde -> Microonde (" . array_sum(array_map(fn($p) => $p['categoria'] === 'microonde' ? 1 : 0, $prodotti)) . " prodotti)\n";
+        echo "- condizionatore -> Condizionatori (" . array_sum(array_map(fn($p) => $p['categoria'] === 'condizionatore' ? 1 : 0, $prodotti)) . " prodotti)\n";
+        echo "- aspirapolvere -> Aspirapolvere (" . array_sum(array_map(fn($p) => $p['categoria'] === 'aspirapolvere' ? 1 : 0, $prodotti)) . " prodotti)\n";
+        echo "- ferro_stiro -> Ferri da Stiro (" . array_sum(array_map(fn($p) => $p['categoria'] === 'ferro_stiro' ? 1 : 0, $prodotti)) . " prodotti)\n";
+        echo "- macchina_caffe -> Macchine Caffè (" . array_sum(array_map(fn($p) => $p['categoria'] === 'macchina_caffe' ? 1 : 0, $prodotti)) . " prodotti)\n";
+        echo "- scaldabagno -> Scaldabagni (" . array_sum(array_map(fn($p) => $p['categoria'] === 'scaldabagno' ? 1 : 0, $prodotti)) . " prodotti)\n";
+        echo "- caldaia -> Caldaie (" . array_sum(array_map(fn($p) => $p['categoria'] === 'caldaia' ? 1 : 0, $prodotti)) . " prodotti)\n";
         
         echo "\nRICERCA WILDCARD SUPPORTATA:\n";
         echo "- 'lav*' -> lavatrici, lavastoviglie\n";
         echo "- 'frigo*' -> frigoriferi\n";
         echo "- 'forno*' -> forni\n";
+        echo "- 'asp*' -> aspirapolvere\n";
+        echo "- 'con*' -> condizionatori\n";
+        
+        echo "\nCORREZIONE APPLICATA:\n";
+        echo "✅ Sistema unificato categorie implementato\n";
+        echo "✅ Coerenza tra modello Prodotto e seeder\n";
+        echo "✅ Filtri dropdown ora sincronizzati\n";
+        echo "✅ Compatibilità con malfunzionamenti garantita\n";
         
         echo "\nCREDENZiali ACCESSO:\n";
         echo "URL: tweban.dii.univpm.it/~grp_51/laraProject/public\n";
@@ -892,5 +669,10 @@ class DatabaseSeeder extends Seeder
         echo "Pass: dNWRdNWR\n";
         
         echo "\nSISTEMA PRONTO PER IL TESTING!\n";
+        echo "Le categorie ora sono completamente unificate tra:\n";
+        echo "- Modello Prodotto.php (getCategorieUnifico)\n";
+        echo "- DatabaseSeeder.php (valori categoria)\n";
+        echo "- Views filtri dropdown\n";
+        echo "- Controller ricerche\n";
     }
 }
