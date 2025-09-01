@@ -454,7 +454,7 @@ $(document).ready(function() {
     function updateAdminStats() {
         $.ajax({
             // *** FIX: URL CORRETTO per le route API admin definite ***
-            url: "/api/admin/stats-update", // Era: "admin/stats-update" (SBAGLIATO)
+           url: '/~grp_51/laraProject/public/api/admin/stats-update', // Era: "admin/stats-update" (SBAGLIATO)
             method: 'GET',
             dataType: 'json',
             success: function(data) {
