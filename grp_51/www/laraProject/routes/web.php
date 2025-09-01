@@ -517,7 +517,7 @@ Route::get('/storico-interventi', [AuthController::class, 'storicoInterventi'])
                 Route::get('/', [AdminController::class, 'dashboardExport'])->name('index');
                 
                 // Export completo sistema
-                Route::post('/all-data', [AdminController::class, 'exportAllData'])->name('all');
+                Route::post('/all-data', [AdminController::class, 'exportAll'])->name('all');
                 
                 // Export specifici
                 Route::post('/prodotti', [AdminController::class, 'exportProdotti'])->name('prodotti');

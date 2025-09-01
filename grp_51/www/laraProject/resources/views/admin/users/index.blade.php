@@ -438,12 +438,7 @@
                         </select>
                     </div>
                     
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="include_sensitive" name="include_sensitive">
-                        <label class="form-check-label" for="include_sensitive">
-                            Includi dati sensibili (date nascita, specializzazioni)
-                        </label>
-                    </div>
+                    
                     
                     <!-- Alert informativo -->
                     <div class="alert alert-info mt-3">
