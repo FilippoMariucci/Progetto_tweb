@@ -189,16 +189,15 @@
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
+                        <!-- Pulsante principale per creare nuovo utente -->
                         <a href="{{ route('admin.users.create') }}" class="btn btn-danger btn-sm">
                             <i class="bi bi-person-plus me-1"></i>Nuovo Utente
                         </a>
-                        <a href="{{ route('admin.register') }}" class="btn btn-outline-primary btn-sm">
-                            <i class="bi bi-person-add me-1"></i>Registrazione Guidata
-                        </a>
+                        
+                        <!-- Separatore -->
                         <hr class="my-2">
-                        <button type="button" class="btn btn-outline-warning btn-sm" id="bulkActionsBtn" disabled>
-                            <i class="bi bi-collection me-1"></i>Azioni Multiple
-                        </button>
+                        
+                        <!-- Pulsante per esportare la lista utenti -->
                         <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#exportModal">
                             <i class="bi bi-download me-1"></i>Esporta Lista
                         </button>
@@ -325,48 +324,60 @@
                                                     </a>
                                                     
                                                     <!-- Azioni Dropdown -->
-                                                    <div class="btn-group" role="group">
-                                                        <button type="button" 
-                                                                class="btn btn-outline-secondary btn-sm dropdown-toggle" 
-                                                                data-bs-toggle="dropdown">
-                                                            <i class="bi bi-three-dots"></i>
-                                                        </button>
-                                                        <ul class="dropdown-menu">
-                                                            @if($user->id !== auth()->id())
-                                                                <li>
-                                                                    <form action="{{ route('admin.users.toggle-status', $user) }}" method="POST" style="display: inline;">
-                                                                        @csrf
-                                                                        <button type="submit" class="dropdown-item">
-                                                                            <i class="bi bi-{{ $user->attivo ?? true ? 'pause' : 'play' }} me-2"></i>
-                                                                            {{ $user->attivo ?? true ? 'Sospendi' : 'Attiva' }}
-                                                                        </button>
-                                                                    </form>
-                                                                </li>
-                                                                <li>
-                                                                    <form action="{{ route('admin.users.reset-password', $user) }}" method="POST" style="display: inline;">
-                                                                        @csrf
-                                                                        <button type="submit" class="dropdown-item" onclick="return confirm('Resettare la password?')">
-                                                                            <i class="bi bi-key me-2"></i>Reset Password
-                                                                        </button>
-                                                                    </form>
-                                                                </li>
-                                                                <li><hr class="dropdown-divider"></li>
-                                                                <li>
-                                                                    <form action="{{ route('admin.users.destroy', $user) }}" method="POST" style="display: inline;">
-                                                                        @csrf
-                                                                        @method('DELETE')
-                                                                        <button type="submit" 
-                                                                                class="dropdown-item text-danger" 
-                                                                                onclick="return confirm('Eliminare questo utente?')">
-                                                                            <i class="bi bi-trash me-2"></i>Elimina
-                                                                        </button>
-                                                                    </form>
-                                                                </li>
-                                                            @else
-                                                                <li><span class="dropdown-item text-muted">Sei tu!</span></li>
-                                                            @endif
-                                                        </ul>
-                                                    </div>
+<!-- Azioni Dropdown -->
+<div class="btn-group" role="group">
+    <button type="button" 
+            class="btn btn-outline-secondary btn-sm dropdown-toggle" 
+            data-bs-toggle="dropdown">
+        <i class="bi bi-three-dots"></i>
+    </button>
+    <ul class="dropdown-menu">
+        @if($user->id !== auth()->id())
+            {{-- Reset Password --}}
+            <li>
+                <form action="{{ route('admin.users.reset-password', $user) }}" method="POST" style="display: inline;">
+                    @csrf
+                    <button type="submit" class="dropdown-item" onclick="return confirm('Resettare la password?')">
+                        <i class="bi bi-key me-2"></i>Reset Password
+                    </button>
+                </form>
+            </li>
+            
+            {{-- Visualizza Dettagli --}}
+            <li>
+                <a href="{{ route('admin.users.show', $user) }}" class="dropdown-item">
+                    <i class="bi bi-info-circle me-2"></i>Visualizza Dettagli
+                </a>
+            </li>
+            
+            {{-- Separatore prima dell'eliminazione --}}
+            <li><hr class="dropdown-divider"></li>
+            
+            {{-- Eliminazione Utente --}}
+            <li>
+                <form action="{{ route('admin.users.destroy', $user) }}" method="POST" style="display: inline;">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" 
+                            class="dropdown-item text-danger" 
+                            onclick="return confirm('ATTENZIONE: Eliminare questo utente?\n\nQuesta azione non può essere annullata.')">
+                        <i class="bi bi-trash me-2"></i>Elimina Utente
+                    </button>
+                </form>
+            </li>
+        @else
+            {{-- Se è l'utente corrente --}}
+            <li><span class="dropdown-item text-muted">
+                <i class="bi bi-person-check me-2"></i>Sei tu!
+            </span></li>
+            <li>
+                <a href="{{ route('profilo') }}" class="dropdown-item">
+                    <i class="bi bi-gear me-2"></i>Vai al Profilo
+                </a>
+            </li>
+        @endif
+    </ul>
+</div>
                                                 </div>
                                             </td>
                                         </tr>
@@ -414,9 +425,10 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                <!-- Form corretto che punta al metodo exportAll esistente -->
                 <form action="{{ route('admin.export.all') }}" method="POST">
                     @csrf
-                    <input type="hidden" name="type" value="users">
+                    <!-- RIMOSSO: <input type="hidden" name="type" value="users"> -->
                     
                     <div class="mb-3">
                         <label for="export_format" class="form-label">Formato Export:</label>
@@ -433,9 +445,17 @@
                         </label>
                     </div>
                     
+                    <!-- Alert informativo -->
+                    <div class="alert alert-info mt-3">
+                        <small>
+                            <i class="bi bi-info-circle me-1"></i>
+                            L'export includerà tutti i dati del sistema (utenti, prodotti, malfunzionamenti e centri assistenza)
+                        </small>
+                    </div>
+                    
                     <div class="text-center mt-3">
                         <button type="submit" class="btn btn-success">
-                            <i class="bi bi-download me-1"></i>Scarica Export
+                            <i class="bi bi-download me-1"></i>Scarica Export Completo
                         </button>
                     </div>
                 </form>
@@ -498,7 +518,10 @@ tr.selected {
 
 @push('scripts')
 <script>
+<script>
 $(document).ready(function() {
+    console.log('🔧 Gestione Utenti inizializzata');
+    
     let selectedUsers = [];
     
     // === GESTIONE SELEZIONE UTENTI ===
@@ -517,23 +540,17 @@ $(document).ready(function() {
     });
     
     function updateSelection() {
-        selectedUsers = [];
-        $('.user-checkbox:checked').each(function() {
-            selectedUsers.push($(this).val());
-            $(this).closest('tr').addClass('selected');
-        });
-        
-        $('.user-checkbox:not(:checked)').closest('tr').removeClass('selected');
-        
-        // Aggiorna pulsanti azioni multiple
-        $('#bulkActionsBtn').prop('disabled', selectedUsers.length === 0);
-        
-        if (selectedUsers.length > 0) {
-            $('#bulkActionsBtn').text(`Azioni Multiple (${selectedUsers.length})`);
-        } else {
-            $('#bulkActionsBtn').text('Azioni Multiple');
-        }
-    }
+    selectedUsers = [];
+    $('.user-checkbox:checked').each(function() {
+        selectedUsers.push($(this).val());
+        $(this).closest('tr').addClass('selected');
+    });
+    
+    $('.user-checkbox:not(:checked)').closest('tr').removeClass('selected');
+    
+    // ✅ NUOVO: Solo log per debug (opzionale)
+    console.log('🔄 Utenti selezionati:', selectedUsers.length);
+}
     
     function updateSelectAllState() {
         const total = $('.user-checkbox').length;
@@ -560,53 +577,137 @@ $(document).ready(function() {
         updateSelection();
     });
     
-    // === FILTRI DINAMICI ===
+    // === FILTRI DINAMICI CORRETTI ===
     $('#livello_accesso, #centro_assistenza_id, #data_registrazione').on('change', function() {
+        console.log('🔄 Applicazione filtro:', $(this).attr('name'), '=', $(this).val());
         $(this).closest('form').submit();
     });
     
-    // === CONFERME AZIONI ===
-    $('.dropdown-item[onclick*="confirm"]').on('click', function(e) {
-        const action = $(this).text().trim();
-        if (!confirm(`Confermi l'azione: ${action}?`)) {
+    // === SEARCH DINAMICA MIGLIORATA ===
+    let searchTimeout;
+    $('#search').on('input', function() {
+        clearTimeout(searchTimeout);
+        const query = $(this).val().trim();
+        
+        if (query.length >= 2 || query.length === 0) {
+            searchTimeout = setTimeout(() => {
+                console.log('🔍 Ricerca per:', query);
+                $('#filterForm').submit();
+            }, 800);
+        }
+    });
+    
+    // === GESTIONE AZIONI UTENTE (SENZA SOSPENDI/ATTIVA) ===
+    
+    // Reset password con AJAX migliorato
+    $('form[action*="reset-password"]').on('submit', function(e) {
+        e.preventDefault();
+        
+        if (!confirm('Resettare la password di questo utente?')) {
+            return;
+        }
+        
+        const form = $(this);
+        const button = form.find('button[type="submit"]');
+        const originalText = button.text();
+        
+        button.prop('disabled', true).html('<i class="bi bi-hourglass-split me-2"></i>Elaborazione...');
+        
+        $.ajax({
+            url: form.attr('action'),
+            method: 'POST',
+            data: form.serialize(),
+            success: function(response) {
+                if (response.success) {
+                    // Mostra la password temporanea in un alert visibile
+                    const alertHtml = `
+                        <div class="alert alert-success alert-dismissible fade show position-fixed" 
+                             style="top: 20px; right: 20px; z-index: 9999; min-width: 400px;">
+                            <h6><i class="bi bi-check-circle me-2"></i>Password Resetata</h6>
+                            <p>${response.message}</p>
+                            <hr>
+                            <p class="mb-0">
+                                <strong>Password Temporanea:</strong> 
+                                <code class="bg-light p-1 rounded">${response.temp_password}</code>
+                                <button type="button" class="btn btn-outline-primary btn-sm ms-2" 
+                                        onclick="navigator.clipboard.writeText('${response.temp_password}')">
+                                    <i class="bi bi-clipboard"></i> Copia
+                                </button>
+                            </p>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    `;
+                    $('body').append(alertHtml);
+                    
+                    setTimeout(() => $('.alert').alert('close'), 15000);
+                } else {
+                    showNotification(response.message, 'danger');
+                }
+            },
+            error: function() {
+                showNotification('Errore nel reset della password', 'danger');
+            },
+            complete: function() {
+                button.prop('disabled', false).html(originalText);
+            }
+        });
+    });
+    
+    // Conferma eliminazione migliorata
+    $('form[action*="destroy"] button[type="submit"]').on('click', function(e) {
+        const form = $(this).closest('form');
+        const userRow = $(this).closest('tr');
+        const userName = userRow.find('h6').first().text().trim();
+        
+        const confirmed = confirm(`ATTENZIONE: Eliminare l'utente "${userName}"?\n\nQuesta azione non può essere annullata.`);
+        
+        if (confirmed) {
+            userRow.addClass('table-warning');
+            userRow.find('td').last().html('<i class="bi bi-hourglass-split"></i> Eliminazione...');
+            return true; // Procedi con il submit
+        } else {
             e.preventDefault();
             return false;
         }
     });
     
-    // === SEARCH DINAMICA ===
-    let searchTimeout;
-    $('#search').on('input', function() {
-        clearTimeout(searchTimeout);
-        const query = $(this).val();
-        
-        if (query.length >= 3 || query.length === 0) {
-            searchTimeout = setTimeout(() => {
-                $('#filterForm').submit();
-            }, 500);
-        }
-    });
-    
     // === KEYBOARD SHORTCUTS ===
     $(document).on('keydown', function(e) {
-        // Ctrl+A per selezionare tutti
         if (e.ctrlKey && e.key === 'a' && !$(e.target).is('input, textarea')) {
             e.preventDefault();
             $('#selectAllBtn').click();
         }
         
-        // Ctrl+N per nuovo utente
         if (e.ctrlKey && e.key === 'n') {
             e.preventDefault();
             window.location.href = "{{ route('admin.users.create') }}";
         }
+        
+        if (e.key === 'Escape') {
+            $('#search').val('').trigger('input');
+        }
     });
     
-    // === TOOLTIP INITIALIZATION ===
+    // === TOOLTIP ===
     $('[title]').tooltip();
     
-    console.log('Gestione utenti inizializzata');
-    console.log(`Utenti caricati: {{ $users->total() }}`);
+    // === FUNZIONE HELPER ===
+    function showNotification(message, type = 'success') {
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        const alert = $(`
+            <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
+                 style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `);
+        
+        $('body').append(alert);
+        setTimeout(() => alert.alert('close'), 5000);
+    }
+    
+    console.log('✅ Gestione utenti inizializzata - SENZA funzione sospendi');
+    console.log(`📊 Utenti caricati: {{ $users->total() ?? 0 }}`);
 });
 </script>
 @endpush
