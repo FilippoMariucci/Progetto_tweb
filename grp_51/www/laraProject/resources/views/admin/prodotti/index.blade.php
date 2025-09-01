@@ -666,348 +666,393 @@ nav[aria-label="Paginazione prodotti"] .pagination .page-link:focus,
 @push('scripts')
 <script>
 $(document).ready(function() {
+    console.log('🔧 Gestione Utenti inizializzata');
     
-    // === GESTIONE SELEZIONE MULTIPLA ===
+    let selectedUsers = [];
     
-    /**
-     * Seleziona/deseleziona tutti i checkbox
-     */
-    $('#selectAllCheckbox').on('change', function() {
-        $('.product-checkbox').prop('checked', $(this).is(':checked'));
-        updateBulkActions();
+    // === GESTIONE SELEZIONE UTENTI ===
+    
+    // Select All checkbox
+    $('#checkAll').on('change', function() {
+        const isChecked = $(this).is(':checked');
+        $('.user-checkbox').prop('checked', isChecked);
+        updateSelection();
     });
     
-    /**
-     * Aggiorna stato del checkbox principale quando cambiano quelli individuali
-     */
-    $('.product-checkbox').on('change', function() {
-        const total = $('.product-checkbox').length;
-        const checked = $('.product-checkbox:checked').length;
-        
-        $('#selectAllCheckbox').prop('indeterminate', checked > 0 && checked < total);
-        $('#selectAllCheckbox').prop('checked', checked === total);
-        
-        updateBulkActions();
+    // Singola checkbox utente
+    $('.user-checkbox').on('change', function() {
+        updateSelection();
+        updateSelectAllState();
     });
     
-    /**
-     * Aggiorna la disponibilità delle azioni bulk
-     */
-    function updateBulkActions() {
-        const selected = $('.product-checkbox:checked').length;
-        $('#bulkActions').prop('disabled', selected === 0);
+    function updateSelection() {
+        selectedUsers = [];
+        $('.user-checkbox:checked').each(function() {
+            selectedUsers.push($(this).val());
+            $(this).closest('tr').addClass('selected');
+        });
+        
+        $('.user-checkbox:not(:checked)').closest('tr').removeClass('selected');
+        
+        // Aggiorna pulsanti azioni multiple
+        $('#bulkActionsBtn').prop('disabled', selectedUsers.length === 0);
+        
+        if (selectedUsers.length > 0) {
+            $('#bulkActionsBtn').text(`Azioni Multiple (${selectedUsers.length})`);
+        } else {
+            $('#bulkActionsBtn').text('Azioni Multiple');
+        }
     }
     
-    // === FILTRI E RICERCA ===
+    function updateSelectAllState() {
+        const total = $('.user-checkbox').length;
+        const checked = $('.user-checkbox:checked').length;
+        
+        $('#checkAll').prop('indeterminate', checked > 0 && checked < total);
+        $('#checkAll').prop('checked', checked === total && total > 0);
+    }
     
-    /**
-     * Cancella il campo di ricerca
-     */
-    $('#clearSearch').on('click', function() {
-        $('#search').val('');
+    // === SELECT ALL BUTTON ===
+    $('#selectAllBtn').on('click', function() {
+        const allChecked = $('.user-checkbox:checked').length === $('.user-checkbox').length;
+        
+        if (allChecked) {
+            $('.user-checkbox').prop('checked', false);
+            $('#checkAll').prop('checked', false);
+            $(this).html('<i class="bi bi-check-all me-1"></i>Seleziona Tutti');
+        } else {
+            $('.user-checkbox').prop('checked', true);
+            $('#checkAll').prop('checked', true);
+            $(this).html('<i class="bi bi-square me-1"></i>Deseleziona Tutti');
+        }
+        
+        updateSelection();
+    });
+    
+    // === FIX: FILTRI DINAMICI ===
+    
+    // Applicazione automatica filtri al cambio
+    $('#livello_accesso, #centro_assistenza_id, #data_registrazione').on('change', function() {
+        console.log('🔄 Applicazione filtro:', $(this).attr('name'), '=', $(this).val());
+        
+        // Mostra loading
+        showFilterLoading();
+        
+        // Submit del form
         $('#filterForm').submit();
     });
     
-    /**
-     * Sottometti il form quando cambiano i filtri
-     */
-    $('#status, #staff_id').on('change', function() {
-        $('#filterForm').submit();
-    });
-    
-    /**
-     * Ricerca in tempo reale con debounce
-     */
+    // === FIX: SEARCH DINAMICA MIGLIORATA ===
     let searchTimeout;
     $('#search').on('input', function() {
         clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-            if ($(this).val().length >= 3 || $(this).val().length === 0) {
-                // Auto-submit per ricerche di 3+ caratteri o quando svuotato
-                // $('#filterForm').submit();
-            }
-        }, 500);
+        const query = $(this).val().trim();
+        
+        // Feedback visivo durante ricerca
+        if (query.length > 0) {
+            $(this).addClass('searching');
+        } else {
+            $(this).removeClass('searching');
+        }
+        
+        // Ricerca con debounce
+        if (query.length >= 2 || query.length === 0) {
+            searchTimeout = setTimeout(() => {
+                console.log('🔍 Ricerca per:', query);
+                showFilterLoading();
+                $('#filterForm').submit();
+            }, 800); // 800ms di attesa
+        }
     });
     
-    // === AZIONI SUI PRODOTTI ===
+    // === FIX: ORDINAMENTO CORRETTO ===
     
-    /**
-     * Mostra/nasconde stato prodotto
-     */
-    window.toggleStatus = function(productId, newStatus) {
-        const action = newStatus ? 'attivare' : 'disattivare';
+    // Gestisce i link di ordinamento nel dropdown
+    $('.dropdown-menu a[href*="sort="]').on('click', function(e) {
+        e.preventDefault();
         
-        if (confirm(`Sei sicuro di voler ${action} questo prodotto?`)) {
-            // Simula chiamata AJAX
-            $.post(`/admin/prodotti/${productId}/toggle-status`, {
-                _token: $('meta[name="csrf-token"]').attr('content'),
-                status: newStatus
-            })
-            .done(function(response) {
-                if (response.success) {
-                    location.reload();
-                } else {
-                    alert('Errore: ' + response.message);
-                }
-            })
-            .fail(function() {
-                alert('Errore nella comunicazione con il server');
-            });
-        }
-    };
-    
-    /**
-     * Elimina prodotto
-     */
-    window.deleteProduct = function(productId, productName) {
-        if (confirm(`Sei sicuro di voler eliminare il prodotto "${productName}"?\n\nQuesta azione non può essere annullata.`)) {
-            // Crea form per DELETE request
-            const form = $('<form>', {
-                method: 'POST',
-                action: `/admin/prodotti/${productId}`
-            });
-            
-            form.append($('<input>', {
-                type: 'hidden',
-                name: '_token',
-                value: $('meta[name="csrf-token"]').attr('content')
-            }));
-            
-            form.append($('<input>', {
-                type: 'hidden',
-                name: '_method',
-                value: 'DELETE'
-            }));
-            
-            $('body').append(form);
-            form.submit();
-        }
-    };
-    
-    // === AZIONI BULK ===
-    
-    /**
-     * Seleziona tutti i prodotti
-     */
-    window.selectAll = function() {
-        $('.product-checkbox').prop('checked', true);
-        $('#selectAllCheckbox').prop('checked', true);
-        updateBulkActions();
-    };
-    
-    /**
-     * Deseleziona tutti i prodotti
-     */
-    window.deselectAll = function() {
-        $('.product-checkbox').prop('checked', false);
-        $('#selectAllCheckbox').prop('checked', false);
-        updateBulkActions();
-    };
-    
-    /**
-     * Attiva prodotti selezionati
-     */
-    window.bulkActivate = function() {
-        const selected = getSelectedProducts();
-        if (selected.length === 0) {
-            alert('Seleziona almeno un prodotto');
-            return;
-        }
+        const sortUrl = $(this).attr('href');
+        const sortParam = new URL(sortUrl, window.location.origin).searchParams.get('sort');
         
-        if (confirm(`Attivare ${selected.length} prodotti selezionati?`)) {
-            bulkAction('activate', selected);
-        }
-    };
-    
-    /**
-     * Disattiva prodotti selezionati
-     */
-    window.bulkDeactivate = function() {
-        const selected = getSelectedProducts();
-        if (selected.length === 0) {
-            alert('Seleziona almeno un prodotto');
-            return;
-        }
+        console.log('📊 Ordinamento per:', sortParam);
         
-        if (confirm(`Disattivare ${selected.length} prodotti selezionati?`)) {
-            bulkAction('deactivate', selected);
-        }
-    };
-    
-    /**
-     * Elimina prodotti selezionati
-     */
-    window.bulkDelete = function() {
-        const selected = getSelectedProducts();
-        if (selected.length === 0) {
-            alert('Seleziona almeno un prodotto');
-            return;
-        }
+        // Mostra loading
+        showFilterLoading();
         
-        if (confirm(`ATTENZIONE: Eliminare definitivamente ${selected.length} prodotti selezionati?\n\nQuesta azione non può essere annullata.`)) {
-            bulkAction('delete', selected);
-        }
-    };
+        // Vai alla URL di ordinamento
+        window.location.href = sortUrl;
+    });
     
-    /**
-     * Ottiene gli ID dei prodotti selezionati
-     */
-    function getSelectedProducts() {
-        return $('.product-checkbox:checked').map(function() {
-            return $(this).val();
-        }).get();
-    }
+    // === FUNZIONI HELPER ===
     
-    /**
-     * Esegue un'azione bulk
-     */
-    function bulkAction(action, productIds) {
-        $.post('/admin/prodotti/bulk-action', {
-            _token: $('meta[name="csrf-token"]').attr('content'),
-            action: action,
-            products: productIds
-        })
-        .done(function(response) {
-            if (response.success) {
-                location.reload();
-            } else {
-                alert('Errore: ' + response.message);
-            }
-        })
-        .fail(function() {
-            alert('Errore nella comunicazione con il server');
-        });
-    }
-    
-    // === MIGLIORAMENTI UX ===
-    
-    /**
-     * Tooltip per elementi con data-bs-toggle
-     */
-    $('[data-bs-toggle="tooltip"]').tooltip();
-    
-    /**
-     * Auto-refresh ogni 5 minuti per mantenere i dati aggiornati
-     */
-    let autoRefreshInterval;
-    
-    function startAutoRefresh() {
-        autoRefreshInterval = setInterval(() => {
-            // Solo se non ci sono checkbox selezionati
-            if ($('.product-checkbox:checked').length === 0) {
-                // Refresh silenzioso dei dati
-                updateStats();
-            }
-        }, 300000); // 5 minuti
-    }
-    
-    /**
-     * Aggiorna le statistiche via AJAX
-     */
-    function updateStats() {
-        $.get('/api/admin/stats')
-            .done(function(response) {
-                if (response.success) {
-                    // Aggiorna i contatori nelle card
-                    $('.card-stats').each(function(index) {
-                        const statTypes = ['total_prodotti', 'attivi', 'inattivi', 'con_malfunzionamenti'];
-                        if (statTypes[index] && response.stats[statTypes[index]]) {
-                            $(this).find('h3').text(response.stats[statTypes[index]]);
-                        }
-                    });
-                }
-            })
-            .fail(function() {
-                console.log('Errore nell\'aggiornamento statistiche');
-            });
-    }
-    
-    /**
-     * Mostra indicatore di caricamento durante le azioni
-     */
-    function showLoading() {
-        $('body').append(`
-            <div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style="background: rgba(0,0,0,0.5); z-index: 9999;">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Caricamento...</span>
+    function showFilterLoading() {
+        // Mostra indicatore di caricamento sui filtri
+        $('.card-body').append(`
+            <div class="overlay-loading">
+                <div class="d-flex align-items-center justify-content-center h-100">
+                    <div class="spinner-border text-primary me-2" role="status">
+                        <span class="visually-hidden">Caricamento...</span>
+                    </div>
+                    <span>Applicazione filtri...</span>
                 </div>
             </div>
         `);
+        
+        // Disabilita form temporaneamente
+        $('#filterForm input, #filterForm select').prop('disabled', true);
     }
     
-    function hideLoading() {
-        $('#loadingOverlay').remove();
-    }
-    
-    /**
-     * Gestione responsive della tabella
-     */
-    function handleResponsiveTable() {
-        if ($(window).width() < 768) {
-            // Su mobile, nascondi alcune colonne meno importanti
-            $('.table th:nth-child(4), .table td:nth-child(4)').hide(); // Modello
-            $('.table th:nth-child(6), .table td:nth-child(6)').hide(); // Prezzo
-            $('.table th:nth-child(10), .table td:nth-child(10)').hide(); // Data creazione
-        } else {
-            $('.table th, .table td').show();
+    // === CONFERME AZIONI ===
+    $('.dropdown-item[onclick*="confirm"]').on('click', function(e) {
+        const action = $(this).text().trim();
+        if (!confirm(`Confermi l'azione: ${action}?`)) {
+            e.preventDefault();
+            return false;
         }
+    });
+    
+    // === KEYBOARD SHORTCUTS ===
+    $(document).on('keydown', function(e) {
+        // Ctrl+A per selezionare tutti
+        if (e.ctrlKey && e.key === 'a' && !$(e.target).is('input, textarea')) {
+            e.preventDefault();
+            $('#selectAllBtn').click();
+        }
+        
+        // Ctrl+N per nuovo utente
+        if (e.ctrlKey && e.key === 'n') {
+            e.preventDefault();
+            window.location.href = "{{ route('admin.users.create') }}";
+        }
+        
+        // ESC per resettare filtri
+        if (e.key === 'Escape') {
+            $('#search').val('').trigger('input');
+        }
+    });
+    
+    // === TOOLTIP E UI IMPROVEMENTS ===
+    
+    // Inizializza tooltip
+    $('[title]').tooltip();
+    
+    // Highlight della riga selezionata
+    $('.user-row').on('mouseenter', function() {
+        $(this).addClass('table-active');
+    }).on('mouseleave', function() {
+        if (!$(this).find('.user-checkbox').is(':checked')) {
+            $(this).removeClass('table-active');
+        }
+    });
+    
+    // === GESTIONE AZIONI UTENTE ===
+    
+    // Toggle status con AJAX
+    $('form[action*="toggle-status"]').on('submit', function(e) {
+        e.preventDefault();
+        
+        const form = $(this);
+        const button = form.find('button[type="submit"]');
+        const originalText = button.text();
+        
+        // Loading state
+        button.prop('disabled', true).html('<i class="bi bi-hourglass-split me-2"></i>Elaborazione...');
+        
+        $.ajax({
+            url: form.attr('action'),
+            method: 'POST',
+            data: form.serialize(),
+            success: function(response) {
+                if (response.success) {
+                    showNotification(response.message, 'success');
+                    
+                    // Aggiorna interfaccia
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    showNotification(response.message, 'danger');
+                }
+            },
+            error: function(xhr) {
+                let message = 'Errore durante l\'operazione';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    message = xhr.responseJSON.message;
+                }
+                showNotification(message, 'danger');
+            },
+            complete: function() {
+                button.prop('disabled', false).html(originalText);
+            }
+        });
+    });
+    
+    // Reset password con AJAX
+    $('form[action*="reset-password"]').on('submit', function(e) {
+        e.preventDefault();
+        
+        if (!confirm('Resettare la password di questo utente?')) {
+            return;
+        }
+        
+        const form = $(this);
+        const button = form.find('button[type="submit"]');
+        
+        button.prop('disabled', true);
+        
+        $.ajax({
+            url: form.attr('action'),
+            method: 'POST',
+            data: form.serialize(),
+            success: function(response) {
+                if (response.success) {
+                    showNotification(response.message + ` Password temporanea: ${response.temp_password}`, 'success');
+                } else {
+                    showNotification(response.message, 'danger');
+                }
+            },
+            error: function() {
+                showNotification('Errore nel reset della password', 'danger');
+            },
+            complete: function() {
+                button.prop('disabled', false);
+            }
+        });
+    });
+    
+    // === UTILITY FUNCTIONS ===
+    
+    function showNotification(message, type = 'success') {
+        const alertClass = type === 'success' ? 'alert-success' : 
+                          type === 'danger' ? 'alert-danger' : 
+                          type === 'warning' ? 'alert-warning' : 'alert-info';
+        
+        const alert = $(`
+            <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
+                 style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `);
+        
+        $('body').append(alert);
+        
+        // Auto-dismiss dopo 5 secondi
+        setTimeout(() => {
+            alert.alert('close');
+        }, 5000);
     }
     
-    // Esegui al caricamento e ridimensionamento finestra
-    handleResponsiveTable();
-    $(window).resize(handleResponsiveTable);
+    // === INIZIALIZZAZIONE COMPLETATA ===
     
-    // Avvia auto-refresh
-    startAutoRefresh();
-    
-    // Inizializza stato bulk actions
-    updateBulkActions();
-    
-    console.log('✅ Dashboard admin prodotti inizializzata');
+    console.log('✅ Gestione utenti inizializzata');
+    console.log(`📊 Utenti caricati: {{ $users->total() ?? 0 }}`);
+    console.log(`🔍 Filtri attivi:`, {
+        search: '{{ request("search") }}',
+        livello: '{{ request("livello_accesso") }}',
+        centro: '{{ request("centro_assistenza_id") }}',
+        data: '{{ request("data_registrazione") }}'
+    });
 });
 
-// === FUNZIONI GLOBALI UTILITY ===
+// === FUNZIONI GLOBALI ===
 
 /**
- * Formatta numeri per visualizzazione
+ * Resetta tutti i filtri
  */
-function formatNumber(num) {
-    return new Intl.NumberFormat('it-IT').format(num);
+function resetAllFilters() {
+    $('#filterForm')[0].reset();
+    window.location.href = "{{ route('admin.users.index') }}";
 }
 
 /**
- * Formatta valute
+ * Applica filtro rapido per livello
  */
-function formatCurrency(amount) {
-    return new Intl.NumberFormat('it-IT', {
-        style: 'currency',
-        currency: 'EUR'
-    }).format(amount);
-}
-
-/**
- * Mostra notifica toast
- */
-function showToast(message, type = 'success') {
-    const toast = $(`
-        <div class="toast align-items-center text-white bg-${type} border-0 position-fixed top-0 end-0 m-3" role="alert" style="z-index: 9999;">
-            <div class="d-flex">
-                <div class="toast-body">
-                    ${message}
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        </div>
-    `);
-    
-    $('body').append(toast);
-    const bsToast = new bootstrap.Toast(toast[0]);
-    bsToast.show();
-    
-    // Rimuovi dopo 5 secondi
-    setTimeout(() => {
-        toast.remove();
-    }, 5000);
+function quickFilterLevel(level) {
+    $('#livello_accesso').val(level).trigger('change');
 }
 </script>
+
+{{-- CSS AGGIUNTIVO PER MIGLIORAMENTI UI --}}
+<style>
+/* Loading overlay */
+.overlay-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Search input con stato loading */
+.form-control.searching {
+    background-image: url("data:image/svg+xml,%3csvg width='20' height='20' viewBox='0 0 16 16' class='bi bi-search' fill='%236c757d' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'%3e%3c/path%3e%3c/svg%3e"), linear-gradient(to right, transparent 0%, rgba(108, 117, 125, 0.1) 100%);
+    background-repeat: no-repeat, repeat;
+    background-position: right .75rem center, 0 0;
+    background-size: 16px 12px, 100% 100%;
+    animation: searchPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes searchPulse {
+    0%, 100% { background-color: #fff; }
+    50% { background-color: #f8f9fa; }
+}
+
+/* Miglioramenti tabella */
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+.user-row.selected {
+    background-color: rgba(0, 123, 255, 0.1) !important;
+}
+
+/* Stili badge migliorati */
+.badge-livello-4 { 
+    background: linear-gradient(45deg, #dc3545, #c82333);
+    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+}
+.badge-livello-3 { 
+    background: linear-gradient(45deg, #ffc107, #e0a800);
+    color: #000 !important;
+    box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3);
+}
+.badge-livello-2 { 
+    background: linear-gradient(45deg, #0dcaf0, #0aa2c0);
+    color: #000 !important;
+    box-shadow: 0 2px 4px rgba(13, 202, 240, 0.3);
+}
+
+/* Avatar circles migliorati */
+.avatar-circle {
+    transition: all 0.3s ease;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.avatar-circle:hover {
+    transform: scale(1.1);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Dropdown menu migliorato */
+.dropdown-menu {
+    border: none;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+}
+
+.dropdown-item {
+    transition: all 0.2s ease;
+}
+
+.dropdown-item:hover {
+    background-color: rgba(0, 123, 255, 0.1);
+    transform: translateX(2px);
+}
+</style>
 @endpush

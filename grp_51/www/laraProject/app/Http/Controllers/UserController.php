@@ -28,7 +28,7 @@ class UserController extends Controller
         $this->middleware(['auth', 'check.level:4']);
     }
 
-    <?php
+
 
 /**
  * Mostra l'elenco di tutti gli utenti (per admin) - VERSIONE CORRETTA
