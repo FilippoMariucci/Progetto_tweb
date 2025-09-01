@@ -106,62 +106,77 @@ class AuthController extends Controller
      * Dashboard amministratori (Livello 4) - VERSIONE DEFINITIVA
      */
     public function adminDashboard()
-    {
-        // Verifica autorizzazioni
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            abort(403, 'Accesso riservato agli amministratori');
-        }
-
-        $user = Auth::user();
-
-        try {
-            // === STATISTICHE COMPLETE PER ADMIN ===
-            $stats = [
-                // Contatori principali
-                'total_utenti' => User::count(),
-                'total_prodotti' => Prodotto::count(),
-                'total_centri' => CentroAssistenza::count(),
-                'total_soluzioni' => Malfunzionamento::count(),
-
-                // Prodotti non assegnati allo staff
-                'prodotti_non_assegnati_count' => Prodotto::whereNull('staff_assegnato_id')->count(),
-                'prodotti_non_assegnati' => Prodotto::whereNull('staff_assegnato_id')
-                    ->select('id', 'nome', 'modello', 'categoria', 'created_at')
-                    ->orderBy('created_at', 'desc')
-                    ->limit(5)
-                    ->get(),
-
-                // Distribuzione utenti per livello
-                'utenti_per_livello' => User::selectRaw('livello_accesso, COUNT(*) as count')
-                    ->groupBy('livello_accesso')
-                    ->pluck('count', 'livello_accesso')
-                    ->toArray(),
-
-                // Utenti registrati di recente
-                'utenti_recenti' => User::where('created_at', '>=', now()->subMonth())
-                    ->latest()
-                    ->take(5)
-                    ->get(['id', 'nome', 'cognome', 'username', 'livello_accesso', 'created_at']),
-
-                // Malfunzionamenti critici
-                'soluzioni_critiche' => Malfunzionamento::where('gravita', 'critica')->count(),
-                
-                // Centri senza tecnici
-                'centri_senza_tecnici' => CentroAssistenza::whereDoesntHave('tecnici')->count(),
-            ];
-
-            return view('admin.dashboard', compact('user', 'stats'));
-
-        } catch (\Exception $e) {
-            Log::error('Errore dashboard admin', [
-                'admin_id' => $user->id,
-                'error' => $e->getMessage()
-            ]);
-
-            return view('admin.dashboard', compact('user'))
-                ->with('error', 'Errore nel caricamento delle statistiche');
-        }
+{
+    if (!Auth::check() || !Auth::user()->isAdmin()) {
+        abort(403, 'Accesso riservato agli amministratori');
     }
+
+    $user = Auth::user();
+
+    // === CALCOLO PRODOTTI NON ASSEGNATI ===
+    $prodottiNonAssegnatiCount = Prodotto::whereNull('staff_assegnato_id')->count();
+    
+    $prodottiNonAssegnatiLista = Prodotto::whereNull('staff_assegnato_id')
+        ->select('id', 'nome', 'modello', 'categoria', 'created_at', 'attivo')
+        ->orderBy('created_at', 'desc')
+        ->limit(10)
+        ->get();
+
+    // === FIX PRINCIPALE: CALCOLO CORRETTO DISTRIBUZIONE UTENTI ===
+    // Conta gli utenti per ogni livello di accesso
+    $distribuzioneUtenti = User::selectRaw('livello_accesso, COUNT(*) as count')
+        ->groupBy('livello_accesso')
+        ->orderBy('livello_accesso')
+        ->get()
+        ->pluck('count', 'livello_accesso')
+        ->toArray();
+
+    // === UTENTI RECENTI ===
+    $utentiRecenti = User::where('created_at', '>=', now()->subMonth())
+        ->latest()
+        ->take(5)
+        ->get(['id', 'nome', 'cognome', 'username', 'livello_accesso', 'created_at']);
+
+    // Statistiche complete per admin dashboard
+    $stats = [
+        // Contatori principali
+        'total_utenti' => User::count(),
+        'total_prodotti' => Prodotto::count(),
+        'total_centri' => CentroAssistenza::count(),
+        'total_soluzioni' => Malfunzionamento::count(),
+
+        // === PRODOTTI NON ASSEGNATI (FIX CAMPO CORRETTO) ===
+        'prodotti_non_assegnati_count' => $prodottiNonAssegnatiCount,
+        'prodotti_non_assegnati' => $prodottiNonAssegnatiLista,
+
+        // === FIX: DISTRIBUZIONE UTENTI (QUESTA ERA LA VARIABILE MANCANTE) ===
+        'distribuzione_utenti' => $distribuzioneUtenti,
+
+        // === UTENTI RECENTI ===
+        'utenti_recenti' => $utentiRecenti,
+
+        // Statistiche aggiuntive
+        'utenti_attivi' => User::where('last_login_at', '>=', now()->subDays(30))->count(),
+        'prodotti_attivi' => Prodotto::where('attivo', true)->count(),
+        'staff_disponibili' => User::where('livello_accesso', '3')->count(),
+        'soluzioni_critiche' => Malfunzionamento::where('gravita', 'critica')->count(),
+
+        // Timestamp per debug
+        'last_update' => now()->toISOString(),
+        'update_time' => now()->format('H:i:s')
+    ];
+
+    // === DEBUG LOG (per verificare i dati) ===
+    Log::info('Dashboard Admin - Distribuzione Utenti', [
+        'admin_user' => $user->username,
+        'distribuzione_utenti' => $distribuzioneUtenti,
+        'total_utenti_per_livello' => array_sum($distribuzioneUtenti),
+        'utenti_recenti_count' => $utentiRecenti->count(),
+        'prodotti_non_assegnati_count' => $prodottiNonAssegnatiCount,
+    ]);
+
+    return view('admin.dashboard', compact('user', 'stats'));
+}
 
 // ================================================
 // TROVA E SOSTITUISCI il metodo staffDashboard() in AuthController.php

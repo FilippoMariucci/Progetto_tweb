@@ -28,56 +28,108 @@ class UserController extends Controller
         $this->middleware(['auth', 'check.level:4']);
     }
 
-    /**
-     * Mostra l'elenco di tutti gli utenti (per admin)
-     */
-    public function index(Request $request)
-    {
-        // Query base con relazioni
-        $query = User::with('centroAssistenza');
+    <?php
 
-        // Filtro per livello di accesso
-        if ($request->filled('livello')) {
-            $query->where('livello_accesso', $request->input('livello'));
-        }
+/**
+ * Mostra l'elenco di tutti gli utenti (per admin) - VERSIONE CORRETTA
+ * Fix per filtri e ordinamento che non funzionavano
+ * 
+ * Sostituisci questo metodo nel tuo UserController.php
+ */
+public function index(Request $request)
+{
+    // Query base con relazioni
+    $query = User::with('centroAssistenza');
 
-        // Filtro per centro assistenza (solo tecnici)
-        if ($request->filled('centro')) {
-            $query->where('centro_assistenza_id', $request->input('centro'));
-        }
-
-        // Ricerca per nome/cognome/username
-        if ($request->filled('search')) {
-            $searchTerm = $request->input('search');
-            $query->where(function($q) use ($searchTerm) {
-                $q->where('nome', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('cognome', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('username', 'LIKE', "%{$searchTerm}%");
-            });
-        }
-
-        // Ordinamento
-        $sortBy = $request->input('sort', 'created_at');
-        $sortOrder = $request->input('order', 'desc');
-        $query->orderBy($sortBy, $sortOrder);
-
-        // Paginazione
-        $users = $query->paginate(15);
-
-        // Statistiche per la dashboard
-        $stats = [
-            'total' => User::count(),
-            'admin' => User::where('livello_accesso', '4')->count(),
-            'staff' => User::where('livello_accesso', '3')->count(),
-            'tecnici' => User::where('livello_accesso', '2')->count(),
-            'pubblici' => User::where('livello_accesso', '1')->count(),
-        ];
-
-        // Centri per filtro
-        $centri = CentroAssistenza::orderBy('nome')->get();
-
-        return view('admin.users.index', compact('users', 'stats', 'centri'));
+    // === FIX: FILTRI CORRETTI ===
+    
+    // Filtro per livello di accesso (CORRETTO)
+    if ($request->filled('livello_accesso')) {
+        $query->where('livello_accesso', $request->input('livello_accesso'));
     }
+
+    // Filtro per centro assistenza (CORRETTO)
+    if ($request->filled('centro_assistenza_id')) {
+        $query->where('centro_assistenza_id', $request->input('centro_assistenza_id'));
+    }
+
+    // Ricerca per nome/cognome/username
+    if ($request->filled('search')) {
+        $searchTerm = $request->input('search');
+        $query->where(function($q) use ($searchTerm) {
+            $q->where('nome', 'LIKE', "%{$searchTerm}%")
+              ->orWhere('cognome', 'LIKE', "%{$searchTerm}%")
+              ->orWhere('username', 'LIKE', "%{$searchTerm}%");
+        });
+    }
+
+    // === FIX: FILTRO DATA REGISTRAZIONE ===
+    if ($request->filled('data_registrazione')) {
+        $periodo = $request->input('data_registrazione');
+        
+        switch ($periodo) {
+            case 'oggi':
+                $query->whereDate('created_at', today());
+                break;
+            case 'settimana':
+                $query->where('created_at', '>=', now()->subWeek());
+                break;
+            case 'mese':
+                $query->where('created_at', '>=', now()->subMonth());
+                break;
+        }
+    }
+
+    // === FIX: ORDINAMENTO CORRETTO ===
+    $sort = $request->input('sort', 'created_at');
+    
+    // Gestisce ordinamento crescente/decrescente dal parametro sort
+    if (str_starts_with($sort, '-')) {
+        $sortField = substr($sort, 1);
+        $sortDirection = 'desc';
+    } else {
+        $sortField = $sort;
+        $sortDirection = 'asc';
+    }
+    
+    // Validazione campi ordinamento
+    $allowedSorts = ['nome', 'cognome', 'username', 'created_at', 'livello_accesso', 'last_login_at'];
+    if (!in_array($sortField, $allowedSorts)) {
+        $sortField = 'created_at';
+        $sortDirection = 'desc';
+    }
+
+    $query->orderBy($sortField, $sortDirection);
+
+    // === PAGINAZIONE ===
+    $users = $query->paginate(15)->withQueryString(); // Importante: withQueryString() mantiene i filtri
+
+    // === STATISTICHE CORRETTE ===
+    $stats = [
+        'totale' => User::count(),
+        'admin' => User::where('livello_accesso', '4')->count(),
+        'staff' => User::where('livello_accesso', '3')->count(),
+        'tecnici' => User::where('livello_accesso', '2')->count(),
+    ];
+
+    // Centri per filtro
+    $centri = CentroAssistenza::orderBy('nome')->get();
+
+    // Log per debug
+    Log::info('Caricamento gestione utenti', [
+        'total_users' => $users->total(),
+        'filtri_applicati' => [
+            'search' => $request->input('search'),
+            'livello_accesso' => $request->input('livello_accesso'),
+            'centro_assistenza_id' => $request->input('centro_assistenza_id'),
+            'data_registrazione' => $request->input('data_registrazione'),
+            'sort' => $sort,
+        ],
+        'admin_id' => Auth::id()
+    ]);
+
+    return view('admin.users.index', compact('users', 'stats', 'centri'));
+}
 
     /**
      * Mostra il form per creare un nuovo utente
