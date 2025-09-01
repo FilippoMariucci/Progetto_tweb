@@ -184,11 +184,20 @@ Route::prefix('api')->name('api.')->group(function () {
                 
                 // === STATISTICHE AMMINISTRATIVE ===
                 
-                // Aggiornamento statistiche dashboard admin
-                Route::get('/stats-update', [AdminController::class, 'statsUpdate'])->name('stats.update');
+                /**
+                 * API per aggiornamento statistiche dashboard admin (AJAX)
+                 * ENDPOINT: GET /api/admin/stats-update
+                 * JavaScript fa chiamata a questo endpoint ogni 5 minuti
+                 */
+                Route::get('/stats-update', [AdminController::class, 'statsUpdate'])
+                    ->name('stats-update');
                 
-                // Controllo stato sistema
-                Route::get('/system-status', [AdminController::class, 'apiSystemStatus'])->name('system.status');
+                /**
+                 * API per controllo stato sistema (AJAX) 
+                 * ENDPOINT: GET /api/admin/system-status
+                 * JavaScript fa chiamata a questo endpoint ogni 3 minuti
+                 */
+                Route::get('/system-status', [AdminController::class, 'systemStatus'])->name('system.status');
                 
                 // Prodotti non ancora assegnati a membri dello staff
                 Route::get('/prodotti-non-assegnati', [AdminController::class, 'apiProdottiNonAssegnati'])->name('prodotti.non-assegnati');
