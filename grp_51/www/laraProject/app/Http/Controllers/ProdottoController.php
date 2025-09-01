@@ -735,11 +735,8 @@ class ProdottoController extends Controller
                 'admin_id' => Auth::id()
             ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => "Prodotto '{$prodotto->nome}' {$action} con successo.",
-                'new_status' => $newStatus
-            ]);
+            return redirect()->route('admin.prodotti.index')
+            ->with('success', 'Prodotto "' . $prodotto->nome . '" aggiornato con successo');
 
         } catch (\Exception $e) {
             Log::error('Errore toggle status prodotto', [
@@ -750,8 +747,10 @@ class ProdottoController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Errore nel cambio stato del prodotto.'
+                'message' => 'Errore nel cambio stato del prodotto.',
+                
             ], 500);
+            
         }
     }
 
