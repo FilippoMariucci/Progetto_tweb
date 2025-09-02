@@ -136,6 +136,35 @@ class CentroAssistenzaController extends Controller
                 ->limit(4)
                 ->get();
 
+            return view('centri.show', compact('centro', 'centriVicini'));
+
+        } catch (\Exception $e) {
+            Log::error('Errore visualizzazione centro', [
+                'centro_id' => $centro->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return redirect()->route('centri.index')
+                ->with('error', 'Centro non trovato');
+        }
+    }
+
+    public function adminShow(CentroAssistenza $centro)
+    {
+        try {
+            // Carica i tecnici associati al centro
+            $centro->load(['tecnici' => function($query) {
+                $query->select('id', 'nome', 'cognome', 'specializzazione', 'centro_assistenza_id')
+                      ->orderBy('nome');
+            }]);
+
+            // Centri vicini nella stessa provincia
+            $centriVicini = CentroAssistenza::where('provincia', $centro->provincia)
+                ->where('id', '!=', $centro->id)
+                ->withCount('tecnici')
+                ->limit(4)
+                ->get();
+
             return view('admin.centri.show', compact('centro', 'centriVicini'));
 
         } catch (\Exception $e) {

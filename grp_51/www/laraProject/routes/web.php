@@ -433,7 +433,9 @@ Route::get('/storico-interventi', [AuthController::class, 'storicoInterventi'])
                 
                 // Visualizzazione centro (vista admin)
                 Route::get('/{centro}', [CentroAssistenzaController::class, 'show'])->name('show');
-                
+                // Visualizzazione centro (vista admin)
+                Route::get('/{centro}', [CentroAssistenzaController::class, 'adminShow'])->name('admin.show');
+
                 // Modifica centro esistente
                 Route::get('/{centro}/edit', [CentroAssistenzaController::class, 'edit'])->name('edit');
                 Route::put('/{centro}', [CentroAssistenzaController::class, 'update'])->name('update');

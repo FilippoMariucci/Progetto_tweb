@@ -380,7 +380,7 @@
 <td>
     <div class="btn-group" role="group">
         {{-- Visualizza --}}
-        <a href="{{ route('centri.show', $centro->id) }}" 
+        <a href="{{ route('admin.centri.admin.show', $centro->id) }}" 
            class="btn btn-outline-primary btn-sm" 
            title="Visualizza dettagli centro" 
            target="_blank">
