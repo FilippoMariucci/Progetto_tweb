@@ -161,12 +161,17 @@
                                                class="btn btn-outline-warning btn-sm">
                                                 <i class="bi bi-pencil"></i> Modifica
                                             </a>
-                                            <button type="button" 
-                                                    class="btn btn-outline-danger btn-sm btn-rimuovi-tecnico"
-                                                    data-tecnico-id="{{ $tecnico->id }}"
-                                                    data-tecnico-nome="{{ $tecnico->nome_completo }}">
-                                                <i class="bi bi-trash"></i> Rimuovi
-                                            </button>
+                                            <form action="{{ route('admin.centri.rimuovi-tecnico', $centro) }}" 
+      method="POST" 
+      class="d-inline"
+      onsubmit="return confirm('Sei sicuro di voler rimuovere &quot;{{ addslashes($tecnico->nome_completo) }}&quot; da questo centro?\n\nIl tecnico rimarrà nel sistema ma non sarà più assegnato a questo centro.')">
+    @csrf
+    @method('DELETE')
+    <input type="hidden" name="tecnico_id" value="{{ $tecnico->id }}">
+    <button type="submit" class="btn btn-outline-danger btn-sm">
+        <i class="bi bi-trash"></i> Rimuovi
+    </button>
+</form>
                                         </div>
                                     </div>
                                 </div>
@@ -314,192 +319,46 @@
 @push('scripts')
 <script>
 /**
- * JavaScript per gestione centro assistenza - Versione semplificata
- * Gestisce assegnazione/rimozione tecnici e azioni base
+ * JavaScript semplificato per gestione centro assistenza
+ * Gestisce SOLO l'assegnazione tecnici (la rimozione usa form HTML)
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('📍 Inizializzazione pagina centro assistenza');
+    console.log('📍 Inizializzazione pagina centro assistenza - versione semplificata');
     
     // === VARIABILI GLOBALI ===
     const CENTRO_ID = {{ $centro->id }};
     const BASE_URL = '{{ url("/") }}';
     const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
     
-    // Elementi del DOM
+    // Elementi del DOM per assegnazione tecnico
     const modalAssegnazione = document.getElementById('modalAssegnaTecnico');
     const selectTecnico = document.getElementById('tecnico_id');
     const btnAssegnaTecnico = document.getElementById('btnAssegnaTecnico');
     const formAssegnazione = document.getElementById('formAssegnaTecnico');
     
-    // === INIZIALIZZAZIONE ===
-    inizializzaEventHandlers();
+    // Inizializzazione
+    if (modalAssegnazione) {
+        modalAssegnazione.addEventListener('shown.bs.modal', caricaTecniciDisponibili);
+    }
     
-    /**
-     * Configura tutti gli event handler della pagina
-     */
-    function inizializzaEventHandlers() {
-        // Carica tecnici quando si apre il modal
-        if (modalAssegnazione) {
-            modalAssegnazione.addEventListener('shown.bs.modal', caricaTecniciDisponibili);
-        }
-        
-        // Gestione form assegnazione
-        if (formAssegnazione) {
-            formAssegnazione.addEventListener('submit', gestisciAssegnazioneTecnico);
-        }
-        
-        // Pulsanti rimozione tecnici
-        document.querySelectorAll('.btn-rimuovi-tecnico').forEach(btn => {
-            btn.addEventListener('click', gestisciRimozioneTecnico);
-        });
+    if (formAssegnazione) {
+        formAssegnazione.addEventListener('submit', gestisciAssegnazioneTecnico);
     }
     
     /**
-     * Carica la lista dei tecnici disponibili per l'assegnazione
+     * Carica tecnici disponibili quando si apre il modal
      */
-    /**
- * SOSTITUISCI questa funzione nel JavaScript della vista show.blade.php
- * Carica la lista dei tecnici disponibili per l'assegnazione
- */
-function caricaTecniciDisponibili() {
-    console.log('🔄 Caricamento tecnici disponibili per centro ID:', CENTRO_ID);
-    
-    // Reset select
-    selectTecnico.innerHTML = '<option value="">Caricamento tecnici...</option>';
-    selectTecnico.disabled = true;
-    btnAssegnaTecnico.disabled = true;
-    
-    // === URL API CORRETTO - CORRISPONDE ALLA ROUTE ESISTENTE ===
-    const apiUrl = `${BASE_URL}/api/admin/centri/${CENTRO_ID}/tecnici-disponibili`;
-    console.log('🔗 URL API chiamata:', apiUrl);
-    console.log('🔐 CSRF Token presente:', CSRF_TOKEN ? 'SI' : 'NO');
-    
-    // Headers per la richiesta
-    const headers = {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest'
-    };
-    
-    // Aggiungi CSRF token se presente
-    if (CSRF_TOKEN) {
-        headers['X-CSRF-TOKEN'] = CSRF_TOKEN;
-    }
-    
-    // Chiamata API con gestione errori migliorata
-    fetch(apiUrl, {
-        method: 'GET',
-        headers: headers,
-        credentials: 'same-origin' // Include cookies di sessione
-    })
-    .then(response => {
-        console.log('📡 Risposta API:', response.status, response.statusText);
+    function caricaTecniciDisponibili() {
+        console.log('🔄 Caricamento tecnici disponibili...');
         
-        // Debug dettagliato per errori HTTP
-        if (!response.ok) {
-            console.error('❌ Errore HTTP dettagliato:', {
-                status: response.status,
-                statusText: response.statusText,
-                url: response.url,
-                headers: Object.fromEntries(response.headers.entries())
-            });
-            
-            // Messaggi di errore specifici
-            let errorMessage = 'Errore HTTP ' + response.status;
-            switch (response.status) {
-                case 403:
-                    errorMessage = 'Non hai i permessi per accedere a questa funzione';
-                    break;
-                case 404:
-                    errorMessage = 'Route API non trovata. Verifica la configurazione delle route.';
-                    break;
-                case 422:
-                    errorMessage = 'Dati della richiesta non validi';
-                    break;
-                case 500:
-                    errorMessage = 'Errore interno del server';
-                    break;
-            }
-            
-            throw new Error(errorMessage);
-        }
+        selectTecnico.innerHTML = '<option value="">Caricamento tecnici...</option>';
+        selectTecnico.disabled = true;
+        btnAssegnaTecnico.disabled = true;
         
-        return response.json();
-    })
-    .then(data => {
-        console.log('✅ Dati ricevuti dal server:', data);
+        const apiUrl = `${BASE_URL}/api/admin/centri/${CENTRO_ID}/tecnici-disponibili`;
         
-        if (data.success) {
-            popolaSelectTecnici(data.tecnici || []);
-            console.log(`✅ Caricati ${data.count || 0} tecnici disponibili`);
-            
-            // Log dettagli per debug
-            if (data.centro_target) {
-                console.log('🎯 Centro target:', data.centro_target);
-            }
-        } else {
-            console.error('❌ Errore nella risposta del server:', data.message);
-            throw new Error(data.message || 'Errore sconosciuto dal server');
-        }
-    })
-    .catch(error => {
-        console.error('❌ Errore completo caricamento tecnici:', error);
-        
-        // Mostra messaggio di errore specifico nella select
-        let messaggioErrore = 'Errore nel caricamento';
-        
-        if (error.message.includes('403')) {
-            messaggioErrore = 'Accesso negato - verifica i permessi';
-        } else if (error.message.includes('404')) {
-            messaggioErrore = 'API non trovata - controlla le route';
-        } else if (error.message.includes('500')) {
-            messaggioErrore = 'Errore del server - controlla i log';
-        } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
-            messaggioErrore = 'Errore di connessione - riprova';
-        }
-        
-        selectTecnico.innerHTML = `<option value="">⚠️ ${messaggioErrore}</option>`;
-        mostraNotifica('Errore: ' + messaggioErrore, 'danger');
-        
-        // Debug aggiuntivo per sviluppo
-        console.log('🔍 Debug info:', {
-            baseUrl: BASE_URL,
-            centroId: CENTRO_ID,
-            completeUrl: apiUrl,
-            userAgent: navigator.userAgent,
-            timestamp: new Date().toISOString()
-        });
-    })
-    .finally(() => {
-        // Riabilita la select anche in caso di errore
-        selectTecnico.disabled = false;
-        console.log('🏁 Completato tentativo caricamento tecnici');
-        
-        // Controlla se ci sono opzioni disponibili per abilitare il pulsante
-        if (selectTecnico.options.length > 1) { // Più di una opzione (escluso placeholder)
-            btnAssegnaTecnico.disabled = false;
-        }
-    });
-}
-
-/**
- * TEST HELPER: Aggiungi questa funzione temporaneamente per debug
- * RIMUOVI dopo aver risolto il problema
- */
-function testApiConnection() {
-    console.log('🧪 TEST CONNESSIONE API CENTRI');
-    
-    const testUrls = [
-        `${BASE_URL}/api/admin/centri/${CENTRO_ID}/tecnici-disponibili`, // URL attuale
-        `${BASE_URL}/api/admin/tecnici-disponibili`, // URL alternativo
-        `${BASE_URL}/admin/centri/${CENTRO_ID}/assegna-tecnico`, // URL assegnazione
-    ];
-    
-    testUrls.forEach((url, index) => {
-        console.log(`📍 Test URL ${index + 1}: ${url}`);
-        
-        fetch(url, {
+        fetch(apiUrl, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
@@ -507,19 +366,23 @@ function testApiConnection() {
                 'X-CSRF-TOKEN': CSRF_TOKEN
             }
         })
-        .then(response => {
-            console.log(`✅ URL ${index + 1} risponde:`, response.status, response.statusText);
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                popolaSelectTecnici(data.tecnici || []);
+            } else {
+                throw new Error(data.message || 'Errore nel caricamento');
+            }
         })
         .catch(error => {
-            console.log(`❌ URL ${index + 1} fallisce:`, error.message);
+            console.error('❌ Errore caricamento tecnici:', error);
+            selectTecnico.innerHTML = '<option value="">Errore nel caricamento</option>';
+            mostraNotifica('Errore: ' + error.message, 'danger');
+        })
+        .finally(() => {
+            selectTecnico.disabled = false;
         });
-    });
-}
-
-// Esegui test di connessione al caricamento (RIMUOVI in produzione)
-if (typeof CENTRO_ID !== 'undefined' && CENTRO_ID) {
-    testApiConnection();
-}
+    }
     
     /**
      * Popola la select con i tecnici disponibili
@@ -542,7 +405,7 @@ if (typeof CENTRO_ID !== 'undefined' && CENTRO_ID) {
             gruppo.label = 'Tecnici Disponibili';
             tecniciLiberi.forEach(tecnico => {
                 const option = new Option(
-                    `${tecnico.nome_completo} - ${tecnico.specializzazione || 'Specializzazione N/A'}`, 
+                    `${tecnico.nome_completo} - ${tecnico.specializzazione || 'N/A'}`, 
                     tecnico.id
                 );
                 gruppo.appendChild(option);
@@ -556,7 +419,7 @@ if (typeof CENTRO_ID !== 'undefined' && CENTRO_ID) {
             gruppo.label = 'Trasferimento da Altri Centri';
             tecniciAssegnati.forEach(tecnico => {
                 const option = new Option(
-                    `${tecnico.nome_completo} (attualmente: ${tecnico.centro_attuale.nome})`, 
+                    `${tecnico.nome_completo} (da: ${tecnico.centro_attuale.nome})`, 
                     tecnico.id
                 );
                 option.setAttribute('data-centro-attuale', tecnico.centro_attuale.nome);
@@ -565,7 +428,6 @@ if (typeof CENTRO_ID !== 'undefined' && CENTRO_ID) {
             selectTecnico.appendChild(gruppo);
         }
         
-        // Abilita il pulsante
         btnAssegnaTecnico.disabled = false;
     }
     
@@ -592,26 +454,15 @@ if (typeof CENTRO_ID !== 'undefined' && CENTRO_ID) {
             if (!conferma) return;
         }
         
-        // Procedi con l'assegnazione
-        inviaAssegnazioneTecnico(tecnicoId);
-    }
-    
-    /**
-     * Invia la richiesta di assegnazione al server
-     */
-    function inviaAssegnazioneTecnico(tecnicoId) {
-        console.log('📤 Invio assegnazione tecnico:', tecnicoId);
-        
         // Disabilita pulsante durante invio
         btnAssegnaTecnico.disabled = true;
         btnAssegnaTecnico.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Assegnazione...';
         
-        // Prepara dati form
+        // Prepara e invia dati
         const formData = new FormData();
         formData.append('tecnico_id', tecnicoId);
         formData.append('_token', CSRF_TOKEN);
         
-        // Invia richiesta
         fetch(formAssegnazione.getAttribute('action'), {
             method: 'POST',
             body: formData,
@@ -624,9 +475,6 @@ if (typeof CENTRO_ID !== 'undefined' && CENTRO_ID) {
         .then(data => {
             if (data.success) {
                 mostraNotifica(data.message, 'success');
-                console.log('✅ Tecnico assegnato con successo');
-                
-                // Chiudi modal e ricarica pagina
                 setTimeout(() => {
                     bootstrap.Modal.getInstance(modalAssegnazione).hide();
                     location.reload();
@@ -637,71 +485,16 @@ if (typeof CENTRO_ID !== 'undefined' && CENTRO_ID) {
         })
         .catch(error => {
             console.error('❌ Errore assegnazione:', error);
-            mostraNotifica('Errore nell\'assegnazione: ' + error.message, 'danger');
+            mostraNotifica('Errore: ' + error.message, 'danger');
         })
         .finally(() => {
-            // Ripristina pulsante
             btnAssegnaTecnico.disabled = false;
             btnAssegnaTecnico.innerHTML = '<i class="bi bi-check-circle me-1"></i> Assegna Tecnico';
         });
     }
     
     /**
-     * Gestisce la rimozione di un tecnico dal centro
-     */
-    function gestisciRimozioneTecnico(e) {
-        const tecnicoId = this.getAttribute('data-tecnico-id');
-        const tecnicoNome = this.getAttribute('data-tecnico-nome');
-        
-        const conferma = confirm(
-            `Sei sicuro di voler rimuovere "${tecnicoNome}" da questo centro?`
-        );
-        
-        if (conferma) {
-            rimuoviTecnicoDalCentro(tecnicoId, tecnicoNome);
-        }
-    }
-    
-    /**
-     * Rimuove un tecnico dal centro
-     */
-    function rimuoviTecnicoDalCentro(tecnicoId, tecnicoNome) {
-        console.log('🗑️ Rimozione tecnico:', tecnicoNome);
-        
-        // Prepara dati per richiesta
-        const formData = new FormData();
-        formData.append('tecnico_id', tecnicoId);
-        formData.append('_token', CSRF_TOKEN);
-        formData.append('_method', 'DELETE');
-        
-        const urlRimozione = `${BASE_URL}/admin/centri/${CENTRO_ID}/rimuovi-tecnico`;
-        
-        fetch(urlRimozione, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                mostraNotifica(data.message, 'success');
-                console.log('✅ Tecnico rimosso con successo');
-                setTimeout(() => location.reload(), 1000);
-            } else {
-                throw new Error(data.message || 'Errore nella rimozione');
-            }
-        })
-        .catch(error => {
-            console.error('❌ Errore rimozione:', error);
-            mostraNotifica('Errore nella rimozione: ' + error.message, 'danger');
-        });
-    }
-    
-    /**
-     * Mostra una notifica temporanea
+     * Mostra notifica temporanea
      */
     function mostraNotifica(messaggio, tipo = 'info') {
         const tipiAlert = {
@@ -719,15 +512,15 @@ if (typeof CENTRO_ID !== 'undefined' && CENTRO_ID) {
         };
         
         const notifica = document.createElement('div');
-        notifica.className = `alert ${tipiAlert[tipo]} alert-dismissible fade show notifica-temp`;
-        notifica.style.minWidth = '300px';
+        notifica.className = `alert ${tipiAlert[tipo]} alert-dismissible fade show`;
+        notifica.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
         notifica.innerHTML = `
             <i class="bi ${icone[tipo]} me-2"></i>
             ${messaggio}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
         
-        document.getElementById('notificheContainer').appendChild(notifica);
+        document.body.appendChild(notifica);
         
         // Auto-rimuovi dopo 5 secondi
         setTimeout(() => {
@@ -739,14 +532,15 @@ if (typeof CENTRO_ID !== 'undefined' && CENTRO_ID) {
 });
 
 /**
- * Apre Google Maps con l'indirizzo del centro
+ * Funzione globale per Google Maps
  */
 function apriGoogleMaps() {
     const indirizzo = encodeURIComponent('{{ $centro->indirizzo }}, {{ $centro->citta }}, {{ $centro->provincia }}');
     const url = `https://www.google.com/maps/search/?api=1&query=${indirizzo}`;
     window.open(url, '_blank');
-    console.log('🗺️ Apertura Google Maps per:', '{{ $centro->nome }}');
 }
+
+console.log('✅ JavaScript semplificato caricato - rimozione tecnici tramite form HTML');
 </script>
 @endpush
 

@@ -847,78 +847,130 @@ public function adminIndex(Request $request)
     }
 
     /**
-     * Rimuovi tecnico da centro
-     * Route: POST /admin/centri/{centro}/rimuovi-tecnico
-     */
-    public function rimuoviTecnico(Request $request, CentroAssistenza $centro)
-    {
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Non autorizzato'
-            ], 403);
+ * Rimuovi tecnico da centro
+ * Route: POST /admin/centri/{centro}/rimuovi-tecnico
+ * Method: rimuoviTecnico
+ */
+public function rimuoviTecnico(Request $request, CentroAssistenza $centro)
+{
+    // Verifica autorizzazioni admin
+    if (!Auth::check() || !Auth::user()->isAdmin()) {
+        $message = 'Non autorizzato';
+        
+        if ($request->expectsJson()) {
+            return response()->json(['success' => false, 'message' => $message], 403);
         }
+        
+        return redirect()->back()->with('error', $message);
+    }
 
-        $validator = Validator::make($request->all(), [
-            'tecnico_id' => 'required|exists:users,id'
-        ]);
+    // Validazione dati
+    $validator = Validator::make($request->all(), [
+        'tecnico_id' => 'required|exists:users,id'
+    ], [
+        'tecnico_id.required' => 'ID tecnico mancante',
+        'tecnico_id.exists' => 'Tecnico non trovato nel sistema'
+    ]);
 
-        if ($validator->fails()) {
+    if ($validator->fails()) {
+        $message = 'Dati non validi: ' . $validator->errors()->first();
+        
+        if ($request->expectsJson()) {
             return response()->json([
-                'success' => false,
-                'message' => 'Tecnico non valido',
+                'success' => false, 
+                'message' => $message,
                 'errors' => $validator->errors()
             ], 422);
         }
-
-        try {
-            DB::beginTransaction();
-
-            $tecnico = User::findOrFail($request->tecnico_id);
-
-            // Verifica che il tecnico sia effettivamente assegnato a questo centro
-            if ($tecnico->centro_assistenza_id != $centro->id) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Il tecnico non è assegnato a questo centro'
-                ], 422);
-            }
-
-            // Rimozione assegnazione
-            $tecnico->centro_assistenza_id = null;
-            $tecnico->save();
-
-            DB::commit();
-
-            Log::info('Tecnico rimosso da centro', [
-                'tecnico_id' => $tecnico->id,
-                'centro_id' => $centro->id,
-                'admin_id' => Auth::id()
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => "Tecnico {$tecnico->nome_completo} rimosso dal centro",
-                'tecnico_id' => $tecnico->id
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollback();
-
-            Log::error('Errore rimozione tecnico', [
-                'tecnico_id' => $request->tecnico_id,
-                'centro_id' => $centro->id,
-                'admin_id' => Auth::id(),
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Errore nella rimozione del tecnico'
-            ], 500);
-        }
+        
+        return redirect()->back()->withErrors($validator);
     }
 
+    try {
+        DB::beginTransaction();
+
+        $tecnico = User::findOrFail($request->tecnico_id);
+
+        // Verifica che sia effettivamente un tecnico
+        if ($tecnico->livello_accesso != 2) {
+            $message = "L'utente selezionato non è un tecnico";
+            
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+            
+            return redirect()->back()->with('error', $message);
+        }
+
+        // Verifica che sia assegnato a questo centro
+        if ($tecnico->centro_assistenza_id != $centro->id) {
+            $message = "Il tecnico non è assegnato a questo centro";
+            
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+            
+            return redirect()->back()->with('error', $message);
+        }
+
+        // Esegui la rimozione
+        $nomeTecnico = $tecnico->nome_completo;
+        $tecnico->update(['centro_assistenza_id' => null]);
+
+        DB::commit();
+
+        // Log dell'operazione per audit
+        Log::info('Tecnico rimosso da centro', [
+            'tecnico_id' => $tecnico->id,
+            'tecnico_nome' => $nomeTecnico,
+            'centro_id' => $centro->id,
+            'centro_nome' => $centro->nome,
+            'removed_by' => Auth::id(),
+            'admin_username' => Auth::user()->username
+        ]);
+
+        $successMessage = "Tecnico \"{$nomeTecnico}\" rimosso dal centro \"{$centro->nome}\"";
+
+        // Risposta per richieste AJAX
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $successMessage,
+                'tecnico_id' => $tecnico->id,
+                'tecnico_nome' => $nomeTecnico
+            ]);
+        }
+
+        // Redirect per richieste web normali
+        return redirect()->route('admin.centri.show', $centro)
+            ->with('success', $successMessage);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        
+        // Log dettagliato dell'errore
+        Log::error('Errore rimozione tecnico da centro', [
+            'centro_id' => $centro->id,
+            'tecnico_id' => $request->tecnico_id,
+            'error_message' => $e->getMessage(),
+            'error_trace' => $e->getTraceAsString(),
+            'admin_id' => Auth::id(),
+            'request_data' => $request->all()
+        ]);
+
+        $errorMessage = 'Errore nella rimozione del tecnico dal centro';
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $errorMessage,
+                'error_detail' => app()->environment('local') ? $e->getMessage() : 'Errore interno'
+            ], 500);
+        }
+
+        return redirect()->back()->with('error', $errorMessage);
+    }
+}
     // ================================================
     // SEZIONE 5: API AMMINISTRATIVE AVANZATE (Solo Admin)
     // ================================================

@@ -447,7 +447,7 @@ Route::get('/storico-interventi', [AuthController::class, 'storicoInterventi'])
                 Route::post('/{centro}/assegna-tecnico', [CentroAssistenzaController::class, 'assegnaTecnico'])->name('assegna-tecnico');
                 
                 // Rimozione tecnico da centro
-                Route::post('/{centro}/rimuovi-tecnico', [CentroAssistenzaController::class, 'rimuoviTecnico'])->name('rimuovi-tecnico');
+                Route::delete('/{centro}/rimuovi-tecnico', [CentroAssistenzaController::class, 'rimuoviTecnico'])->name('rimuovi-tecnico');
                 
                 // Gestione multipla tecnici
                 Route::post('/{centro}/gestisci-tecnici', [CentroAssistenzaController::class, 'gestisciTecnici'])->name('gestisci-tecnici');
