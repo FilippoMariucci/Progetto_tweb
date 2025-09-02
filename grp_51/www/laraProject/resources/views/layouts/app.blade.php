@@ -2,6 +2,19 @@
 <html lang="it">
 <head>
     <meta name="csrf-token" content="{{ csrf_token() }}">
+<script>
+    // Imposta CSRF token globalmente per AJAX
+    window.Laravel = {
+        csrfToken: "{{ csrf_token() }}"
+    };
+    
+    // Configura jQuery AJAX per includere sempre CSRF token
+    $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        }
+    });
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     

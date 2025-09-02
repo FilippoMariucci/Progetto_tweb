@@ -690,25 +690,290 @@ class ProdottoController extends Controller
     }
 
     /**
-     * Disattiva prodotto (soft delete)
-     */
-    public function destroy(Prodotto $prodotto)
-    {
-        if (!Auth::check() || !Auth::user()->canManageProdotti()) {
-            abort(403, 'Non autorizzato');
+ * CORREZIONE: Metodo destroy nel ProdottoController
+ * 
+ * PROBLEMA: Il metodo attuale restituisce redirect() invece di JSON per AJAX
+ * SOLUZIONE: Detectare se è una richiesta AJAX e restituire risposta appropriata
+ */
+
+/**
+ * Elimina prodotto (supporta sia richieste WEB che AJAX)
+ * 
+ * Metodo CORRETTO che gestisce entrambi i tipi di richiesta:
+ * - AJAX: restituisce JSON response
+ * - WEB: restituisce redirect tradizionale
+ */
+
+public function destroy(Prodotto $prodotto)
+{
+    // Verifica autorizzazioni - solo admin possono eliminare prodotti
+    if (!Auth::check() || !Auth::user()->canManageProdotti()) {
+        abort(403, 'Non autorizzato ad eliminare prodotti');
+    }
+
+    try {
+        // Salva informazioni per logging prima dell'eliminazione
+        $prodottoNome = $prodotto->nome;
+        $prodottoModello = $prodotto->modello;
+        $prodottoId = $prodotto->id;
+
+        // === GESTIONE FILE IMMAGINE ===
+        // Elimina la foto del prodotto se esiste
+        if ($prodotto->foto) {
+            Storage::disk('public')->delete($prodotto->foto);
+            Log::info('Foto prodotto eliminata', [
+                'prodotto_id' => $prodottoId,
+                'foto_path' => $prodotto->foto
+            ]);
         }
 
-        $prodotto->update(['attivo' => false]);
+        // === GESTIONE RELAZIONI ===
+        // Elimina tutti i malfunzionamenti associati al prodotto
+        // IMPORTANTE: Questo elimina anche le soluzioni associate
+        $malfunzionamentiCount = $prodotto->malfunzionamenti()->count();
+        if ($malfunzionamentiCount > 0) {
+            $prodotto->malfunzionamenti()->delete();
+            Log::info('Malfunzionamenti del prodotto eliminati', [
+                'prodotto_id' => $prodottoId,
+                'malfunzionamenti_eliminati' => $malfunzionamentiCount
+            ]);
+        }
 
-        Log::info('Prodotto disattivato', [
-            'prodotto_id' => $prodotto->id,
-            'modello' => $prodotto->modello,
-            'deactivated_by' => Auth::id()
+        // === ELIMINAZIONE PRODOTTO ===
+        // Elimina definitivamente il prodotto dal database
+        $prodotto->delete();
+
+        // Log dell'operazione per audit
+        Log::warning('Prodotto eliminato definitivamente', [
+            'prodotto_id' => $prodottoId,
+            'prodotto_nome' => $prodottoNome,
+            'prodotto_modello' => $prodottoModello,
+            'deleted_by_admin_id' => Auth::id(),
+            'deleted_by_admin_username' => Auth::user()->username,
+            'malfunzionamenti_eliminati' => $malfunzionamentiCount
         ]);
 
+        // Redirect con messaggio di successo
         return redirect()->route('admin.prodotti.index')
-            ->with('success', 'Prodotto "' . $prodotto->nome . '" rimosso dal catalogo');
+            ->with('success', "Prodotto \"{$prodottoNome}\" eliminato definitivamente dal sistema.");
+
+    } catch (\Exception $e) {
+        // Log dell'errore per debugging
+        Log::error('Errore nell\'eliminazione prodotto', [
+            'prodotto_id' => $prodotto->id,
+            'error_message' => $e->getMessage(),
+            'error_trace' => $e->getTraceAsString(),
+            'admin_id' => Auth::id()
+        ]);
+
+        // Redirect con messaggio di errore
+        return back()->withErrors([
+            'delete' => 'Errore nell\'eliminazione del prodotto. Riprova o contatta l\'amministratore.'
+        ]);
     }
+}
+
+/**
+ * OPZIONALE: Metodo per soft delete (disattivazione)
+ * Utile se vuoi mantenere anche l'opzione di disattivazione
+ */
+public function softDestroy(Prodotto $prodotto)
+{
+    if (!Auth::check() || !Auth::user()->canManageProdotti()) {
+        abort(403, 'Non autorizzato');
+    }
+
+    // Disattiva il prodotto invece di eliminarlo
+    $prodotto->update(['attivo' => false]);
+
+    Log::info('Prodotto disattivato (soft delete)', [
+        'prodotto_id' => $prodotto->id,
+        'modello' => $prodotto->modello,
+        'deactivated_by' => Auth::id()
+    ]);
+
+    return redirect()->route('admin.prodotti.index')
+        ->with('success', 'Prodotto "' . $prodotto->nome . '" rimosso dal catalogo (può essere riattivato)');
+}
+
+
+
+/**
+ * METODO AGGIUNTIVO: Conferma eliminazione (per approccio alternativo)
+ * 
+ * Questo metodo può essere utilizzato per mostrare una pagina di conferma
+ * prima dell'eliminazione definitiva (approccio più sicuro)
+ */
+public function confirmDelete(Prodotto $prodotto)
+{
+    if (!Auth::check() || !Auth::user()->canManageProdotti()) {
+        abort(403, 'Non autorizzato');
+    }
+
+    // Informazioni aggiuntive per la conferma
+    $relatedData = [
+        'malfunzionamenti_count' => $prodotto->malfunzionamenti()->count(),
+        'staff_assegnato' => $prodotto->staffAssegnato,
+        'created_at' => $prodotto->created_at,
+        'last_modified' => $prodotto->updated_at
+    ];
+
+    return view('admin.prodotti.confirm-delete', compact('prodotto', 'relatedData'));
+}
+
+/**
+ * METODO AGGIUNTIVO: Ripristino prodotto eliminato
+ * 
+ * Permette di riattivare un prodotto precedentemente disattivato
+ */
+public function restore(Prodotto $prodotto)
+{
+    if (!Auth::check() || !Auth::user()->canManageProdotti()) {
+        if (request()->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Non autorizzato'
+            ], 403);
+        }
+        abort(403, 'Non autorizzato');
+    }
+
+    try {
+        // Riattiva il prodotto
+        $prodotto->update(['attivo' => true]);
+
+        Log::info('Prodotto ripristinato', [
+            'prodotto_id' => $prodotto->id,
+            'prodotto_nome' => $prodotto->nome,
+            'restored_by' => Auth::id(),
+            'timestamp' => now()
+        ]);
+
+        $successMessage = "Prodotto \"{$prodotto->nome}\" ripristinato nel catalogo";
+
+        if (request()->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $successMessage,
+                'data' => [
+                    'id' => $prodotto->id,
+                    'nome' => $prodotto->nome,
+                    'status' => 'active',
+                    'restored_at' => now()->toISOString()
+                ]
+            ]);
+        }
+
+        return redirect()->route('admin.prodotti.show', $prodotto)
+            ->with('success', $successMessage);
+
+    } catch (\Exception $e) {
+        Log::error('Errore ripristino prodotto', [
+            'prodotto_id' => $prodotto->id,
+            'error' => $e->getMessage(),
+            'admin_id' => Auth::id()
+        ]);
+
+        $errorMessage = 'Errore durante il ripristino del prodotto';
+
+        if (request()->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $errorMessage
+            ], 500);
+        }
+
+        return redirect()->back()->with('error', $errorMessage);
+    }
+}
+
+/**
+ * METODO AGGIUNTIVO: Eliminazione fisica (definitiva)
+ * 
+ * Per eliminare definitivamente un prodotto dal database
+ * ATTENZIONE: Usare con cautela, elimina anche i malfunzionamenti associati
+ */
+public function forceDelete(Prodotto $prodotto)
+{
+    if (!Auth::check() || !Auth::user()->canManageProdotti()) {
+        if (request()->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Non autorizzato'
+            ], 403);
+        }
+        abort(403, 'Non autorizzato');
+    }
+
+    try {
+        DB::beginTransaction();
+
+        // Salva info prima dell'eliminazione
+        $prodottoInfo = [
+            'id' => $prodotto->id,
+            'nome' => $prodotto->nome,
+            'modello' => $prodotto->modello
+        ];
+
+        // Elimina malfunzionamenti associati
+        $malfunzionamentiCount = $prodotto->malfunzionamenti()->count();
+        $prodotto->malfunzionamenti()->delete();
+
+        // Elimina foto se esiste
+        if ($prodotto->foto) {
+            Storage::disk('public')->delete($prodotto->foto);
+        }
+
+        // Eliminazione fisica dal database
+        $prodotto->delete();
+
+        DB::commit();
+
+        Log::warning('Prodotto eliminato DEFINITIVAMENTE', [
+            'prodotto_info' => $prodottoInfo,
+            'malfunzionamenti_eliminati' => $malfunzionamentiCount,
+            'eliminated_by' => Auth::id(),
+            'admin_name' => Auth::user()->nome_completo,
+            'timestamp' => now()
+        ]);
+
+        $successMessage = "Prodotto \"{$prodottoInfo['nome']}\" eliminato definitivamente dal sistema";
+
+        if (request()->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $successMessage,
+                'data' => [
+                    'eliminated_product' => $prodottoInfo,
+                    'related_data_removed' => $malfunzionamentiCount
+                ]
+            ]);
+        }
+
+        return redirect()->route('admin.prodotti.index')
+            ->with('warning', $successMessage);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+
+        Log::error('Errore eliminazione definitiva prodotto', [
+            'prodotto_id' => $prodotto->id,
+            'error' => $e->getMessage(),
+            'admin_id' => Auth::id()
+        ]);
+
+        $errorMessage = 'Errore durante l\'eliminazione definitiva';
+
+        if (request()->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $errorMessage
+            ], 500);
+        }
+
+        return redirect()->back()->with('error', $errorMessage);
+    }
+}
 
     /**
      * Toggle status prodotto via AJAX

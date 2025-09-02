@@ -1,4 +1,4 @@
-{{-- Vista per gestione prodotti Admin --}}
+{{-- Vista per gestione prodotti Admin - CORREZIONE ELIMINAZIONE --}}
 @extends('layouts.app')
 
 @section('title', 'Gestione Prodotti')
@@ -6,8 +6,6 @@
 @section('content')
 <div class="container-fluid mt-4">
     
-    
-
     <!-- === HEADER CON STATISTICHE === -->
     <div class="row mb-4">
         <div class="col-12">
@@ -301,7 +299,6 @@
                                     <td>
                                         <div>
                                             <strong>{{ $prodotto->nome }}</strong>
-                                            
                                         </div>
                                         <small class="text-muted">
                                             {{ Str::limit($prodotto->descrizione, 60) }}
@@ -331,12 +328,12 @@
                                     
                                     <!-- Stato -->
                                     <td>
-    @if($prodotto->attivo)
-        <i class="bi bi-check-circle text-success fs-5" title="Attivo"></i>
-    @else
-        <i class="bi bi-x-circle text-danger fs-5" title="Disattivato"></i>
-    @endif
-</td>
+                                        @if($prodotto->attivo)
+                                            <i class="bi bi-check-circle text-success fs-5" title="Attivo"></i>
+                                        @else
+                                            <i class="bi bi-x-circle text-danger fs-5" title="Disattivato"></i>
+                                        @endif
+                                    </td>
                                     
                                     <!-- Staff Assegnato -->
                                     <td>
@@ -368,7 +365,7 @@
                                         </small>
                                     </td>
                                     
-                                    <!-- Azioni -->
+                                    <!-- Azioni - SEZIONE CORRETTA -->
                                     <td>
                                         <div class="dropdown">
                                             <button class="btn btn-sm btn-outline-secondary dropdown-toggle" 
@@ -388,25 +385,35 @@
                                                     </a>
                                                 </li>
                                                 <li><hr class="dropdown-divider"></li>
+                                                
                                                 {{-- Toggle stato attivo/inattivo --}}
-                    @if(Route::has('admin.prodotti.toggle-status'))
-    <form action="{{ route('admin.prodotti.toggle-status', $prodotto) }}" 
-          method="POST" 
-          onsubmit="return confirmToggleStatus({{ $prodotto->attivo ? 'true' : 'false' }})">
-        @csrf
-        <button type="submit" 
-                class="dropdown-item {{ $prodotto->attivo ? 'text-danger' : 'text-success' }}">
-            <i class="bi bi-{{ $prodotto->attivo ? 'pause' : 'play' }} me-2"></i>
-            {{ $prodotto->attivo ? 'Disattiva' : 'Attiva' }}
-        </button>
-    </form>
-@endif
+                                                @if(Route::has('admin.prodotti.toggle-status'))
+                                                    <li>
+                                                        <form action="{{ route('admin.prodotti.toggle-status', $prodotto) }}" 
+                                                              method="POST" 
+                                                              onsubmit="return confirmToggleStatus({{ $prodotto->attivo ? 'true' : 'false' }})">
+                                                            @csrf
+                                                            <button type="submit" 
+                                                                    class="dropdown-item {{ $prodotto->attivo ? 'text-danger' : 'text-success' }}">
+                                                                <i class="bi bi-{{ $prodotto->attivo ? 'pause' : 'play' }} me-2"></i>
+                                                                {{ $prodotto->attivo ? 'Disattiva' : 'Attiva' }}
+                                                            </button>
+                                                        </form>
+                                                    </li>
+                                                @endif
+                                                
+                                                {{-- CORREZIONE: Form per eliminazione invece di onclick --}}
                                                 <li>
-                                                    <a class="dropdown-item text-danger" 
-                                                       href="#" 
-                                                       onclick="deleteProduct({{ $prodotto->id }}, '{{ $prodotto->nome }}')">
-                                                        <i class="bi bi-trash me-2"></i>Elimina
-                                                    </a>
+                                                    <form action="{{ route('admin.prodotti.destroy', $prodotto) }}" 
+                                                          method="POST" 
+                                                          class="d-inline"
+                                                          onsubmit="return confirm('Sei sicuro di voler eliminare il prodotto \"{{ $prodotto->nome }}\"?\n\nQuesta azione non può essere annullata.')">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="dropdown-item text-danger">
+                                                            <i class="bi bi-trash me-2"></i>Elimina
+                                                        </button>
+                                                    </form>
                                                 </li>
                                             </ul>
                                         </div>
@@ -417,59 +424,59 @@
                     </table>
                 </div>
                 
-               {{-- Paginazione piccola e allineata --}}
-    @if($prodotti->hasPages())
-        <div class="row mt-4">
-            <div class="col-12">
-                <div class="d-flex justify-content-between align-items-center">
-                    {{-- Info paginazione a sinistra --}}
-                    <small class="text-muted">
-                        {{ $prodotti->firstItem() }}-{{ $prodotti->lastItem() }} di {{ $prodotti->total() }}
-                    </small>
-                    
-                    {{-- Controlli paginazione piccoli a destra --}}
-                    <nav aria-label="Paginazione prodotti">
-                        <ul class="pagination pagination-sm mb-0">
-                            {{-- Previous --}}
-                            @if ($prodotti->onFirstPage())
-                                <li class="page-item disabled">
-                                    <span class="page-link">‹</span>
-                                </li>
-                            @else
-                                <li class="page-item">
-                                    <a class="page-link" href="{{ $prodotti->appends(request()->query())->previousPageUrl() }}">‹</a>
-                                </li>
-                            @endif
+                {{-- Paginazione compatta --}}
+                @if($prodotti->hasPages())
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center">
+                                {{-- Info paginazione a sinistra --}}
+                                <small class="text-muted">
+                                    {{ $prodotti->firstItem() }}-{{ $prodotti->lastItem() }} di {{ $prodotti->total() }}
+                                </small>
+                                
+                                {{-- Controlli paginazione piccoli a destra --}}
+                                <nav aria-label="Paginazione prodotti">
+                                    <ul class="pagination pagination-sm mb-0">
+                                        {{-- Previous --}}
+                                        @if ($prodotti->onFirstPage())
+                                            <li class="page-item disabled">
+                                                <span class="page-link">‹</span>
+                                            </li>
+                                        @else
+                                            <li class="page-item">
+                                                <a class="page-link" href="{{ $prodotti->appends(request()->query())->previousPageUrl() }}">‹</a>
+                                            </li>
+                                        @endif
 
-                            {{-- Numeri pagina --}}
-                            @foreach ($prodotti->getUrlRange(1, $prodotti->lastPage()) as $page => $url)
-                                @if ($page == $prodotti->currentPage())
-                                    <li class="page-item active">
-                                        <span class="page-link">{{ $page }}</span>
-                                    </li>
-                                @else
-                                    <li class="page-item">
-                                        <a class="page-link" href="{{ $prodotti->appends(request()->query())->url($page) }}">{{ $page }}</a>
-                                    </li>
-                                @endif
-                            @endforeach
+                                        {{-- Numeri pagina --}}
+                                        @foreach ($prodotti->getUrlRange(1, $prodotti->lastPage()) as $page => $url)
+                                            @if ($page == $prodotti->currentPage())
+                                                <li class="page-item active">
+                                                    <span class="page-link">{{ $page }}</span>
+                                                </li>
+                                            @else
+                                                <li class="page-item">
+                                                    <a class="page-link" href="{{ $prodotti->appends(request()->query())->url($page) }}">{{ $page }}</a>
+                                                </li>
+                                            @endif
+                                        @endforeach
 
-                            {{-- Next --}}
-                            @if ($prodotti->hasMorePages())
-                                <li class="page-item">
-                                    <a class="page-link" href="{{ $prodotti->appends(request()->query())->nextPageUrl() }}">›</a>
-                                </li>
-                            @else
-                                <li class="page-item disabled">
-                                    <span class="page-link">›</span>
-                                </li>
-                            @endif
-                        </ul>
-                    </nav>
-                </div>
-            </div>
-        </div>
-    @endif
+                                        {{-- Next --}}
+                                        @if ($prodotti->hasMorePages())
+                                            <li class="page-item">
+                                                <a class="page-link" href="{{ $prodotti->appends(request()->query())->nextPageUrl() }}">›</a>
+                                            </li>
+                                        @else
+                                            <li class="page-item disabled">
+                                                <span class="page-link">›</span>
+                                            </li>
+                                        @endif
+                                    </ul>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                @endif
             @else
                 <!-- Nessun Risultato -->
                 <div class="text-center py-5">
@@ -501,7 +508,6 @@
 @endsection
 
 @push('styles')
-
 <style>
 /* Stile paginazione compatta identico all'immagine */
 nav[aria-label="Paginazione prodotti"] .pagination,
@@ -604,6 +610,7 @@ nav[aria-label="Paginazione prodotti"] .pagination .page-link:focus,
         gap: 2px !important;
     }
 }
+
 .table td {
     vertical-align: middle;
     white-space: nowrap;
@@ -645,10 +652,6 @@ nav[aria-label="Paginazione prodotti"] .pagination .page-link:focus,
     border: 2px solid #dee2e6;
 }
 
-.badge {
-    font-size: 0.75rem;
-}
-
 /* Custom dropdown styling */
 .dropdown-menu {
     border: none;
@@ -669,6 +672,29 @@ nav[aria-label="Paginazione prodotti"] .pagination .page-link:focus,
         font-size: 1.5rem;
     }
 }
+
+/* NUOVO: Stile per form eliminazione */
+.delete-form {
+    display: inline !important;
+}
+
+.dropdown-item form {
+    margin: 0 !important;
+}
+
+.dropdown-item button {
+    border: none !important;
+    background: none !important;
+    padding: 0 !important;
+    text-align: left !important;
+    width: 100% !important;
+    color: inherit !important;
+}
+
+.dropdown-item button:hover {
+    background: none !important;
+    color: inherit !important;
+}
 </style>
 @endpush
 
@@ -679,7 +705,7 @@ $(document).ready(function() {
     // === GESTIONE SELEZIONE MULTIPLA ===
     
     /**
-     * Seleziona/deseleziona tutti i checkbox
+     * Seleziona/deseleziona tutti i checkbox quando si clicca sul checkbox principale
      */
     $('#selectAllCheckbox').on('change', function() {
         $('.product-checkbox').prop('checked', $(this).is(':checked'));
@@ -693,6 +719,7 @@ $(document).ready(function() {
         const total = $('.product-checkbox').length;
         const checked = $('.product-checkbox:checked').length;
         
+        // Imposta stato indeterminato se alcuni sono selezionati
         $('#selectAllCheckbox').prop('indeterminate', checked > 0 && checked < total);
         $('#selectAllCheckbox').prop('checked', checked === total);
         
@@ -700,7 +727,7 @@ $(document).ready(function() {
     });
     
     /**
-     * Aggiorna la disponibilità delle azioni bulk
+     * Aggiorna la disponibilità delle azioni bulk in base ai prodotti selezionati
      */
     function updateBulkActions() {
         const selected = $('.product-checkbox:checked').length;
@@ -710,7 +737,7 @@ $(document).ready(function() {
     // === FILTRI E RICERCA ===
     
     /**
-     * Cancella il campo di ricerca
+     * Cancella il campo di ricerca e risubmit il form
      */
     $('#clearSearch').on('click', function() {
         $('#search').val('');
@@ -718,14 +745,14 @@ $(document).ready(function() {
     });
     
     /**
-     * Sottometti il form quando cambiano i filtri
+     * Sottometti automaticamente il form quando cambiano i filtri
      */
     $('#status, #staff_id').on('change', function() {
         $('#filterForm').submit();
     });
     
     /**
-     * Ricerca in tempo reale con debounce
+     * Ricerca in tempo reale con debounce per evitare troppe richieste
      */
     let searchTimeout;
     $('#search').on('input', function() {
@@ -741,62 +768,17 @@ $(document).ready(function() {
     // === AZIONI SUI PRODOTTI ===
     
     /**
-     * Mostra/nasconde stato prodotto
+     * Conferma il toggle dello stato attivo/inattivo del prodotto
      */
-    window.toggleStatus = function(productId, newStatus) {
-        const action = newStatus ? 'attivare' : 'disattivare';
-        
-        if (confirm(`Sei sicuro di voler ${action} questo prodotto?`)) {
-            // Simula chiamata AJAX
-            $.post(`/admin/prodotti/${productId}/toggle-status`, {
-                _token: $('meta[name="csrf-token"]').attr('content'),
-                status: newStatus
-            })
-            .done(function(response) {
-                if (response.success) {
-                    location.reload();
-                } else {
-                    alert('Errore: ' + response.message);
-                }
-            })
-            .fail(function() {
-                alert('Errore nella comunicazione con il server');
-            });
-        }
-    };
-    
-    /**
-     * Elimina prodotto
-     */
-    window.deleteProduct = function(productId, productName) {
-        if (confirm(`Sei sicuro di voler eliminare il prodotto "${productName}"?\n\nQuesta azione non può essere annullata.`)) {
-            // Crea form per DELETE request
-            const form = $('<form>', {
-                method: 'POST',
-                action: `/admin/prodotti/${productId}`
-            });
-            
-            form.append($('<input>', {
-                type: 'hidden',
-                name: '_token',
-                value: $('meta[name="csrf-token"]').attr('content')
-            }));
-            
-            form.append($('<input>', {
-                type: 'hidden',
-                name: '_method',
-                value: 'DELETE'
-            }));
-            
-            $('body').append(form);
-            form.submit();
-        }
+    window.confirmToggleStatus = function(currentStatus) {
+        const action = currentStatus ? 'disattivare' : 'attivare';
+        return confirm(`Sei sicuro di voler ${action} questo prodotto?`);
     };
     
     // === AZIONI BULK ===
     
     /**
-     * Seleziona tutti i prodotti
+     * Seleziona tutti i prodotti visibili nella pagina
      */
     window.selectAll = function() {
         $('.product-checkbox').prop('checked', true);
@@ -814,7 +796,7 @@ $(document).ready(function() {
     };
     
     /**
-     * Attiva prodotti selezionati
+     * Attiva tutti i prodotti selezionati tramite chiamata AJAX
      */
     window.bulkActivate = function() {
         const selected = getSelectedProducts();
@@ -829,7 +811,7 @@ $(document).ready(function() {
     };
     
     /**
-     * Disattiva prodotti selezionati
+     * Disattiva tutti i prodotti selezionati tramite chiamata AJAX
      */
     window.bulkDeactivate = function() {
         const selected = getSelectedProducts();
@@ -844,7 +826,7 @@ $(document).ready(function() {
     };
     
     /**
-     * Elimina prodotti selezionati
+     * Elimina tutti i prodotti selezionati tramite chiamata AJAX
      */
     window.bulkDelete = function() {
         const selected = getSelectedProducts();
@@ -859,7 +841,7 @@ $(document).ready(function() {
     };
     
     /**
-     * Ottiene gli ID dei prodotti selezionati
+     * Ottiene gli ID dei prodotti attualmente selezionati
      */
     function getSelectedProducts() {
         return $('.product-checkbox:checked').map(function() {
@@ -868,22 +850,28 @@ $(document).ready(function() {
     }
     
     /**
-     * Esegue un'azione bulk
+     * Esegue un'azione bulk sui prodotti selezionati
      */
     function bulkAction(action, productIds) {
+        // Mostra indicatore di caricamento
+        showLoading();
+        
         $.post('/admin/prodotti/bulk-action', {
             _token: $('meta[name="csrf-token"]').attr('content'),
             action: action,
             products: productIds
         })
         .done(function(response) {
+            hideLoading();
             if (response.success) {
+                showToast(response.message || 'Operazione completata con successo');
                 location.reload();
             } else {
                 alert('Errore: ' + response.message);
             }
         })
         .fail(function() {
+            hideLoading();
             alert('Errore nella comunicazione con il server');
         });
     }
@@ -902,22 +890,22 @@ $(document).ready(function() {
     
     function startAutoRefresh() {
         autoRefreshInterval = setInterval(() => {
-            // Solo se non ci sono checkbox selezionati
+            // Solo se non ci sono checkbox selezionati per non interferire
             if ($('.product-checkbox:checked').length === 0) {
-                // Refresh silenzioso dei dati
+                // Refresh silenzioso delle statistiche
                 updateStats();
             }
         }, 300000); // 5 minuti
     }
     
     /**
-     * Aggiorna le statistiche via AJAX
+     * Aggiorna le statistiche via AJAX senza ricaricare la pagina
      */
     function updateStats() {
         $.get('/api/admin/stats')
             .done(function(response) {
                 if (response.success) {
-                    // Aggiorna i contatori nelle card
+                    // Aggiorna i contatori nelle card statistiche
                     $('.card-stats').each(function(index) {
                         const statTypes = ['total_prodotti', 'attivi', 'inattivi', 'con_malfunzionamenti'];
                         if (statTypes[index] && response.stats[statTypes[index]]) {
@@ -932,7 +920,7 @@ $(document).ready(function() {
     }
     
     /**
-     * Mostra indicatore di caricamento durante le azioni
+     * Mostra overlay di caricamento durante operazioni lunghe
      */
     function showLoading() {
         $('body').append(`
@@ -944,12 +932,15 @@ $(document).ready(function() {
         `);
     }
     
+    /**
+     * Nasconde overlay di caricamento
+     */
     function hideLoading() {
         $('#loadingOverlay').remove();
     }
     
     /**
-     * Gestione responsive della tabella
+     * Gestione responsive della tabella per dispositivi mobili
      */
     function handleResponsiveTable() {
         if ($(window).width() < 768) {
@@ -958,34 +949,35 @@ $(document).ready(function() {
             $('.table th:nth-child(6), .table td:nth-child(6)').hide(); // Prezzo
             $('.table th:nth-child(10), .table td:nth-child(10)').hide(); // Data creazione
         } else {
+            // Su desktop, mostra tutte le colonne
             $('.table th, .table td').show();
         }
     }
     
-    // Esegui al caricamento e ridimensionamento finestra
+    // Esegui al caricamento e quando si ridimensiona la finestra
     handleResponsiveTable();
     $(window).resize(handleResponsiveTable);
     
-    // Avvia auto-refresh
+    // Avvia auto-refresh delle statistiche
     startAutoRefresh();
     
-    // Inizializza stato bulk actions
+    // Inizializza stato delle azioni bulk
     updateBulkActions();
     
-    console.log('✅ Dashboard admin prodotti inizializzata');
+    console.log('✅ Dashboard admin prodotti inizializzata con eliminazione corretta');
 });
 
 // === FUNZIONI GLOBALI UTILITY ===
 
 /**
- * Formatta numeri per visualizzazione
+ * Formatta numeri per visualizzazione italiana
  */
 function formatNumber(num) {
     return new Intl.NumberFormat('it-IT').format(num);
 }
 
 /**
- * Formatta valute
+ * Formatta valute in formato italiano
  */
 function formatCurrency(amount) {
     return new Intl.NumberFormat('it-IT', {
@@ -995,7 +987,7 @@ function formatCurrency(amount) {
 }
 
 /**
- * Mostra notifica toast
+ * Mostra notifica toast temporanea
  */
 function showToast(message, type = 'success') {
     const toast = $(`
@@ -1013,7 +1005,7 @@ function showToast(message, type = 'success') {
     const bsToast = new bootstrap.Toast(toast[0]);
     bsToast.show();
     
-    // Rimuovi dopo 5 secondi
+    // Rimuovi automaticamente dopo 5 secondi
     setTimeout(() => {
         toast.remove();
     }, 5000);
