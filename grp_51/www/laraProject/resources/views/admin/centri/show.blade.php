@@ -145,10 +145,7 @@
                                             <i class="bi bi-wrench me-1"></i>
                                             {{ $tecnico->specializzazione ?? 'Specializzazione non specificata' }}
                                         </p>
-                                        <p class="mb-0 text-muted small">
-                                            <i class="bi bi-calendar me-1"></i>
-                                            Età: {{ $tecnico->eta ?? 'N/A' }} anni
-                                        </p>
+                                        
                                     </div>
                                     <div class="col-auto">
                                         {{-- Azioni sul tecnico --}}

@@ -393,6 +393,12 @@
            title="Modifica centro">
             <i class="bi bi-pencil"></i>
         </a>
+
+        {{-- Pulsante per aggiungere tecnico --}}
+                    <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#modalAssegnaTecnico">
+                        <i class="bi bi-plus-circle me-1"></i> Aggiungi Tecnico
+                    </button>
+                    
         
         {{-- Elimina - Form diretto funzionante --}}
         <form action="{{ route('admin.centri.destroy', $centro) }}" 
@@ -415,6 +421,47 @@
                     </table>
                 </div>
                 
+                {{-- Modal per assegnazione tecnico --}}
+<div class="modal fade" id="modalAssegnaTecnico" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-person-plus me-2"></i>Assegna Tecnico al Centro
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {{-- Info centro nel modal --}}
+                <div class="alert alert-info">
+                    <strong>Centro:</strong> {{ $centro->nome }}<br>
+                    <strong>Località:</strong> {{ $centro->indirizzo }}, {{ $centro->citta }}
+                </div>
+                
+                {{-- Form assegnazione --}}
+                <form id="formAssegnaTecnico" action="{{ route('admin.centri.assegna-tecnico', $centro) }}" method="POST">
+                    @csrf
+                    <div class="mb-3">
+                        <label for="tecnico_id" class="form-label required">Seleziona Tecnico</label>
+                        <select name="tecnico_id" id="tecnico_id" class="form-select" required>
+                            <option value="">Caricamento tecnici disponibili...</option>
+                        </select>
+                        <div class="form-text">
+                            Vengono mostrati sia i tecnici non assegnati che quelli trasferibili da altri centri.
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                <button type="submit" form="formAssegnaTecnico" id="btnAssegnaTecnico" class="btn btn-success" disabled>
+                    <i class="bi bi-check-circle me-1"></i> Assegna Tecnico
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
                 {{-- Paginazione --}}
                 @if($centri->hasPages())
                     <div class="d-flex justify-content-between align-items-center mt-4">
