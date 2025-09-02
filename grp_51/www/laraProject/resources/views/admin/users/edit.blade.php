@@ -6,16 +6,7 @@
 @section('content')
 <div class="container mt-4">
     
-    <!-- === BREADCRUMB === -->
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ route('home') }}">Home</a></li>
-            <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard Admin</a></li>
-            <li class="breadcrumb-item"><a href="{{ route('admin.users.index') }}">Gestione Utenti</a></li>
-            <li class="breadcrumb-item"><a href="{{ route('admin.users.show', $user) }}">{{ $user->nome_completo }}</a></li>
-            <li class="breadcrumb-item active">Modifica</li>
-        </ol>
-    </nav>
+    
 
     <!-- === HEADER === -->
     <div class="row mb-4">

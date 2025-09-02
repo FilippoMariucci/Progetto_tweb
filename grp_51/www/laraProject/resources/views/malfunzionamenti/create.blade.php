@@ -11,22 +11,7 @@
 @section('content')
 <div class="container mt-4">
     
-    <!-- === BREADCRUMB DINAMICO === -->
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ route('home') }}">Home</a></li>
-            <li class="breadcrumb-item"><a href="{{ route('staff.dashboard') }}">Dashboard Staff</a></li>
-            
-            {{-- Se è una nuova soluzione dalla dashboard, non mostra il prodotto nel breadcrumb --}}
-            @if(!isset($isNuovaSoluzione) || !$isNuovaSoluzione)
-                <li class="breadcrumb-item"><a href="{{ route('prodotti.completo.show', $prodotto) }}">{{ $prodotto->nome }}</a></li>
-            @endif
-            
-            <li class="breadcrumb-item active">
-                {{ isset($isNuovaSoluzione) && $isNuovaSoluzione ? 'Nuova Soluzione' : 'Aggiungi Soluzione' }}
-            </li>
-        </ol>
-    </nav>
+   
 
     <!-- === HEADER DINAMICO === -->
     <div class="row mb-4">

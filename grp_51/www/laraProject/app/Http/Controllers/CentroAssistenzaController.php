@@ -136,7 +136,7 @@ class CentroAssistenzaController extends Controller
                 ->limit(4)
                 ->get();
 
-            return view('centri.show', compact('centro', 'centriVicini'));
+            return view('admin.centri.show', compact('centro', 'centriVicini'));
 
         } catch (\Exception $e) {
             Log::error('Errore visualizzazione centro', [

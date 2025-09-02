@@ -11,30 +11,10 @@
 @section('content')
 <div class="container">
     
-    {{-- === HEADER CON BREADCRUMB === --}}
+    {{-- === HEADER  === --}}
     <div class="row mb-4">
         <div class="col-12">
-            {{-- Breadcrumb di navigazione --}}
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item">
-                        <a href="{{ route('admin.dashboard') }}" class="text-decoration-none">
-                            <i class="bi bi-speedometer2 me-1"></i>Dashboard Admin
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item">
-                        <a href="{{ route('admin.prodotti.index') }}" class="text-decoration-none">
-                            <i class="bi bi-box me-1"></i>Gestione Prodotti
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item">
-                        <a href="{{ route('admin.prodotti.show', $prodotto) }}" class="text-decoration-none">
-                            {{ $prodotto->nome }}
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item active" aria-current="page">Modifica</li>
-                </ol>
-            </nav>
+            
 
             {{-- Header principale --}}
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-start">

@@ -6,14 +6,7 @@
 @section('content')
 <div class="container mt-4">
     
-    <!-- === BREADCRUMB === -->
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ route('home') }}">Home</a></li>
-            <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard Admin</a></li>
-            <li class="breadcrumb-item active">Assegnazioni Prodotti</li>
-        </ol>
-    </nav>
+    
 
     <!-- === HEADER === -->
     <div class="row mb-4">
@@ -347,17 +340,65 @@
                         </div>
 
                         <!-- Paginazione -->
-                        <div class="d-flex justify-content-between align-items-center mt-3">
-                            <div>
-                                <small class="text-muted">
-                                    Mostrando {{ $prodotti->firstItem() ?? 0 }} - {{ $prodotti->lastItem() ?? 0 }} 
-                                    di {{ $prodotti->total() }} prodotti
-                                </small>
-                            </div>
-                            <div>
-                                {{ $prodotti->links() }}
-                            </div>
-                        </div>
+                        {{-- Paginazione centrata come richiesto --}}
+    @if($prodotti->hasPages())
+        <div class="row mt-4">
+            <div class="col-12">
+                {{-- Info paginazione centrata sopra --}}
+                <div class="text-center mb-2">
+                    <small class="text-muted">
+                        Visualizzati {{ $prodotti->firstItem() }}-{{ $prodotti->lastItem() }} 
+                        di {{ $prodotti->total() }} prodotti
+                        @if(request('staff_filter') === 'my_products')
+                            assegnati
+                        @endif
+                    </small>
+                </div>
+                
+                {{-- Controlli paginazione centrati --}}
+                <div class="d-flex justify-content-center">
+                    <nav aria-label="Paginazione prodotti">
+                        <ul class="pagination pagination-sm mb-0">
+                            {{-- Previous --}}
+                            @if ($prodotti->onFirstPage())
+                                <li class="page-item disabled">
+                                    <span class="page-link">‹</span>
+                                </li>
+                            @else
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ $prodotti->appends(request()->query())->previousPageUrl() }}">‹</a>
+                                </li>
+                            @endif
+
+                            {{-- Numeri pagina --}}
+                            @foreach ($prodotti->getUrlRange(1, $prodotti->lastPage()) as $page => $url)
+                                @if ($page == $prodotti->currentPage())
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ $page }}</span>
+                                    </li>
+                                @else
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ $prodotti->appends(request()->query())->url($page) }}">{{ $page }}</a>
+                                    </li>
+                                @endif
+                            @endforeach
+
+                            {{-- Next --}}
+                            @if ($prodotti->hasMorePages())
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ $prodotti->appends(request()->query())->nextPageUrl() }}">›</a>
+                                </li>
+                            @else
+                                <li class="page-item disabled">
+                                    <span class="page-link">›</span>
+                                </li>
+                            @endif
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    @endif
                     @else
                         <div class="text-center py-5">
                             <i class="bi bi-box display-1 text-muted"></i>

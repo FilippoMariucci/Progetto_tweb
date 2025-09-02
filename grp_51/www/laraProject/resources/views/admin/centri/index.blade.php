@@ -394,12 +394,12 @@
                                             </a>
                                             
                                             {{-- Elimina --}}
-                                            <button type="button" 
-                                                    class="btn btn-outline-danger btn-sm" 
-                                                    title="Elimina centro"
-                                                    onclick="confirmDelete({{ $centro->id }}, '{{ $centro->nome }}')">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
+                                          <button type="button" 
+        class="btn btn-outline-danger btn-sm" 
+        title="Elimina centro"
+        onclick="confirmDelete({{ $centro->id }}, '{{ addslashes($centro->nome) }}')">
+    <i class="bi bi-trash"></i>
+</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -561,124 +561,139 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    console.log('🏢 Inizializzazione gestione admin centri assistenza');
+    console.log('🏢 Inizializzazione gestione centri assistenza');
     
+    // Inizializza tooltips e filtri
     initializeTooltips();
     setupDynamicFilters();
     setupSearchHandler();
+    
+    // Configura event handlers per eliminazione
+    setupDeleteHandlers();
 });
 
-function initializeTooltips() {
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-}
-
-function setupDynamicFilters() {
-    $('#provincia').on('change', function() {
-        console.log('🌍 Provincia selezionata:', $(this).val());
-        $(this).closest('form').submit();
-    });
-    
-    let cittaTimeout;
-    $('#citta').on('input', function() {
-        const citta = $(this).val().trim();
-        clearTimeout(cittaTimeout);
+/**
+ * Configura gli event handlers per l'eliminazione
+ */
+function setupDeleteHandlers() {
+    // Event listener per i pulsanti elimina (se non usano onclick)
+    $(document).on('click', '.btn-elimina-centro', function(e) {
+        e.preventDefault();
         
-        if (citta.length >= 2 || citta.length === 0) {
-            cittaTimeout = setTimeout(() => {
-                console.log('🏙️ Città inserita:', citta);
-                $(this).closest('form').submit();
-            }, 800);
-        }
-    });
-}
-
-function setupSearchHandler() {
-    let searchTimeout;
-    $('#search').on('input', function() {
-        const searchTerm = $(this).val().trim();
-        clearTimeout(searchTimeout);
+        const centroId = $(this).data('centro-id');
+        const centroNome = $(this).data('centro-nome');
         
-        if (searchTerm.length >= 3 || searchTerm.length === 0) {
-            searchTimeout = setTimeout(() => {
-                console.log('🔍 Ricerca per:', searchTerm);
-                $(this).closest('form').submit();
-            }, 600);
-        }
-    });
-}
-
-function confirmDelete(centroId, centroName) {
-    $('#centro-name').text(centroName);
-    $('#delete-form').attr('action', `/admin/centri/${centroId}`);
-    
-    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-    modal.show();
-}
-
-function exportCentri() {
-    try {
-        const rows = [['Nome Centro', 'Città', 'Provincia', 'CAP', 'Indirizzo', 'Telefono', 'Email', 'Numero Tecnici']];
-        
-        $('tbody tr').each(function() {
-            const $tr = $(this);
-            const nome = $tr.find('td:first strong').text().trim();
-            const indirizzo = $tr.find('td:first small').text().trim();
-            const citta = $tr.find('td:nth-child(2) .fw-bold').text().trim();
-            const provincia = $tr.find('td:nth-child(2) .badge').text().trim();
-            const telefono = $tr.find('td:nth-child(3) a[href^="tel:"]').text().trim();
-            const email = $tr.find('td:nth-child(3) a[href^="mailto:"]').text().trim();
-            const tecnici = $tr.find('td:nth-child(4) .badge').first().text().trim();
-            
-            rows.push([nome, citta, provincia, '', indirizzo, telefono, email, tecnici]);
-        });
-        
-        const csvContent = rows.map(row => 
-            row.map(field => `"${field.replace(/"/g, '""')}"`)
-               .join(',')
-        ).join('\n');
-        
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        
-        if (link.download !== undefined) {
-            const url = URL.createObjectURL(blob);
-            const fileName = `centri_assistenza_${new Date().toISOString().slice(0,10)}.csv`;
-            
-            link.setAttribute('href', url);
-            link.setAttribute('download', fileName);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            URL.revokeObjectURL(url);
-            showNotification(`File ${fileName} esportato con successo`, 'success');
-            console.log('✅ Export completato:', fileName);
+        if (centroId && centroNome) {
+            confirmDelete(centroId, centroNome);
         } else {
-            showNotification('Export non supportato dal browser', 'warning');
+            console.error('❌ Dati centro mancanti per eliminazione');
         }
-    } catch (error) {
-        console.error('❌ Errore durante export:', error);
-        showNotification('Errore durante l\'export', 'danger');
-    }
+    });
+    
+    // Event listener per la conferma nel modal
+    $('#delete-form').on('submit', function(e) {
+        // Aggiunge un loading state al pulsante
+        const submitBtn = $(this).find('button[type="submit"]');
+        const originalText = submitBtn.html();
+        
+        submitBtn.prop('disabled', true)
+                 .html('<i class="bi bi-hourglass-split me-1"></i>Eliminazione...');
+        
+        // Il form viene inviato normalmente
+        console.log('🗑️ Invio form eliminazione centro');
+        
+        // Ripristina il pulsante dopo 3 secondi (fallback)
+        setTimeout(() => {
+            submitBtn.prop('disabled', false).html(originalText);
+        }, 3000);
+    });
 }
 
-function showNotification(message, type = 'success') {
-    const alertClass = type === 'success' ? 'alert-success' : 
-                      type === 'warning' ? 'alert-warning' : 
-                      type === 'danger' ? 'alert-danger' : 'alert-info';
+/**
+ * Funzione globale per confermare eliminazione centro
+ * DEVE essere accessibile dal onclick nei template Blade
+ */
+window.confirmDelete = function(centroId, centroName) {
+    console.log('🗑️ Richiesta eliminazione centro:', centroName, 'ID:', centroId);
     
-    const icon = type === 'success' ? 'check-circle' : 
-                 type === 'warning' ? 'exclamation-triangle' : 
-                 type === 'danger' ? 'exclamation-octagon' : 'info-circle';
+    try {
+        // Aggiorna contenuti modal
+        const modalTitle = document.querySelector('#deleteModal .modal-title');
+        const centroNameElement = document.getElementById('centro-name');
+        const deleteForm = document.getElementById('delete-form');
+        
+        if (!centroNameElement || !deleteForm) {
+            console.error('❌ Elementi modal non trovati');
+            // Fallback: conferma diretta
+            if (confirm(`Sei sicuro di voler eliminare il centro "${centroName}"?`)) {
+                window.location.href = `/admin/centri/${centroId}/delete`;
+            }
+            return;
+        }
+        
+        // Aggiorna i contenuti del modal
+        centroNameElement.textContent = centroName;
+        deleteForm.setAttribute('action', `/admin/centri/${centroId}`);
+        
+        // Mostra il modal
+        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        modal.show();
+        
+        console.log('✅ Modal eliminazione mostrato per centro:', centroName);
+        
+    } catch (error) {
+        console.error('❌ Errore nell\'apertura del modal:', error);
+        
+        // Fallback: alert browser
+        if (confirm(`Errore nel modal. Eliminare comunque il centro "${centroName}"?`)) {
+            // Crea un form temporaneo per l'eliminazione
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/admin/centri/${centroId}`;
+            
+            // Aggiunge CSRF token
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = '_token';
+            csrfInput.value = document.querySelector('meta[name="csrf-token"]').content;
+            form.appendChild(csrfInput);
+            
+            // Aggiunge method DELETE
+            const methodInput = document.createElement('input');
+            methodInput.type = 'hidden';
+            methodInput.name = '_method';
+            methodInput.value = 'DELETE';
+            form.appendChild(methodInput);
+            
+            // Aggiunge al DOM e invia
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+};
+
+/**
+ * Mostra notifica di successo/errore
+ */
+function showNotification(message, type = 'success') {
+    const alertTypes = {
+        'success': 'alert-success',
+        'danger': 'alert-danger',
+        'warning': 'alert-warning',
+        'info': 'alert-info'
+    };
+    
+    const icons = {
+        'success': 'check-circle',
+        'danger': 'exclamation-triangle',
+        'warning': 'exclamation-circle',
+        'info': 'info-circle'
+    };
     
     const alert = $(`
-        <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
+        <div class="alert ${alertTypes[type]} alert-dismissible fade show position-fixed" 
              style="top: 20px; right: 20px; z-index: 9999; max-width: 400px; min-width: 300px;">
-            <i class="bi bi-${icon} me-2"></i>
+            <i class="bi bi-${icons[type]} me-2"></i>
             ${message}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
@@ -686,29 +701,60 @@ function showNotification(message, type = 'success') {
     
     $('body').append(alert);
     
+    // Auto-rimuovi dopo 5 secondi
     setTimeout(() => {
         alert.alert('close');
     }, 5000);
 }
 
-// Keyboard shortcuts
-$(document).on('keydown', function(e) {
-    if (e.ctrlKey && e.key === 'f') {
-        e.preventDefault();
-        $('#search').focus();
-    }
-    
-    if (e.ctrlKey && e.key === 'n') {
-        e.preventDefault();
-        window.location.href = "{{ route('admin.centri.create') }}";
-    }
-    
-    if (e.key === 'Escape') {
-        $('#search').val('').trigger('input');
-    }
-});
+// === ALTRE FUNZIONI DI SUPPORTO ===
 
-console.log('✅ Gestione admin centri assistenza inizializzata completamente');
+function initializeTooltips() {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title], [data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+}
+
+function setupDynamicFilters() {
+    // Filtro provincia
+    $('#provincia').on('change', function() {
+        console.log('🌍 Provincia selezionata:', $(this).val());
+        $(this).closest('form').submit();
+    });
+    
+    // Auto-submit per città
+    let cittaTimeout;
+    $('#citta').on('input', function() {
+        const citta = $(this).val().trim();
+        clearTimeout(cittaTimeout);
+        
+        if (citta.length >= 2 || citta.length === 0) {
+            cittaTimeout = setTimeout(() => {
+                console.log('🏙️ Filtro città:', citta);
+                $(this).closest('form').submit();
+            }, 800);
+        }
+    });
+}
+
+function setupSearchHandler() {
+    // Ricerca con debounce
+    let searchTimeout;
+    $('#search').on('input', function() {
+        const searchTerm = $(this).val().trim();
+        clearTimeout(searchTimeout);
+        
+        if (searchTerm.length >= 3 || searchTerm.length === 0) {
+            searchTimeout = setTimeout(() => {
+                console.log('🔍 Ricerca:', searchTerm);
+                $(this).closest('form').submit();
+            }, 600);
+        }
+    });
+}
+
+console.log('✅ Fix pulsante elimina caricato correttamente');
 </script>
 @endpush
 

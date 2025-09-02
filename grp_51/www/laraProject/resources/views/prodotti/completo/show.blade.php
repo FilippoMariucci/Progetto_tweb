@@ -12,31 +12,7 @@
 @section('content')
 <div class="container-fluid px-4 py-3">
     
-    {{-- === BREADCRUMB COMPATTO === --}}
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb bg-light rounded px-3 py-2">
-            <li class="breadcrumb-item">
-                @if(auth()->user()->isTecnico())
-                    <a href="{{ route('tecnico.dashboard') }}">Dashboard Tecnico</a>
-                @elseif(auth()->user()->isStaff())
-                    <a href="{{ route('staff.dashboard') }}">Dashboard Staff</a>
-                @else
-                    <a href="{{ route('dashboard') }}">Dashboard</a>
-                @endif
-            </li>
-            <li class="breadcrumb-item">
-                <a href="{{ route('prodotti.completo.index') }}">Catalogo Completo</a>
-            </li>
-            @if($prodotto->categoria)
-                <li class="breadcrumb-item">
-                    <a href="{{ route('prodotti.completo.index') }}?categoria={{ urlencode($prodotto->categoria) }}">
-                        {{ ucfirst(str_replace('_', ' ', $prodotto->categoria)) }}
-                    </a>
-                </li>
-            @endif
-            <li class="breadcrumb-item active">{{ $prodotto->nome }}</li>
-        </ol>
-    </nav>
+    
 
     {{-- === ALERT PROBLEMI CRITICI === --}}
     @if(isset($statistiche) && $statistiche['malfunzionamenti_critici'] > 0)
