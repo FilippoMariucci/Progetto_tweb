@@ -327,69 +327,154 @@ class CentroAssistenzaController extends Controller
      * Route: GET /admin/centri
      * Solo per amministratori del sistema
      */
-    public function adminIndex(Request $request)
-    {
-        // Controllo autorizzazioni amministratore
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            return redirect()->route('home')
-                ->with('error', 'Accesso non autorizzato');
-        }
-
-        try {
-            $query = CentroAssistenza::query();
-
-            // Filtri amministrativi avanzati
-            if ($request->filled('filtro_tecnici')) {
-                switch ($request->filtro_tecnici) {
-                    case 'con_tecnici':
-                        $query->has('tecnici');
-                        break;
-                    case 'senza_tecnici':
-                        $query->doesntHave('tecnici');
-                        break;
-                }
-            }
-
-            // Ricerca amministrativa
-            if ($request->filled('search')) {
-                $searchTerm = $request->search;
-                $query->where(function($q) use ($searchTerm) {
-                    $q->where('nome', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('citta', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('provincia', 'LIKE', "%{$searchTerm}%");
-                });
-            }
-
-            $centri = $query->withCount(['tecnici'])
-                ->orderBy('provincia')
-                ->orderBy('nome')
-                ->paginate(15)
-                ->withQueryString();
-
-            // Statistiche per dashboard admin
-            $statistiche = [
-                'totale_centri' => CentroAssistenza::count(),
-                'centri_attivi' => CentroAssistenza::has('tecnici')->count(),
-                'centri_vuoti' => CentroAssistenza::doesntHave('tecnici')->count(),
-                'tecnici_assegnati' => User::where('livello_accesso', '2')
-                    ->whereNotNull('centro_assistenza_id')->count(),
-                'tecnici_disponibili' => User::where('livello_accesso', '2')
-                    ->whereNull('centro_assistenza_id')->count()
-            ];
-
-            return view('admin.centri.index', compact('centri', 'statistiche'));
-
-        } catch (\Exception $e) {
-            Log::error('Errore vista admin centri', [
-                'admin_id' => Auth::id(),
-                'error' => $e->getMessage()
-            ]);
-
-            return redirect()->route('admin.dashboard')
-                ->with('error', 'Errore nel caricamento centri');
-        }
+    /**
+ * Dashboard amministrativa centri - METODO CORRETTO CON TUTTI I FILTRI
+ */
+public function adminIndex(Request $request)
+{
+    if (!Auth::check() || !Auth::user()->isAdmin()) {
+        abort(403, 'Accesso riservato agli amministratori');
     }
 
+    try {
+        // Query base con conteggio tecnici
+        $query = CentroAssistenza::withCount('tecnici')
+            ->with(['tecnici' => function($q) {
+                $q->select('id', 'nome', 'cognome', 'specializzazione', 'centro_assistenza_id');
+            }]);
+
+        // FILTRO RICERCA
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('nome', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('citta', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('indirizzo', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+
+        // FILTRO PROVINCIA
+        if ($request->filled('provincia')) {
+            $query->where('provincia', strtoupper($request->provincia));
+        }
+
+        // FILTRO CITTÀ
+        if ($request->filled('citta')) {
+            $query->where('citta', 'LIKE', '%' . $request->citta . '%');
+        }
+
+        // FILTRO STATO (con/senza tecnici)
+        if ($request->filled('stato')) {
+            if ($request->stato === 'con_tecnici') {
+                $query->whereHas('tecnici');
+            } elseif ($request->stato === 'senza_tecnici') {
+                $query->whereDoesntHave('tecnici');
+            }
+        }
+
+        // ORDINAMENTO CORRETTO - Gestisce sort e order dai parametri URL
+        $sortBy = $request->get('sort', 'nome');  // Default: nome
+        $order = $request->get('order', 'asc');   // Default: crescente
+        
+        // Valida i parametri per sicurezza
+        $allowedSorts = ['nome', 'provincia', 'tecnici', 'citta', 'created_at'];
+        $allowedOrders = ['asc', 'desc'];
+        
+        if (!in_array($sortBy, $allowedSorts)) {
+            $sortBy = 'nome';
+        }
+        
+        if (!in_array($order, $allowedOrders)) {
+            $order = 'asc';
+        }
+
+        // Applica l'ordinamento in base al parametro sort
+        switch ($sortBy) {
+            case 'nome':
+                $query->orderBy('nome', $order);
+                break;
+                
+            case 'provincia':
+                $query->orderBy('provincia', $order)
+                      ->orderBy('citta', $order)  // Ordinamento secondario per città
+                      ->orderBy('nome', 'asc');   // Ordinamento terziario per nome
+                break;
+                
+            case 'tecnici':
+                $query->orderBy('tecnici_count', $order)
+                      ->orderBy('nome', 'asc');   // Ordinamento secondario per nome
+                break;
+                
+            case 'citta':
+                $query->orderBy('citta', $order)
+                      ->orderBy('nome', 'asc');
+                break;
+                
+            case 'created_at':
+                $query->orderBy('created_at', $order);
+                break;
+                
+            default:
+                $query->orderBy('nome', 'asc');
+                break;
+        }
+
+        // Paginazione con mantenimento parametri query
+        $centri = $query->paginate(15)->withQueryString();
+
+        // Province disponibili per il dropdown filtro
+        $province = CentroAssistenza::distinct()
+            ->whereNotNull('provincia')
+            ->where('provincia', '!=', '')
+            ->orderBy('provincia')
+            ->pluck('provincia')
+            ->toArray();
+
+        // Statistiche per le card
+        $stats = [
+            'totale' => CentroAssistenza::count(),
+            'con_tecnici' => CentroAssistenza::whereHas('tecnici')->count(),
+            'senza_tecnici' => CentroAssistenza::whereDoesntHave('tecnici')->count(),
+            'tecnici_totali' => User::where('livello_accesso', '2')->count(),
+            'tecnici_non_assegnati' => User::where('livello_accesso', '2')
+                ->whereNull('centro_assistenza_id')->count()
+        ];
+
+        // Log per debug (rimuovere in produzione)
+        Log::info('Ordinamento centri', [
+            'sort' => $sortBy,
+            'order' => $order,
+            'query_params' => $request->query(),
+            'total_results' => $centri->total()
+        ]);
+
+        // Passa tutti i dati alla vista
+        return view('admin.centri.index', compact('centri', 'stats', 'province'));
+
+    } catch (\Exception $e) {
+        Log::error('Errore dashboard admin centri', [
+            'error' => $e->getMessage(),
+            'admin_id' => Auth::id(),
+            'request_data' => $request->all(),
+            'trace' => $e->getTraceAsString()
+        ]);
+
+        // Fallback con dati vuoti in caso di errore
+        return view('admin.centri.index', [
+            'centri' => new \Illuminate\Pagination\LengthAwarePaginator(
+                collect(), 0, 15, 1, ['path' => request()->url()]
+            ),
+            'stats' => [
+                'totale' => 0,
+                'con_tecnici' => 0,
+                'senza_tecnici' => 0,
+                'tecnici_totali' => 0,
+                'tecnici_non_assegnati' => 0
+            ],
+            'province' => []
+        ])->with('error', 'Errore nel caricamento della dashboard centri');
+    }
+}
     /**
      * Vista amministrativa: Creazione nuovo centro
      * Route: GET /admin/centri/create

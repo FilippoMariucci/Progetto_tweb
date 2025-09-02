@@ -1,9 +1,6 @@
 {{-- 
-    Vista Gestione Centri Assistenza - Admin
-    File: resources/views/admin/centri/index.blade.php
-    
-    Questa vista gestisce la visualizzazione e amministrazione dei centri di assistenza
-    Funzionalità opzionale per gestire l'archivio dei centri assistenza esterni
+    Vista Gestione Centri Assistenza - Admin - ORDINAMENTO CORRETTO
+    Fix: pulsanti ordinamento Nome, Provincia, Tecnici funzionanti
 --}}
 @extends('layouts.app')
 
@@ -26,7 +23,6 @@
                     </p>
                 </div>
                 <div>
-                    {{-- Pulsanti azioni principali --}}
                     <a href="{{ route('admin.centri.create') }}" class="btn btn-info me-2">
                         <i class="bi bi-plus-circle me-1"></i>Nuovo Centro
                     </a>
@@ -158,7 +154,7 @@
         </div>
     </div>
 
-    {{-- Lista Centri --}}
+    {{-- Lista Centri CON ORDINAMENTO CORRETTO --}}
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
@@ -169,19 +165,45 @@
                 @endif
             </h5>
             
-            {{-- Ordinamento --}}
+            {{-- ORDINAMENTO CORRETTO - Link che mantengono filtri e cambiano ordinamento --}}
             <div class="btn-group" role="group">
-                <a href="{{ route('admin.centri.index', array_merge(request()->query(), ['sort' => 'nome'])) }}" 
+                {{-- Ordinamento per Nome --}}
+                <a href="{{ request()->fullUrlWithQuery([
+                    'sort' => 'nome', 
+                    'order' => (request('sort') == 'nome' && request('order') == 'asc') ? 'desc' : 'asc'
+                ]) }}" 
                    class="btn btn-outline-secondary btn-sm {{ request('sort') == 'nome' ? 'active' : '' }}">
-                    <i class="bi bi-sort-alpha-down me-1"></i>Nome
+                    <i class="bi bi-sort-alpha-{{ (request('sort') == 'nome' && request('order') == 'desc') ? 'up' : 'down' }} me-1"></i>
+                    Nome
+                    @if(request('sort') == 'nome')
+                        <i class="bi bi-arrow-{{ request('order') == 'desc' ? 'up' : 'down' }} ms-1"></i>
+                    @endif
                 </a>
-                <a href="{{ route('admin.centri.index', array_merge(request()->query(), ['sort' => 'provincia'])) }}" 
+                
+                {{-- Ordinamento per Provincia --}}
+                <a href="{{ request()->fullUrlWithQuery([
+                    'sort' => 'provincia', 
+                    'order' => (request('sort') == 'provincia' && request('order') == 'asc') ? 'desc' : 'asc'
+                ]) }}" 
                    class="btn btn-outline-secondary btn-sm {{ request('sort') == 'provincia' ? 'active' : '' }}">
-                    <i class="bi bi-geo me-1"></i>Provincia
+                    <i class="bi bi-geo me-1"></i>
+                    Provincia
+                    @if(request('sort') == 'provincia')
+                        <i class="bi bi-arrow-{{ request('order') == 'desc' ? 'up' : 'down' }} ms-1"></i>
+                    @endif
                 </a>
-                <a href="{{ route('admin.centri.index', array_merge(request()->query(), ['sort' => 'tecnici'])) }}" 
+                
+                {{-- Ordinamento per Tecnici --}}
+                <a href="{{ request()->fullUrlWithQuery([
+                    'sort' => 'tecnici', 
+                    'order' => (request('sort') == 'tecnici' && request('order') == 'asc') ? 'desc' : 'asc'
+                ]) }}" 
                    class="btn btn-outline-secondary btn-sm {{ request('sort') == 'tecnici' ? 'active' : '' }}">
-                    <i class="bi bi-people me-1"></i>Tecnici
+                    <i class="bi bi-people me-1"></i>
+                    Tecnici
+                    @if(request('sort') == 'tecnici')
+                        <i class="bi bi-arrow-{{ request('order') == 'desc' ? 'up' : 'down' }} ms-1"></i>
+                    @endif
                 </a>
             </div>
         </div>
@@ -192,10 +214,41 @@
                     <table class="table table-hover">
                         <thead class="table-light">
                             <tr>
-                                <th>Centro</th>
-                                <th>Località</th>
+                                {{-- HEADER CLICCABILI PER ORDINAMENTO --}}
+                                <th>
+                                    <a href="{{ request()->fullUrlWithQuery([
+                                        'sort' => 'nome', 
+                                        'order' => (request('sort') == 'nome' && request('order') == 'asc') ? 'desc' : 'asc'
+                                    ]) }}" class="text-decoration-none text-dark fw-bold">
+                                        Centro
+                                        @if(request('sort') == 'nome')
+                                            <i class="bi bi-arrow-{{ request('order') == 'desc' ? 'up' : 'down' }} ms-1"></i>
+                                        @endif
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="{{ request()->fullUrlWithQuery([
+                                        'sort' => 'provincia', 
+                                        'order' => (request('sort') == 'provincia' && request('order') == 'asc') ? 'desc' : 'asc'
+                                    ]) }}" class="text-decoration-none text-dark fw-bold">
+                                        Località
+                                        @if(request('sort') == 'provincia')
+                                            <i class="bi bi-arrow-{{ request('order') == 'desc' ? 'up' : 'down' }} ms-1"></i>
+                                        @endif
+                                    </a>
+                                </th>
                                 <th>Contatti</th>
-                                <th class="text-center">Tecnici</th>
+                                <th class="text-center">
+                                    <a href="{{ request()->fullUrlWithQuery([
+                                        'sort' => 'tecnici', 
+                                        'order' => (request('sort') == 'tecnici' && request('order') == 'asc') ? 'desc' : 'asc'
+                                    ]) }}" class="text-decoration-none text-dark fw-bold">
+                                        Tecnici
+                                        @if(request('sort') == 'tecnici')
+                                            <i class="bi bi-arrow-{{ request('order') == 'desc' ? 'up' : 'down' }} ms-1"></i>
+                                        @endif
+                                    </a>
+                                </th>
                                 <th class="text-center">Stato</th>
                                 <th width="150">Azioni</th>
                             </tr>
@@ -203,10 +256,13 @@
                         <tbody>
                             @foreach($centri as $centro)
                                 <tr>
-                                    {{-- Nome Centro --}}
+                                    {{-- Nome Centro MIGLIORATO --}}
                                     <td>
                                         <div>
-                                            <strong>{{ $centro->nome }}</strong>
+                                            <strong class="text-primary">{{ $centro->nome }}</strong>
+                                            @if($centro->tecnici_count > 0)
+                                                <span class="badge bg-success badge-sm ms-2">Attivo</span>
+                                            @endif
                                             <br>
                                             <small class="text-muted">
                                                 <i class="bi bi-geo-alt me-1"></i>
@@ -215,17 +271,21 @@
                                         </div>
                                     </td>
                                     
-                                    {{-- Località --}}
+                                    {{-- Località MIGLIORATA --}}
                                     <td>
-                                        <span class="fw-semibold">{{ $centro->citta }}</span>
-                                        @if($centro->provincia)
-                                            <br>
-                                            <span class="badge bg-secondary">{{ strtoupper($centro->provincia) }}</span>
-                                        @endif
-                                        @if($centro->cap)
-                                            <br>
-                                            <small class="text-muted">{{ $centro->cap }}</small>
-                                        @endif
+                                        <div>
+                                            <span class="fw-bold">{{ $centro->citta }}</span>
+                                            @if($centro->provincia)
+                                                <br>
+                                                <span class="badge bg-info text-white">
+                                                    {{ strtoupper($centro->provincia) }}
+                                                </span>
+                                            @endif
+                                            @if($centro->cap)
+                                                <br>
+                                                <small class="text-muted">CAP: {{ $centro->cap }}</small>
+                                            @endif
+                                        </div>
                                     </td>
                                     
                                     {{-- Contatti --}}
@@ -234,7 +294,7 @@
                                             <div class="mb-1">
                                                 <i class="bi bi-telephone me-1 text-primary"></i>
                                                 <a href="tel:{{ $centro->telefono }}" class="text-decoration-none">
-                                                    {{ $centro->telefono_formattato ?? $centro->telefono }}
+                                                    {{ $centro->telefono }}
                                                 </a>
                                             </div>
                                         @endif
@@ -243,7 +303,7 @@
                                             <div>
                                                 <i class="bi bi-envelope me-1 text-info"></i>
                                                 <a href="mailto:{{ $centro->email }}" class="text-decoration-none">
-                                                    {{ $centro->email }}
+                                                    {{ Str::limit($centro->email, 25) }}
                                                 </a>
                                             </div>
                                         @endif
@@ -253,30 +313,64 @@
                                         @endif
                                     </td>
                                     
-                                    {{-- Tecnici --}}
+                                    {{-- Tecnici MIGLIORATO --}}
                                     <td class="text-center">
                                         @if($centro->tecnici_count > 0)
-                                            <span class="badge bg-success fs-6">
-                                                {{ $centro->tecnici_count }}
-                                            </span>
-                                            <br>
-                                            <small class="text-success">Attivo</small>
+                                            <div>
+                                                <span class="badge bg-success fs-5 px-3 py-2">
+                                                    <i class="bi bi-people me-1"></i>
+                                                    {{ $centro->tecnici_count }}
+                                                </span>
+                                                <br>
+                                                <small class="text-success fw-bold">Centro Operativo</small>
+                                            </div>
                                         @else
-                                            <span class="badge bg-warning text-dark fs-6">0</span>
-                                            <br>
-                                            <small class="text-warning">Senza tecnici</small>
+                                            <div>
+                                                <span class="badge bg-warning text-dark fs-5 px-3 py-2">
+                                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                                    0
+                                                </span>
+                                                <br>
+                                                <small class="text-warning fw-bold">Senza Tecnici</small>
+                                            </div>
+                                        @endif
+                                        
+                                        {{-- Lista tecnici se presenti --}}
+                                        @if($centro->tecnici_count > 0 && $centro->tecnici->count() > 0)
+                                            <div class="mt-2">
+                                                <button class="btn btn-outline-info btn-xs" 
+                                                        type="button" 
+                                                        data-bs-toggle="collapse" 
+                                                        data-bs-target="#tecnici-{{ $centro->id }}">
+                                                    <i class="bi bi-list me-1"></i>Dettagli
+                                                </button>
+                                                <div class="collapse mt-2" id="tecnici-{{ $centro->id }}">
+                                                    <div class="card card-body p-2">
+                                                        @foreach($centro->tecnici as $tecnico)
+                                                            <div class="small">
+                                                                <i class="bi bi-person me-1"></i>
+                                                                {{ $tecnico->nome }} {{ $tecnico->cognome }}
+                                                                @if($tecnico->specializzazione)
+                                                                    <br><span class="text-muted">{{ $tecnico->specializzazione }}</span>
+                                                                @endif
+                                                            </div>
+                                                            @if(!$loop->last)<hr class="my-1">@endif
+                                                        @endforeach
+                                                    </div>
+                                                </div>
+                                            </div>
                                         @endif
                                     </td>
                                     
                                     {{-- Stato --}}
                                     <td class="text-center">
-                                        @if($centro->isAperto())
+                                        @if($centro->tecnici_count > 0)
                                             <span class="badge bg-success">
-                                                <i class="bi bi-clock me-1"></i>Aperto
+                                                <i class="bi bi-check-circle me-1"></i>Operativo
                                             </span>
                                         @else
-                                            <span class="badge bg-secondary">
-                                                <i class="bi bi-clock me-1"></i>Chiuso
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="bi bi-exclamation-triangle me-1"></i>In Attesa
                                             </span>
                                         @endif
                                     </td>
@@ -287,7 +381,8 @@
                                             {{-- Visualizza --}}
                                             <a href="{{ route('centri.show', $centro->id) }}" 
                                                class="btn btn-outline-primary btn-sm" 
-                                               title="Visualizza dettagli" target="_blank">
+                                               title="Visualizza dettagli centro" 
+                                               target="_blank">
                                                 <i class="bi bi-eye"></i>
                                             </a>
                                             
@@ -353,7 +448,7 @@
         </div>
     </div>
 
-    {{-- Mappa Distribuzione (se ci sono centri) --}}
+    {{-- Info Distribuzione Geografica --}}
     @if($centri->count() > 0)
         <div class="row mt-4">
             <div class="col-12">
@@ -400,7 +495,7 @@
                                 </div>
                             </div>
                             
-                            {{-- Link Utili --}}
+                            {{-- Azioni Rapide --}}
                             <div class="col-md-6">
                                 <h6>Azioni Rapide</h6>
                                 <div class="d-grid gap-2">
@@ -415,22 +510,6 @@
                                     <a href="{{ route('admin.centri.create') }}" class="btn btn-info">
                                         <i class="bi bi-plus-circle me-1"></i>Aggiungi Nuovo Centro
                                     </a>
-                                </div>
-                                
-                                {{-- Info aggiuntive --}}
-                                <div class="mt-3">
-                                    <h6>Informazioni</h6>
-                                    <ul class="list-unstyled small">
-                                        <li><i class="bi bi-info-circle text-info me-1"></i> 
-                                            I centri sono visibili pubblicamente
-                                        </li>
-                                        <li><i class="bi bi-people text-success me-1"></i> 
-                                            I tecnici vengono assegnati ai centri
-                                        </li>
-                                        <li><i class="bi bi-geo-alt text-warning me-1"></i> 
-                                            Verifica la copertura geografica
-                                        </li>
-                                    </ul>
                                 </div>
                             </div>
                         </div>
@@ -478,27 +557,17 @@
 </div>
 @endsection
 
-{{-- JavaScript per gestione interazioni --}}
+{{-- JavaScript e Stili --}}
 @push('scripts')
 <script>
-/**
- * JavaScript per la gestione centri assistenza
- * Gestisce eliminazione, export e filtri dinamici
- */
-
 $(document).ready(function() {
-    console.log('🏢 Inizializzazione gestione centri assistenza');
+    console.log('🏢 Inizializzazione gestione admin centri assistenza');
     
-    // Inizializza tooltips
     initializeTooltips();
-    
-    // Filtri dinamici
     setupDynamicFilters();
+    setupSearchHandler();
 });
 
-/**
- * Inizializza i tooltips Bootstrap
- */
 function initializeTooltips() {
     const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
     tooltipTriggerList.map(function (tooltipTriggerEl) {
@@ -506,101 +575,109 @@ function initializeTooltips() {
     });
 }
 
-/**
- * Configura filtri dinamici
- */
 function setupDynamicFilters() {
-    // Filtro provincia che aggiorna città
     $('#provincia').on('change', function() {
-        const provincia = $(this).val();
-        
-        if (provincia) {
-            // Potresti implementare un caricamento dinamico delle città
-            console.log('🌍 Provincia selezionata:', provincia);
-        }
+        console.log('🌍 Provincia selezionata:', $(this).val());
+        $(this).closest('form').submit();
     });
     
-    // Auto-submit del form dopo selezione
-    $('#provincia, #citta').on('change', function() {
-        $(this).closest('form').submit();
+    let cittaTimeout;
+    $('#citta').on('input', function() {
+        const citta = $(this).val().trim();
+        clearTimeout(cittaTimeout);
+        
+        if (citta.length >= 2 || citta.length === 0) {
+            cittaTimeout = setTimeout(() => {
+                console.log('🏙️ Città inserita:', citta);
+                $(this).closest('form').submit();
+            }, 800);
+        }
     });
 }
 
-/**
- * Conferma eliminazione centro
- */
+function setupSearchHandler() {
+    let searchTimeout;
+    $('#search').on('input', function() {
+        const searchTerm = $(this).val().trim();
+        clearTimeout(searchTimeout);
+        
+        if (searchTerm.length >= 3 || searchTerm.length === 0) {
+            searchTimeout = setTimeout(() => {
+                console.log('🔍 Ricerca per:', searchTerm);
+                $(this).closest('form').submit();
+            }, 600);
+        }
+    });
+}
+
 function confirmDelete(centroId, centroName) {
-    // Aggiorna il modal con le informazioni del centro
     $('#centro-name').text(centroName);
     $('#delete-form').attr('action', `/admin/centri/${centroId}`);
     
-    // Mostra il modal
     const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
     modal.show();
 }
 
-/**
- * Esporta lista centri in formato CSV
- */
 function exportCentri() {
-    // Crea CSV con i dati visibili
-    const rows = [];
-    
-    // Header CSV
-    rows.push(['Nome Centro', 'Città', 'Provincia', 'CAP', 'Indirizzo', 'Telefono', 'Email', 'Tecnici']);
-    
-    // Dati dalle righe della tabella
-    $('tbody tr').each(function() {
-        const row = [];
-        const $tr = $(this);
+    try {
+        const rows = [['Nome Centro', 'Città', 'Provincia', 'CAP', 'Indirizzo', 'Telefono', 'Email', 'Numero Tecnici']];
         
-        // Estrae i dati dalle celle
-        const nome = $tr.find('td:first strong').text().trim();
-        const indirizzo = $tr.find('td:first small').text().replace('📍 ', '').trim();
-        const citta = $tr.find('td:nth-child(2) .fw-semibold').text().trim();
-        const provincia = $tr.find('td:nth-child(2) .badge').text().trim();
-        const telefono = $tr.find('td:nth-child(3) a[href^="tel:"]').text().trim();
-        const email = $tr.find('td:nth-child(3) a[href^="mailto:"]').text().trim();
-        const tecnici = $tr.find('td:nth-child(4) .badge').text().trim();
+        $('tbody tr').each(function() {
+            const $tr = $(this);
+            const nome = $tr.find('td:first strong').text().trim();
+            const indirizzo = $tr.find('td:first small').text().trim();
+            const citta = $tr.find('td:nth-child(2) .fw-bold').text().trim();
+            const provincia = $tr.find('td:nth-child(2) .badge').text().trim();
+            const telefono = $tr.find('td:nth-child(3) a[href^="tel:"]').text().trim();
+            const email = $tr.find('td:nth-child(3) a[href^="mailto:"]').text().trim();
+            const tecnici = $tr.find('td:nth-child(4) .badge').first().text().trim();
+            
+            rows.push([nome, citta, provincia, '', indirizzo, telefono, email, tecnici]);
+        });
         
-        rows.push([nome, citta, provincia, '', indirizzo, telefono, email, tecnici]);
-    });
-    
-    // Crea e scarica il file CSV
-    const csvContent = rows.map(row => 
-        row.map(field => `"${field}"`).join(',')
-    ).join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    
-    if (link.download !== undefined) {
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `centri_assistenza_${new Date().toISOString().slice(0,10)}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const csvContent = rows.map(row => 
+            row.map(field => `"${field.replace(/"/g, '""')}"`)
+               .join(',')
+        ).join('\n');
         
-        showNotification('File CSV esportato con successo', 'success');
-    } else {
-        showNotification('Export non supportato dal browser', 'warning');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            const fileName = `centri_assistenza_${new Date().toISOString().slice(0,10)}.csv`;
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', fileName);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            URL.revokeObjectURL(url);
+            showNotification(`File ${fileName} esportato con successo`, 'success');
+            console.log('✅ Export completato:', fileName);
+        } else {
+            showNotification('Export non supportato dal browser', 'warning');
+        }
+    } catch (error) {
+        console.error('❌ Errore durante export:', error);
+        showNotification('Errore durante l\'export', 'danger');
     }
 }
 
-/**
- * Mostra notificazioni toast
- */
 function showNotification(message, type = 'success') {
     const alertClass = type === 'success' ? 'alert-success' : 
-                      type === 'warning' ? 'alert-warning' : 'alert-info';
+                      type === 'warning' ? 'alert-warning' : 
+                      type === 'danger' ? 'alert-danger' : 'alert-info';
+    
     const icon = type === 'success' ? 'check-circle' : 
-                 type === 'warning' ? 'exclamation-triangle' : 'info-circle';
+                 type === 'warning' ? 'exclamation-triangle' : 
+                 type === 'danger' ? 'exclamation-octagon' : 'info-circle';
     
     const alert = $(`
         <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
-             style="top: 20px; right: 20px; z-index: 9999; max-width: 350px;">
+             style="top: 20px; right: 20px; z-index: 9999; max-width: 400px; min-width: 300px;">
             <i class="bi bi-${icon} me-2"></i>
             ${message}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
@@ -611,42 +688,35 @@ function showNotification(message, type = 'success') {
     
     setTimeout(() => {
         alert.alert('close');
-    }, 4000);
+    }, 5000);
 }
 
-/**
- * Aggiorna contatori in tempo reale (opzionale)
- */
-function updateCounters() {
-    const totalRows = $('tbody tr').length;
-    const activeRows = $('tbody tr:has(.badge.bg-success)').length;
+// Keyboard shortcuts
+$(document).on('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'f') {
+        e.preventDefault();
+        $('#search').focus();
+    }
     
-    console.log(`📊 Centri totali: ${totalRows}, Centri attivi: ${activeRows}`);
-}
+    if (e.ctrlKey && e.key === 'n') {
+        e.preventDefault();
+        window.location.href = "{{ route('admin.centri.create') }}";
+    }
+    
+    if (e.key === 'Escape') {
+        $('#search').val('').trigger('input');
+    }
+});
 
-// Chiama aggiornamento contatori
-updateCounters();
-
-console.log('✅ Gestione centri assistenza inizializzata');
+console.log('✅ Gestione admin centri assistenza inizializzata completamente');
 </script>
+@endpush
 
-{{-- Stili personalizzati --}}
+@push('styles')
 <style>
-/* Miglioramenti per le card */
-.card {
-    transition: all 0.2s ease-in-out;
-    border: none;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-}
-
-.card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-}
-
-/* Tabella migliorata */
-.table-hover tbody tr:hover {
-    background-color: rgba(13, 202, 240, 0.05);
+/* Miglioramenti tabella */
+.table {
+    margin-bottom: 0;
 }
 
 .table th {
@@ -654,11 +724,41 @@ console.log('✅ Gestione centri assistenza inizializzata');
     font-weight: 600;
     font-size: 0.875rem;
     background-color: #f8f9fa;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.table th a {
+    color: #495057 !important;
+    text-decoration: none !important;
+    display: block;
+    padding: 0.5rem 0;
+}
+
+.table th a:hover {
+    color: #007bff !important;
 }
 
 .table td {
     vertical-align: middle;
     border-color: #e9ecef;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(13, 202, 240, 0.05);
+}
+
+/* Card miglioramenti */
+.card {
+    transition: all 0.2s ease-in-out;
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
 }
 
 /* Badge personalizzati */
@@ -667,11 +767,30 @@ console.log('✅ Gestione centri assistenza inizializzata');
     font-weight: 600;
 }
 
-.badge.fs-6 {
-    font-size: 1rem !important;
+.badge.fs-5 {
+    font-size: 1.1rem !important;
+    padding: 0.5rem 0.75rem !important;
 }
 
-/* Responsive improvements */
+.badge-sm {
+    font-size: 0.65rem;
+    padding: 0.25rem 0.5rem;
+}
+
+/* Pulsanti ordinamento */
+.btn-group .btn.active {
+    background-color: #0dcaf0;
+    border-color: #0dcaf0;
+    color: white;
+    font-weight: 600;
+}
+
+.btn-group .btn:not(.active):hover {
+    background-color: #e9ecef;
+    border-color: #dee2e6;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
     .container-fluid {
         padding-left: 10px;
@@ -682,8 +801,14 @@ console.log('✅ Gestione centri assistenza inizializzata');
         font-size: 0.875rem;
     }
     
+    .btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    
     .btn-group .btn {
-        padding: 0.25rem 0.5rem;
+        border-radius: 0.375rem !important;
+        margin-bottom: 0.25rem;
     }
     
     .display-4 {
@@ -700,14 +825,28 @@ console.log('✅ Gestione centri assistenza inizializzata');
     border-left: 4px solid #ffc107;
 }
 
-/* Miglioramenti pulsanti */
-.btn-group .btn.active {
-    background-color: #0dcaf0;
-    border-color: #0dcaf0;
-    color: white;
+/* Collapse dettagli tecnici */
+.collapse .card-body {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
 }
 
-/* Icone con colori */
+/* Link contatti */
+a[href^="tel:"], 
+a[href^="mailto:"] {
+    color: inherit;
+    text-decoration: none;
+}
+
+a[href^="tel:"]:hover, 
+a[href^="mailto:"]:hover {
+    color: #0d6efd;
+    text-decoration: underline;
+}
+
+/* Icone colorate */
 .text-primary {
     color: #0d6efd !important;
 }
@@ -731,9 +870,10 @@ console.log('✅ Gestione centri assistenza inizializzata');
     box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.175);
 }
 
-/* Loading states */
-.btn:disabled {
-    opacity: 0.6;
+/* Hover effects */
+.btn:hover {
+    transform: translateY(-1px);
+    transition: transform 0.2s ease-in-out;
 }
 
 /* Animazioni */
@@ -746,27 +886,16 @@ console.log('✅ Gestione centri assistenza inizializzata');
     animation: fadeIn 0.3s ease-in-out;
 }
 
-/* Hover effects per azioni */
-.btn:hover {
-    transform: translateY(-1px);
-    transition: transform 0.2s ease-in-out;
-}
-
-/* Miglioramenti accessibilità */
+/* Accessibilità */
 .btn:focus,
 .form-control:focus,
 .form-select:focus {
     box-shadow: 0 0 0 0.2rem rgba(13, 202, 240, 0.25);
 }
 
-/* Stati vuoti */
-.text-center .display-1 {
-    opacity: 0.3;
-}
-
 /* Print styles */
 @media print {
-    .btn, .alert, .modal {
+    .btn, .alert, .modal, .collapse {
         display: none !important;
     }
     
@@ -777,115 +906,6 @@ console.log('✅ Gestione centri assistenza inizializzata');
     
     .table {
         font-size: 0.8rem;
-    }
-}
-
-/* Miglioramenti tipografici */
-.fw-semibold {
-    font-weight: 600;
-}
-
-.small, small {
-    font-size: 0.875rem;
-}
-
-/* Badge per funzionalità opzionale */
-.badge.bg-info {
-    background-color: #0dcaf0 !important;
-}
-
-/* Stili per link contatti */
-a[href^="tel:"], 
-a[href^="mailto:"] {
-    color: inherit;
-    text-decoration: none;
-}
-
-a[href^="tel:"]:hover, 
-a[href^="mailto:"]:hover {
-    color: #0d6efd;
-    text-decoration: underline;
-}
-
-/* Distribuzioni geografiche */
-.geografia-stats {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-radius: 0.5rem;
-    padding: 1rem;
-}
-
-/* Card statistiche */
-.stat-card {
-    transition: all 0.3s ease;
-    cursor: pointer;
-}
-
-.stat-card:hover {
-    transform: scale(1.02);
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-}
-
-/* Filtri attivi */
-.filter-active {
-    background-color: #e7f3ff;
-    border-color: #0d6efd;
-}
-
-/* Separatori */
-hr {
-    margin: 1.5rem 0;
-    opacity: 0.3;
-}
-
-/* Tooltip personalizzati */
-.tooltip {
-    font-size: 0.875rem;
-}
-
-/* Miglioramenti form */
-.form-label {
-    font-weight: 600;
-    font-size: 0.875rem;
-    color: #495057;
-}
-
-/* Status indicators */
-.status-indicator {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    margin-right: 0.5rem;
-}
-
-.status-indicator.online {
-    background-color: #198754;
-}
-
-.status-indicator.offline {
-    background-color: #6c757d;
-}
-
-/* Responsive table improvements */
-@media (max-width: 992px) {
-    .table-responsive table {
-        min-width: 800px;
-    }
-}
-
-@media (max-width: 576px) {
-    .btn-group {
-        flex-direction: column;
-        width: 100%;
-    }
-    
-    .btn-group .btn {
-        border-radius: 0.375rem !important;
-        margin-bottom: 0.25rem;
-    }
-    
-    .card-body {
-        padding: 1rem 0.75rem;
     }
 }
 
@@ -902,18 +922,7 @@ hr {
     }
 }
 
-/* High contrast support */
-@media (prefers-contrast: high) {
-    .btn {
-        border-width: 2px;
-    }
-    
-    .card {
-        border: 2px solid #000;
-    }
-}
-
-/* Reduced motion support */
+/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
     .card,
     .btn,
@@ -921,14 +930,83 @@ hr {
         transition: none;
     }
     
-    .stat-card:hover {
-        transform: none;
-    }
-    
     @keyframes fadeIn {
         from { opacity: 0; }
         to { opacity: 1; }
     }
+}
+
+/* Custom utility classes */
+.btn-xs {
+    padding: 0.125rem 0.375rem;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    border-radius: 0.2rem;
+}
+
+.fs-7 {
+    font-size: 0.875rem !important;
+}
+
+/* Miglioramento spacing */
+.g-3 > * {
+    margin-bottom: 1rem;
+}
+
+/* Badge stati specifici */
+.badge.bg-info {
+    background-color: #0dcaf0 !important;
+}
+
+.badge.bg-success {
+    background-color: #198754 !important;
+}
+
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #000 !important;
+}
+
+/* Sticky header */
+.table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+/* Loading states */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Focus states migliorati */
+.table th a:focus {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+}
+
+/* Miglioramenti tipografici */
+.fw-bold {
+    font-weight: 700;
+}
+
+.small, small {
+    font-size: 0.875rem;
+}
+
+/* Hover su righe tabella */
+.table tbody tr {
+    cursor: pointer;
+}
+
+.table tbody tr:hover .btn {
+    opacity: 1;
+}
+
+.table tbody tr .btn {
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
 }
 </style>
 @endpush
