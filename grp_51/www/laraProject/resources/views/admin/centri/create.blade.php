@@ -1,42 +1,19 @@
 {{-- 
     File: resources/views/admin/centri/create.blade.php
-    Descrizione: Form per la creazione di un nuovo centro di assistenza
+    Descrizione: Form per la creazione di un nuovo centro di assistenza - TUTTI I CAMPI OBBLIGATORI
     Livello accesso: Solo Amministratori (Livello 4)
     
-    Funzionalità:
-    - Form completo per inserimento dati centro
-    - Validazione lato client con JavaScript
-    - Select dinamiche per provincia/città
-    - Gestione errori di validazione
+    MIGLIORAMENTI:
+    - Tutti i campi principali sono ora obbligatori
+    - Validazione migliorata lato client
+    - Messaggi di errore più chiari
 --}}
 
-@extends('admin.dashboard')
+@extends('layouts.app')
 
 {{-- Titolo della pagina nell'head HTML --}}
 @section('title', 'Nuovo Centro Assistenza')
 
-{{-- Breadcrumb per la navigazione --}}
-@section('breadcrumb')
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item">
-            <a href="{{ route('admin.dashboard') }}">
-                <i class="bi bi-speedometer2"></i> Dashboard Admin
-            </a>
-        </li>
-        <li class="breadcrumb-item">
-            <a href="{{ route('admin.centri.index') }}">
-                <i class="bi bi-building"></i> Centri Assistenza
-            </a>
-        </li>
-        <li class="breadcrumb-item active" aria-current="page">
-            <i class="bi bi-plus-circle"></i> Nuovo Centro
-        </li>
-    </ol>
-</nav>
-@endsection
-
-{{-- Contenuto principale della pagina --}}
 @section('content')
 <div class="container-fluid">
     <div class="row">
@@ -61,6 +38,13 @@
                 </a>
             </div>
 
+            {{-- Alert per indicare che tutti i campi sono obbligatori --}}
+            <div class="alert alert-warning mb-4">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Attenzione:</strong> Tutti i campi di questo form sono <strong>obbligatori</strong>. 
+                Un centro deve avere informazioni complete per essere operativo.
+            </div>
+
             {{-- Card contenente il form --}}
             <div class="row">
                 <div class="col-lg-8 col-xl-6">
@@ -68,7 +52,7 @@
                         <div class="card-header bg-primary text-white">
                             <h5 class="card-title mb-0">
                                 <i class="bi bi-form-text me-2"></i>
-                                Dati del Centro
+                                Dati del Centro <span class="badge bg-light text-dark ms-2">Tutti Obbligatori</span>
                             </h5>
                         </div>
                         
@@ -80,7 +64,7 @@
                                   novalidate>
                                 @csrf {{-- Token di sicurezza Laravel --}}
                                 
-                                {{-- Nome del centro --}}
+                                {{-- Nome del centro - OBBLIGATORIO --}}
                                 <div class="mb-3">
                                     <label for="nome" class="form-label required">
                                         <i class="bi bi-building-fill me-1"></i>
@@ -104,15 +88,15 @@
                                     
                                     {{-- Contatore caratteri --}}
                                     <small class="form-text text-muted">
-                                        <span id="nomeCount">0</span>/255 caratteri
+                                        <span id="nomeCount">0</span>/255 caratteri - <strong>Campo obbligatorio</strong>
                                     </small>
                                 </div>
 
-                                {{-- Indirizzo --}}
+                                {{-- Indirizzo - OBBLIGATORIO --}}
                                 <div class="mb-3">
                                     <label for="indirizzo" class="form-label required">
                                         <i class="bi bi-geo-alt-fill me-1"></i>
-                                        Indirizzo
+                                        Indirizzo Completo
                                     </label>
                                     <input type="text" 
                                            class="form-control @error('indirizzo') is-invalid @enderror" 
@@ -120,7 +104,7 @@
                                            name="indirizzo" 
                                            value="{{ old('indirizzo') }}"
                                            placeholder="Es: Via Roma, 123"
-                                           maxlength="255"
+                                           maxlength="500"
                                            required>
                                     
                                     @error('indirizzo')
@@ -128,12 +112,16 @@
                                             {{ $message }}
                                         </div>
                                     @enderror
+                                    
+                                    <small class="form-text text-muted">
+                                        <strong>Campo obbligatorio</strong> - Indirizzo completo con numero civico
+                                    </small>
                                 </div>
 
-                                {{-- Riga per Città, Provincia e CAP --}}
+                                {{-- Riga per Città, Provincia e CAP - TUTTI OBBLIGATORI --}}
                                 <div class="row">
-                                    {{-- Città --}}
-                                    <div class="col-md-6 mb-3">
+                                    {{-- Città - OBBLIGATORIO --}}
+                                    <div class="col-md-5 mb-3">
                                         <label for="citta" class="form-label required">
                                             <i class="bi bi-pin-map-fill me-1"></i>
                                             Città
@@ -152,10 +140,14 @@
                                                 {{ $message }}
                                             </div>
                                         @enderror
+                                        
+                                        <small class="form-text text-muted">
+                                            <strong>Obbligatorio</strong>
+                                        </small>
                                     </div>
 
-                                    {{-- Provincia --}}
-                                    <div class="col-md-3 mb-3">
+                                    {{-- Provincia - OBBLIGATORIO --}}
+                                    <div class="col-md-4 mb-3">
                                         <label for="provincia" class="form-label required">
                                             <i class="bi bi-map me-1"></i>
                                             Provincia
@@ -164,7 +156,7 @@
                                                 id="provincia" 
                                                 name="provincia" 
                                                 required>
-                                            <option value="">Seleziona...</option>
+                                            <option value="">Seleziona provincia...</option>
                                             {{-- Elenco delle province italiane più comuni --}}
                                             <option value="AG" {{ old('provincia') == 'AG' ? 'selected' : '' }}>AG - Agrigento</option>
                                             <option value="AL" {{ old('provincia') == 'AL' ? 'selected' : '' }}>AL - Alessandria</option>
@@ -279,11 +271,15 @@
                                                 {{ $message }}
                                             </div>
                                         @enderror
+                                        
+                                        <small class="form-text text-muted">
+                                            <strong>Obbligatorio</strong>
+                                        </small>
                                     </div>
 
-                                    {{-- CAP --}}
+                                    {{-- CAP - ORA OBBLIGATORIO --}}
                                     <div class="col-md-3 mb-3">
-                                        <label for="cap" class="form-label">
+                                        <label for="cap" class="form-label required">
                                             <i class="bi bi-mailbox me-1"></i>
                                             CAP
                                         </label>
@@ -294,7 +290,8 @@
                                                value="{{ old('cap') }}"
                                                placeholder="Es: 00100"
                                                pattern="[0-9]{5}"
-                                               maxlength="5">
+                                               maxlength="5"
+                                               required>
                                         
                                         @error('cap')
                                             <div class="invalid-feedback">
@@ -303,16 +300,16 @@
                                         @enderror
                                         
                                         <small class="form-text text-muted">
-                                            5 cifre numeriche
+                                            <strong>Obbligatorio</strong> - 5 cifre
                                         </small>
                                     </div>
                                 </div>
 
-                                {{-- Riga per Telefono ed Email --}}
+                                {{-- Riga per Telefono ed Email - ORA ENTRAMBI OBBLIGATORI --}}
                                 <div class="row">
-                                    {{-- Telefono --}}
+                                    {{-- Telefono - ORA OBBLIGATORIO --}}
                                     <div class="col-md-6 mb-3">
-                                        <label for="telefono" class="form-label">
+                                        <label for="telefono" class="form-label required">
                                             <i class="bi bi-telephone-fill me-1"></i>
                                             Telefono
                                         </label>
@@ -322,7 +319,8 @@
                                                name="telefono" 
                                                value="{{ old('telefono') }}"
                                                placeholder="Es: 06 1234567 oppure 347 1234567"
-                                               maxlength="20">
+                                               maxlength="20"
+                                               required>
                                         
                                         @error('telefono')
                                             <div class="invalid-feedback">
@@ -331,13 +329,13 @@
                                         @enderror
                                         
                                         <small class="form-text text-muted">
-                                            Formato: fisso o mobile
+                                            <strong>Obbligatorio</strong> - Fisso o mobile
                                         </small>
                                     </div>
 
-                                    {{-- Email --}}
+                                    {{-- Email - ORA OBBLIGATORIO --}}
                                     <div class="col-md-6 mb-3">
-                                        <label for="email" class="form-label">
+                                        <label for="email" class="form-label required">
                                             <i class="bi bi-envelope-fill me-1"></i>
                                             Email
                                         </label>
@@ -347,7 +345,8 @@
                                                name="email" 
                                                value="{{ old('email') }}"
                                                placeholder="Es: centro@assistenza.it"
-                                               maxlength="255">
+                                               maxlength="255"
+                                               required>
                                         
                                         @error('email')
                                             <div class="invalid-feedback">
@@ -356,19 +355,20 @@
                                         @enderror
                                         
                                         <small class="form-text text-muted">
-                                            Indirizzo email valido
+                                            <strong>Obbligatorio</strong> - Email valida
                                         </small>
                                     </div>
                                 </div>
 
-                                {{-- Note per l'amministratore --}}
-                                <div class="alert alert-info">
-                                    <i class="bi bi-info-circle me-2"></i>
-                                    <strong>Informazioni:</strong>
+                                {{-- Note informative aggiornate --}}
+                                <div class="alert alert-success">
+                                    <i class="bi bi-check-circle me-2"></i>
+                                    <strong>Informazioni importanti:</strong>
                                     <ul class="mb-0 mt-2">
-                                        <li>I campi contrassegnati con * sono obbligatori</li>
-                                        <li>Il centro sarà subito disponibile per l'assegnazione ai tecnici</li>
-                                        <li>Puoi modificare questi dati in qualsiasi momento</li>
+                                        <li><strong>Tutti i campi sono obbligatori</strong> per garantire informazioni complete</li>
+                                        <li>Il centro sarà <strong>immediatamente operativo</strong> dopo la creazione</li>
+                                        <li>Potrai <strong>modificare</strong> questi dati in qualsiasi momento</li>
+                                        <li>I contatti saranno <strong>visibili pubblicamente</strong> nell'elenco centri</li>
                                     </ul>
                                 </div>
 
@@ -383,10 +383,10 @@
                                     
                                     {{-- Pulsante salva --}}
                                     <button type="submit" 
-                                            class="btn btn-primary" 
+                                            class="btn btn-primary btn-lg" 
                                             id="btnSalva">
                                         <i class="bi bi-check-circle me-1"></i>
-                                        Crea Centro
+                                        Crea Centro Completo
                                     </button>
                                 </div>
                             </form>
@@ -394,43 +394,84 @@
                     </div>
                 </div>
 
-                {{-- Sidebar con informazioni aggiuntive --}}
+                {{-- Sidebar con informazioni aggiornate --}}
                 <div class="col-lg-4 col-xl-6">
                     <div class="card shadow-sm">
                         <div class="card-header bg-info text-white">
                             <h6 class="card-title mb-0">
                                 <i class="bi bi-lightbulb me-2"></i>
-                                Suggerimenti
+                                Linee Guida - Tutti i Campi Obbligatori
                             </h6>
                         </div>
                         <div class="card-body">
-                            <h6 class="text-primary">Nome Centro</h6>
+                            <h6 class="text-danger">🔴 Perché Tutti i Campi sono Obbligatori</h6>
                             <p class="text-muted small">
-                                Scegli un nome descrittivo che identifichi chiaramente la posizione 
-                                geografica o la specializzazione del centro.
-                            </p>
-
-                            <h6 class="text-primary">Indirizzo Completo</h6>
-                            <p class="text-muted small">
-                                Inserisci l'indirizzo completo per facilitare la localizzazione 
-                                da parte dei tecnici e clienti.
-                            </p>
-
-                            <h6 class="text-primary">Contatti</h6>
-                            <p class="text-muted small">
-                                Telefono ed email saranno visibili ai tecnici e utilizzati 
-                                per le comunicazioni ufficiali.
-                            </p>
-
-                            <h6 class="text-primary">Dopo la Creazione</h6>
-                            <p class="text-muted small">
-                                Una volta creato, il centro sarà disponibile per:
+                                Un centro di assistenza deve avere <strong>informazioni complete</strong> per poter:
                             </p>
                             <ul class="text-muted small">
-                                <li>Assegnazione ai nuovi tecnici</li>
-                                <li>Visualizzazione pubblica nell'elenco centri</li>
+                                <li>Essere contattato dai clienti</li>
+                                <li>Ricevere assegnazioni di tecnici</li>
+                                <li>Apparire negli elenchi pubblici</li>
+                                <li>Gestire le emergenze tecniche</li>
+                            </ul>
+
+                            <h6 class="text-primary">📍 Localizzazione Precisa</h6>
+                            <p class="text-muted small">
+                                <strong>Indirizzo, città, provincia e CAP</strong> sono essenziali per permettere a tecnici e clienti di localizzare facilmente il centro.
+                            </p>
+
+                            <h6 class="text-primary">📞 Contatti Essenziali</h6>
+                            <p class="text-muted small">
+                                <strong>Telefono ed email</strong> sono indispensabili per le comunicazioni urgenti e la gestione delle emergenze tecniche.
+                            </p>
+
+                            <h6 class="text-success">✅ Dopo la Creazione</h6>
+                            <p class="text-muted small">
+                                Il centro sarà immediatamente disponibile per:
+                            </p>
+                            <ul class="text-muted small">
+                                <li>Assegnazione ai tecnici</li>
+                                <li>Visualizzazione pubblica</li>
+                                <li>Gestione emergenze</li>
                                 <li>Statistiche e reportistica</li>
                             </ul>
+
+                            <div class="alert alert-warning mt-3">
+                                <small>
+                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                    <strong>Ricorda:</strong> Tutti i campi devono essere compilati per procedere con la creazione del centro.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {{-- Card con esempio di centro completo --}}
+                    <div class="card shadow-sm mt-4">
+                        <div class="card-header bg-success text-white">
+                            <h6 class="card-title mb-0">
+                                <i class="bi bi-clipboard-check me-2"></i>
+                                Esempio Centro Completo
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="text-success">Centro Assistenza Roma Nord</h6>
+                            <p class="text-muted small mb-1">
+                                <i class="bi bi-geo-alt me-1"></i>Via Giuseppe Verdi, 45
+                            </p>
+                            <p class="text-muted small mb-1">
+                                <i class="bi bi-pin-map me-1"></i>Roma (RM) - 00198
+                            </p>
+                            <p class="text-muted small mb-1">
+                                <i class="bi bi-telephone me-1"></i>06 85301234
+                            </p>
+                            <p class="text-muted small">
+                                <i class="bi bi-envelope me-1"></i>roma.nord@assistenza.it
+                            </p>
+                            
+                            <small class="text-success">
+                                <i class="bi bi-check-circle me-1"></i>
+                                Centro completo e operativo
+                            </small>
                         </div>
                     </div>
                 </div>
@@ -440,38 +481,38 @@
 </div>
 @endsection
 
-{{-- Script JavaScript personalizzati per questa pagina --}}
+{{-- Script JavaScript personalizzati per validazione completa --}}
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🏗️ Inizializzazione form creazione centro - TUTTI CAMPI OBBLIGATORI');
+    
     // === CONTATORE CARATTERI PER IL NOME ===
     const nomeInput = document.getElementById('nome');
     const nomeCounter = document.getElementById('nomeCount');
     
     if (nomeInput && nomeCounter) {
-        // Funzione per aggiornare il contatore
         function updateNomeCounter() {
             const currentLength = nomeInput.value.length;
             nomeCounter.textContent = currentLength;
             
             // Cambia colore in base alla lunghezza
-            if (currentLength > 240) {
-                nomeCounter.className = 'text-danger fw-bold';
+            if (currentLength === 0) {
+                nomeCounter.className = 'text-danger fw-bold';  // Rosso se vuoto
+            } else if (currentLength > 240) {
+                nomeCounter.className = 'text-danger fw-bold';  // Rosso se troppo lungo
             } else if (currentLength > 200) {
-                nomeCounter.className = 'text-warning';
+                nomeCounter.className = 'text-warning';        // Arancione se quasi pieno
             } else {
-                nomeCounter.className = 'text-muted';
+                nomeCounter.className = 'text-success';        // Verde se OK
             }
         }
         
-        // Aggiorna contatore all'input
         nomeInput.addEventListener('input', updateNomeCounter);
-        
-        // Aggiorna contatore al caricamento se c'è del testo (old input)
-        updateNomeCounter();
+        updateNomeCounter(); // Inizializza
     }
     
-    // === VALIDAZIONE CAP ===
+    // === VALIDAZIONE CAP RIGOROSA ===
     const capInput = document.getElementById('cap');
     if (capInput) {
         capInput.addEventListener('input', function(e) {
@@ -484,160 +525,350 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             e.target.value = value;
+            
+            // Validazione visiva in tempo reale
+            if (value.length === 5) {
+                e.target.classList.remove('is-invalid');
+                e.target.classList.add('is-valid');
+            } else if (value.length > 0) {
+                e.target.classList.remove('is-valid');
+                e.target.classList.add('is-invalid');
+            } else {
+                e.target.classList.remove('is-valid', 'is-invalid');
+            }
         });
     }
     
-    // === VALIDAZIONE TELEFONO ===
+    // === VALIDAZIONE TELEFONO RIGOROSA ===
     const telefonoInput = document.getElementById('telefono');
     if (telefonoInput) {
         telefonoInput.addEventListener('input', function(e) {
-            // Rimuove caratteri non validi per il telefono (mantiene numeri, spazi, +, -, ())
+            // Mantiene solo numeri, spazi, +, -, ()
             let value = e.target.value.replace(/[^0-9\s\+\-\(\)]/g, '');
             e.target.value = value;
+            
+            // Validazione visiva per telefono
+            const phonePattern = /^[\+]?[\d\s\-\(\)]{8,20}$/;
+            if (value.length > 0) {
+                if (phonePattern.test(value) && value.length >= 8) {
+                    e.target.classList.remove('is-invalid');
+                    e.target.classList.add('is-valid');
+                } else {
+                    e.target.classList.remove('is-valid');
+                    e.target.classList.add('is-invalid');
+                }
+            } else {
+                e.target.classList.remove('is-valid', 'is-invalid');
+            }
         });
     }
     
-    // === VALIDAZIONE FORM COMPLETA ===
+    // === VALIDAZIONE EMAIL IN TEMPO REALE ===
+    const emailInput = document.getElementById('email');
+    if (emailInput) {
+        emailInput.addEventListener('input', function(e) {
+            const email = e.target.value.trim();
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            
+            if (email.length > 0) {
+                if (emailPattern.test(email)) {
+                    e.target.classList.remove('is-invalid');
+                    e.target.classList.add('is-valid');
+                } else {
+                    e.target.classList.remove('is-valid');
+                    e.target.classList.add('is-invalid');
+                }
+            } else {
+                e.target.classList.remove('is-valid', 'is-invalid');
+            }
+        });
+    }
+    
+    // === VALIDAZIONE COMPLETA FORM ===
     const form = document.getElementById('formCentro');
     const btnSalva = document.getElementById('btnSalva');
     
     if (form && btnSalva) {
         form.addEventListener('submit', function(e) {
-            // Mostra spinner sul pulsante durante l'invio
+            console.log('📤 Tentativo invio form...');
+            
+            // Raccoglie tutti i valori
+            const formData = {
+                nome: document.getElementById('nome').value.trim(),
+                indirizzo: document.getElementById('indirizzo').value.trim(),
+                citta: document.getElementById('citta').value.trim(),
+                provincia: document.getElementById('provincia').value,
+                cap: document.getElementById('cap').value.trim(),
+                telefono: document.getElementById('telefono').value.trim(),
+                email: document.getElementById('email').value.trim()
+            };
+            
+            const errors = [];
+            
+            // VALIDAZIONE RIGOROSA DI TUTTI I CAMPI OBBLIGATORI
+            if (!formData.nome) {
+                errors.push('Nome centro è obbligatorio');
+            } else if (formData.nome.length < 3) {
+                errors.push('Nome centro deve avere almeno 3 caratteri');
+            }
+            
+            if (!formData.indirizzo) {
+                errors.push('Indirizzo è obbligatorio');
+            } else if (formData.indirizzo.length < 5) {
+                errors.push('Indirizzo deve essere completo (minimo 5 caratteri)');
+            }
+            
+            if (!formData.citta) {
+                errors.push('Città è obbligatoria');
+            } else if (formData.citta.length < 2) {
+                errors.push('Nome città troppo breve');
+            }
+            
+            if (!formData.provincia) {
+                errors.push('Provincia è obbligatoria');
+            }
+            
+            if (!formData.cap) {
+                errors.push('CAP è obbligatorio');
+            } else if (!/^\d{5}$/.test(formData.cap)) {
+                errors.push('CAP deve essere composto da esattamente 5 cifre');
+            }
+            
+            if (!formData.telefono) {
+                errors.push('Telefono è obbligatorio');
+            } else if (formData.telefono.length < 8) {
+                errors.push('Numero di telefono troppo breve');
+            }
+            
+            if (!formData.email) {
+                errors.push('Email è obbligatoria');
+            } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+                errors.push('Formato email non valido');
+            }
+            
+            // Se ci sono errori, blocca l'invio
+            if (errors.length > 0) {
+                e.preventDefault();
+                console.log('❌ Validazione fallita:', errors);
+                
+                showValidationErrors(errors);
+                return false;
+            }
+            
+            // Mostra spinner durante l'invio
             btnSalva.disabled = true;
-            btnSalva.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Creazione in corso...';
+            btnSalva.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creazione in corso...';
             
-            // Validazione JavaScript aggiuntiva
-            const nome = document.getElementById('nome').value.trim();
-            const indirizzo = document.getElementById('indirizzo').value.trim();
-            const citta = document.getElementById('citta').value.trim();
-            const provincia = document.getElementById('provincia').value;
-            
-            // Controlla campi obbligatori
-            if (!nome || !indirizzo || !citta || !provincia) {
-                e.preventDefault();
-                
-                // Ripristina pulsante
-                btnSalva.disabled = false;
-                btnSalva.innerHTML = '<i class="bi bi-check-circle me-1"></i>Crea Centro';
-                
-                // Mostra messaggio di errore
-                showAlert('Errore', 'Compila tutti i campi obbligatori', 'danger');
-                return;
-            }
-            
-            // Validazione CAP se presente
-            const cap = document.getElementById('cap').value.trim();
-            if (cap && (cap.length !== 5 || !/^\d{5}$/.test(cap))) {
-                e.preventDefault();
-                
-                // Ripristina pulsante
-                btnSalva.disabled = false;
-                btnSalva.innerHTML = '<i class="bi bi-check-circle me-1"></i>Crea Centro';
-                
-                showAlert('Errore', 'Il CAP deve essere composto da esattamente 5 cifre', 'danger');
-                return;
-            }
-            
-            // Validazione email se presente
-            const email = document.getElementById('email').value.trim();
-            if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                e.preventDefault();
-                
-                // Ripristina pulsante
-                btnSalva.disabled = false;
-                btnSalva.innerHTML = '<i class="bi bi-check-circle me-1"></i>Crea Centro';
-                
-                showAlert('Errore', 'Inserisci un indirizzo email valido', 'danger');
-                return;
-            }
+            console.log('✅ Validazione superata, invio form...');
         });
     }
     
-    // === FUNZIONE PER MOSTRARE ALERT ===
-    function showAlert(title, message, type) {
-        // Crea e mostra un alert Bootstrap dinamico
+    // === FUNZIONE PER MOSTRARE ERRORI DI VALIDAZIONE ===
+    function showValidationErrors(errors) {
+        // Rimuove eventuali alert precedenti
+        const existingAlert = document.querySelector('.validation-alert');
+        if (existingAlert) {
+            existingAlert.remove();
+        }
+        
+        // Crea nuovo alert con tutti gli errori
         const alertContainer = document.createElement('div');
-        alertContainer.className = `alert alert-${type} alert-dismissible fade show`;
+        alertContainer.className = 'alert alert-danger alert-dismissible fade show validation-alert';
+        
+        let errorsHtml = '<ul class="mb-0">';
+        errors.forEach(error => {
+            errorsHtml += `<li>${error}</li>`;
+        });
+        errorsHtml += '</ul>';
+        
         alertContainer.innerHTML = `
-            <strong>${title}:</strong> ${message}
+            <h6><i class="bi bi-exclamation-triangle me-2"></i>Errori di Validazione</h6>
+            <p class="mb-2">Correggi i seguenti errori prima di continuare:</p>
+            ${errorsHtml}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
         
-        // Inserisce l'alert all'inizio del contenuto della card
+        // Inserisce l'alert all'inizio del form
         const cardBody = document.querySelector('.card-body');
         if (cardBody) {
             cardBody.insertBefore(alertContainer, cardBody.firstChild);
             
-            // Rimuove automaticamente dopo 5 secondi
-            setTimeout(() => {
-                if (alertContainer.parentNode) {
-                    alertContainer.remove();
-                }
-            }, 5000);
+            // Scrolla verso l'alert
+            alertContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     }
     
-    // === AUTO-FOCUS SUL PRIMO CAMPO ===
+    // === CONTROLLO CAMPI IN TEMPO REALE ===
+    function checkFormCompletion() {
+        const allFields = [
+            document.getElementById('nome'),
+            document.getElementById('indirizzo'),
+            document.getElementById('citta'),
+            document.getElementById('provincia'),
+            document.getElementById('cap'),
+            document.getElementById('telefono'),
+            document.getElementById('email')
+        ];
+        
+        const filledFields = allFields.filter(field => 
+            field && field.value.trim().length > 0
+        ).length;
+        
+        const progress = (filledFields / allFields.length) * 100;
+        
+        // Aggiorna lo stato del pulsante
+        if (btnSalva) {
+            if (progress === 100) {
+                btnSalva.classList.remove('btn-outline-primary');
+                btnSalva.classList.add('btn-primary');
+                btnSalva.disabled = false;
+            } else {
+                btnSalva.classList.remove('btn-primary');
+                btnSalva.classList.add('btn-outline-primary');
+            }
+        }
+        
+        console.log(`📊 Completamento form: ${progress.toFixed(0)}% (${filledFields}/${allFields.length})`);
+    }
+    
+    // Monitora cambiamenti in tutti i campi
+    const allInputs = document.querySelectorAll('input, select');
+    allInputs.forEach(input => {
+        input.addEventListener('input', checkFormCompletion);
+        input.addEventListener('change', checkFormCompletion);
+    });
+    
+    // === AUTO-FOCUS E INIZIALIZZAZIONE ===
     const primoInput = document.getElementById('nome');
     if (primoInput) {
         primoInput.focus();
+        
+        // Mostra suggerimento se il campo è vuoto
+        if (!primoInput.value) {
+            setTimeout(() => {
+                if (!primoInput.value) {
+                    primoInput.placeholder = '✏️ Inizia digitando il nome del centro...';
+                }
+            }, 2000);
+        }
     }
+    
+    // Controllo iniziale completamento
+    checkFormCompletion();
+    
+    console.log('✅ Form creazione centro inizializzato - Validazione completa attiva');
 });
 </script>
 @endpush
 
-{{-- CSS personalizzato per questa pagina --}}
+{{-- CSS personalizzato per form con campi obbligatori --}}
 @push('styles')
 <style>
-/* Stili per campi obbligatori */
+/* Stili per campi obbligatori più evidenti */
+.form-label.required {
+    font-weight: 600;
+    color: #495057;
+}
+
 .form-label.required::after {
     content: " *";
     color: #dc3545;
     font-weight: bold;
+    font-size: 1.1em;
+}
+
+/* Badge "Tutti Obbligatori" nel header */
+.card-header .badge {
+    font-size: 0.75rem;
+}
+
+/* Validazione visiva migliorata */
+.form-control.is-valid,
+.form-select.is-valid {
+    border-color: #198754;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%23198754' d='m2.3 6.73.94-.94 1.38 1.38'/%3e%3c/svg%3e");
+}
+
+.form-control.is-invalid,
+.form-select.is-invalid {
+    border-color: #dc3545;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath d='m5.8 5.8 2.4 2.4M8.2 5.8l-2.4 2.4'/%3e%3c/svg%3e");
 }
 
 /* Stile per select provincia più compatta */
+#provincia {
+    font-size: 0.9rem;
+}
+
 #provincia option {
-    padding: 2px 5px;
+    padding: 4px 8px;
+    font-size: 0.85rem;
 }
 
-/* Hover effect per i pulsanti */
-.btn-outline-secondary:hover {
+/* Alert di validazione personalizzato */
+.validation-alert {
+    border-left: 4px solid #dc3545;
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+}
+
+.validation-alert h6 {
+    color: #721c24;
+    margin-bottom: 0.5rem;
+}
+
+.validation-alert ul li {
+    margin-bottom: 0.25rem;
+    color: #721c24;
+}
+
+/* Animazioni per feedback visivo */
+.form-control,
+.form-select {
+    transition: all 0.15s ease-in-out;
+}
+
+.btn {
+    transition: all 0.2s ease-in-out;
+}
+
+.btn:hover {
     transform: translateY(-1px);
-    transition: transform 0.2s ease;
 }
 
-.btn-primary:hover {
-    transform: translateY(-1px);
-    transition: transform 0.2s ease;
-}
-
-/* Animazione per il contatore caratteri */
+/* Contatore caratteri migliorato */
 #nomeCount {
     transition: color 0.3s ease;
+    font-weight: 600;
 }
 
-/* Migliore spaziatura per gli alert */
-.alert {
-    margin-bottom: 1.5rem;
+/* Alert informativo più visibile */
+.alert-warning {
+    border-left: 4px solid #ffc107;
+    background-color: #fff3cd;
 }
 
-/* Stile per i suggerimenti nella sidebar */
-.card-body h6.text-primary {
-    border-left: 3px solid #0d6efd;
+.alert-success {
+    border-left: 4px solid #198754;
+    background-color: #d1e7dd;
+}
+
+/* Esempio centro nella sidebar */
+.card-body h6.text-success {
+    border-left: 3px solid #198754;
     padding-left: 8px;
     margin-bottom: 8px;
 }
 
-/* Focus migliorato per i campi */
+/* Focus migliorato */
 .form-control:focus,
 .form-select:focus {
     border-color: #86b7fe;
     box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+    transform: scale(1.01);
 }
 
-/* Responsive design per mobile */
+/* Responsive per mobile */
 @media (max-width: 768px) {
     .d-flex.gap-2 {
         flex-direction: column;
@@ -647,6 +878,40 @@ document.addEventListener('DOMContentLoaded', function() {
         width: 100%;
         margin-bottom: 0.5rem;
     }
+    
+    .card-header .badge {
+        display: block;
+        margin-top: 0.5rem;
+    }
+}
+
+/* Loading state per il pulsante */
+.btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+/* Miglioramenti tipografici */
+.small,
+small {
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+strong {
+    font-weight: 600;
+}
+
+/* Icone nei placeholder */
+::placeholder {
+    color: #6c757d;
+    opacity: 0.8;
+}
+
+/* Stile per campi completati */
+.form-control.completed {
+    background-color: #f8f9fa;
+    border-color: #198754;
 }
 </style>
 @endpush
