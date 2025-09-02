@@ -167,250 +167,280 @@
     
     <!-- === NAVBAR DINAMICA === -->
     <nav class="navbar navbar-expand-lg navbar-custom">
-        <div class="container">
-            <!-- Logo e nome dell'applicazione -->
-            <a class="navbar-brand" href="{{ route('home') }}">
-                <i class="bi bi-wrench-adjustable me-2"></i>
-                TechSupport Pro
-            </a>
+    <div class="container">
+        <!-- Logo e nome dell'applicazione -->
+        <a class="navbar-brand" href="{{ route('home') }}">
+            <i class="bi bi-wrench-adjustable me-2"></i>
+            TechSupport Pro
+        </a>
 
-            <!-- Pulsante hamburger per mobile -->
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
+        <!-- Pulsante hamburger per mobile -->
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
 
-            <!-- Menu di navigazione -->
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    {{-- === LINK SEMPRE VISIBILI === --}}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ route('home') }}">
-                            <i class="bi bi-house me-1"></i>Home
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ route('prodotti.pubblico.index') }}">
-                            <i class="bi bi-box me-1"></i>Catalogo Pubblico
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ route('centri.index') }}">
-                            <i class="bi bi-geo-alt me-1"></i>Centri Assistenza
-                        </a>
-                    </li>
-
-                    {{-- === MENU DINAMICO BASATO SUL LIVELLO UTENTE === --}}
-                    @auth
-                        @php
-                            $user = Auth::user();
-                            $livello = $user->livello_accesso;
-                        @endphp
+        <!-- Menu di navigazione -->
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                
+                {{-- === LINK PUBBLICI (Livello 1 - Sempre visibili) === --}}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('home') }}">
+                        <i class="bi bi-house me-1"></i>Home
+                    </a>
+                </li>
+                
+                {{-- CATALOGO PRODOTTI PUBBLICO (senza malfunzionamenti) --}}
+                <li class="nav-item">
+                    {{-- 
+                        IMPORTANTE: Usa la route PUBBLICA definita in web.php
+                        Route::get('/catalogo', [ProdottoController::class, 'indexPubblico'])->name('prodotti.pubblico.index');
+                    --}}
+                    <a class="nav-link" href="{{ route('prodotti.pubblico.index') }}">
+                        <i class="bi bi-box me-1"></i>Catalogo Pubblico
+                    </a>
+                </li>
+                
+                {{-- CENTRI ASSISTENZA PUBBLICI - QUESTA È LA CORREZIONE PRINCIPALE --}}
+                <li class="nav-item">
+                    {{-- 
+                        CORREZIONE: Usa esattamente la route pubblica definita in web.php:
+                        Route::get('/centri-assistenza', [CentroAssistenzaController::class, 'index'])->name('centri.index');
                         
-                        {{-- DASHBOARD PRINCIPALE - Link diverso per ogni livello --}}
-                        <li class="nav-item">
-                            @if($livello == 4)
-                                {{-- ADMIN: Dashboard amministratore --}}
-                                <a class="nav-link" href="{{ route('admin.dashboard') }}">
-                                    <i class="bi bi-speedometer2 me-1"></i>Dashboard Admin
-                                </a>
-                            @elseif($livello == 3)
-                                {{-- STAFF: Dashboard staff aziendale --}}
-                                <a class="nav-link" href="{{ route('staff.dashboard') }}">
-                                    <i class="bi bi-speedometer2 me-1"></i>Dashboard Staff
-                                </a>
-                            @elseif($livello == 2)
-                                {{-- TECNICO: Dashboard tecnico --}}
-                                <a class="nav-link" href="{{ route('tecnico.dashboard') }}">
-                                    <i class="bi bi-speedometer2 me-1"></i>Dashboard Tecnico
-                                </a>
-                            @else
-                                {{-- PUBBLICO: Dashboard generale --}}
-                                <a class="nav-link" href="{{ route('dashboard') }}">
-                                    <i class="bi bi-speedometer2 me-1"></i>Dashboard
-                                </a>
-                            @endif
-                        </li>
+                        Questa route punta al metodo index() del CentroAssistenzaController
+                        che mostra la vista PUBBLICA dei centri (senza funzionalità admin)
+                    --}}
+                    <a class="nav-link" href="{{ route('centri.index') }}">
+                        <i class="bi bi-geo-alt me-1"></i>Centri Assistenza
+                    </a>
+                </li>
 
-                        {{-- MENU SPECIALIZZATO PER TECNICI E SUPERIORI --}}
-                        @if($livello == 2||$livello == 3)
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                                    <i class="bi bi-exclamation-triangle me-1"></i>Malfunzionamenti
-                                </a>
-                                <ul class="dropdown-menu">
-                                    @if($livello == 2)
-                                        {{-- TECNICO: Solo visualizzazione --}}
-                                        <li><a class="dropdown-item" href="{{ route('prodotti.completo.index') }}">
-                                            <i class="bi bi-search me-1"></i>Catalogo Prodotti
-                                        </a></li>
-                                        <li><a class="dropdown-item" href="{{ route('malfunzionamenti.ricerca') }}">
-                                            <i class="bi bi-list-ul me-1"></i>Elenco Problemi
-                                        </a></li>
-                                    @else
-                                        {{-- STAFF: Gestione completa --}}
-                                        <li><a class="dropdown-item" href="{{ route('prodotti.completo.index') }}">
-                                            <i class="bi bi-box-seam me-1"></i>Catalogo Completo
-                                        </a></li>
-                                        <li><a class="dropdown-item" href="{{ route('malfunzionamenti.ricerca') }}">
-                                            <i class="bi bi-search me-1"></i>Ricerca Soluzioni
-                                        </a></li>
-                                        @if($livello >= 3)
-                                            <li><hr class="dropdown-divider"></li>
-                                            <li><a class="dropdown-item" href="{{ route('staff.create.nuova.soluzione') }}">
-                                                <i class="bi bi-plus-circle me-1"></i>Nuova Soluzione
-                                            </a></li>
-                                        @endif
-                                    @endif
-                                </ul>
-                            </li>
-                        @endif
-
-                        {{-- MENU GESTIONALE PER STAFF E ADMIN --}}
-                        @if($livello >= 3)
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                                    <i class="bi bi-tools me-1"></i>
-                                    @if($livello == 4)
-                                        Amministrazione
-                                    @else
-                                        Gestione
-                                    @endif
-                                </a>
-                                <ul class="dropdown-menu">
-                                    @if($livello == 4)
-                                        {{-- SOLO ADMIN: Gestione completa del sistema --}}
-                                        <li><h6 class="dropdown-header">Gestione Utenti</h6></li>
-                                        <li><a class="dropdown-item" href="{{ route('admin.users.index') }}">
-                                            <i class="bi bi-people me-1"></i>Tutti gli Utenti
-                                        </a></li>
-                                        <li><a class="dropdown-item" href="{{ route('admin.users.create') }}">
-                                            <i class="bi bi-person-plus me-1"></i>Nuovo Utente
-                                        </a></li>
-                                        
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li><h6 class="dropdown-header">Gestione Prodotti</h6></li>
-                                        <li><a class="dropdown-item" href="{{ route('admin.prodotti.index') }}">
-                                            <i class="bi bi-box me-1"></i>Gestisci Prodotti
-                                        </a></li>
-                                        <li><a class="dropdown-item" href="{{ route('admin.prodotti.create') }}">
-                                            <i class="bi bi-plus-square me-1"></i>Nuovo Prodotto
-                                        </a></li>
-                                        
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li><h6 class="dropdown-header">Sistema</h6></li>
-                                        <li><a class="dropdown-item" href="{{ route('admin.statistiche.index') }}">
-                                            <i class="bi bi-graph-up me-1"></i>Statistiche Sistema
-                                        </a></li>
-                                        <li><a class="dropdown-item" href="{{ route('admin.manutenzione.index') }}">
-                                            <i class="bi bi-gear me-1"></i>Manutenzione
-                                        </a></li>
-                                    @else
-                                        {{-- STAFF: Solo gestione soluzioni --}}
-                                        <li><a class="dropdown-item" href="{{ route('staff.statistiche') }}">
-                                            <i class="bi bi-graph-up me-1"></i>Mie Statistiche
-                                        </a></li>
-                                        <li><a class="dropdown-item" href="{{ route('staff.create.nuova.soluzione') }}">
-                                            <i class="bi bi-plus-circle me-1"></i>Crea Soluzione
-                                        </a></li>
-                                    @endif
-                                </ul>
-                            </li>
-                        @endif
-                    @endauth
-                </ul>
-
-                {{-- === MENU UTENTE (Lato destro) === --}}
-                <ul class="navbar-nav">
-                    @guest
-                        {{-- UTENTE NON LOGGATO --}}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ route('login') }}">
-                                <i class="bi bi-box-arrow-in-right me-1"></i>Accedi
+                {{-- === MENU DINAMICO PER UTENTI AUTENTICATI === --}}
+                @auth
+                    @php
+                        $user = Auth::user();
+                        $livello = $user->livello_accesso;
+                    @endphp
+                    
+                    {{-- DASHBOARD PERSONALIZZATA PER LIVELLO --}}
+                    <li class="nav-item">
+                        @if($livello == 4)
+                            {{-- ADMIN: Dashboard amministratore --}}
+                            <a class="nav-link" href="{{ route('admin.dashboard') }}">
+                                <i class="bi bi-speedometer2 me-1"></i>Dashboard Admin
                             </a>
-                        </li>
-                    @else
-                        {{-- UTENTE LOGGATO --}}
+                        @elseif($livello == 3)
+                            {{-- STAFF: Dashboard staff aziendale --}}
+                            <a class="nav-link" href="{{ route('staff.dashboard') }}">
+                                <i class="bi bi-speedometer2 me-1"></i>Dashboard Staff
+                            </a>
+                        @elseif($livello == 2)
+                            {{-- TECNICO: Dashboard tecnico --}}
+                            <a class="nav-link" href="{{ route('tecnico.dashboard') }}">
+                                <i class="bi bi-speedometer2 me-1"></i>Dashboard Tecnico
+                            </a>
+                        @else
+                            {{-- UTENTE STANDARD: Dashboard generale --}}
+                            <a class="nav-link" href="{{ route('dashboard') }}">
+                                <i class="bi bi-speedometer2 me-1"></i>Dashboard
+                            </a>
+                        @endif
+                    </li>
+
+                    {{-- MENU SPECIALIZZATO PER TECNICI E SUPERIORI --}}
+                    @if($livello >= 2)
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                                <i class="bi bi-person-circle me-1"></i>
-                                {{ Auth::user()->nome }} {{ Auth::user()->cognome }}
-                                {{-- Badge livello utente --}}
-                                <span class="badge badge-livello badge-livello-{{ Auth::user()->livello_accesso }} ms-1">
-                                    @switch(Auth::user()->livello_accesso)
-                                        @case(4) Admin @break
-                                        @case(3) Staff @break  
-                                        @case(2) Tecnico @break
-                                        @default Utente
-                                    @endswitch
-                                </span>
+                                <i class="bi bi-exclamation-triangle me-1"></i>Malfunzionamenti
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                {{-- Link alla dashboard principale dell'utente --}}
-                                <li>
-                                    @if(Auth::user()->livello_accesso == 4)
-                                        <a class="dropdown-item" href="{{ route('admin.dashboard') }}">
-                                            <i class="bi bi-speedometer2 me-1"></i>Dashboard Admin
-                                        </a>
-                                    @elseif(Auth::user()->livello_accesso == 3)
-                                        <a class="dropdown-item" href="{{ route('staff.dashboard') }}">
-                                            <i class="bi bi-speedometer2 me-1"></i>Dashboard Staff
-                                        </a>
-                                    @elseif(Auth::user()->livello_accesso == 2)
-                                        <a class="dropdown-item" href="{{ route('tecnico.dashboard') }}">
-                                            <i class="bi bi-speedometer2 me-1"></i>Dashboard Tecnico
-                                        </a>
-                                    @else
-                                        <a class="dropdown-item" href="{{ route('dashboard') }}">
-                                            <i class="bi bi-speedometer2 me-1"></i>La Mia Dashboard
-                                        </a>
-                                    @endif
-                                </li>
-                                
-                                {{-- Link specifici per livello --}}
-                                @if(Auth::user()->livello_accesso >= 3)
-                                    <li><hr class="dropdown-divider"></li>
-                                    @if(Auth::user()->livello_accesso == 3)
-                                        <li><a class="dropdown-item" href="{{ route('staff.statistiche') }}">
-                                            <i class="bi bi-graph-up me-1"></i>Mie Statistiche
-                                        </a></li>
-                                    @elseif(Auth::user()->livello_accesso == 4)
-                                        <li><a class="dropdown-item" href="{{ route('admin.statistiche.index') }}">
-                                            <i class="bi bi-bar-chart me-1"></i>Statistiche Sistema
+                            <ul class="dropdown-menu">
+                                @if($livello == 2)
+                                    {{-- TECNICO: Solo visualizzazione --}}
+                                    <li><a class="dropdown-item" href="{{ route('prodotti.completo.index') }}">
+                                        <i class="bi bi-search me-1"></i>Catalogo Completo
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{{ route('malfunzionamenti.ricerca') }}">
+                                        <i class="bi bi-list-ul me-1"></i>Ricerca Soluzioni
+                                    </a></li>
+                                @else
+                                    {{-- STAFF: Gestione completa --}}
+                                    <li><a class="dropdown-item" href="{{ route('prodotti.completo.index') }}">
+                                        <i class="bi bi-box-seam me-1"></i>Catalogo Completo
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{{ route('malfunzionamenti.ricerca') }}">
+                                        <i class="bi bi-search me-1"></i>Ricerca Soluzioni
+                                    </a></li>
+                                    @if($livello >= 3)
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="{{ route('staff.create.nuova.soluzione') }}">
+                                            <i class="bi bi-plus-circle me-1"></i>Nuova Soluzione
                                         </a></li>
                                     @endif
                                 @endif
-                                
-                                {{-- Informazioni profilo --}}
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <span class="dropdown-item-text">
-                                        <small class="text-muted">
-                                            <i class="bi bi-person-badge me-1"></i>
-                                            {{ Auth::user()->username }}
-                                            @if(Auth::user()->centroAssistenza)
-                                                <br><i class="bi bi-geo-alt me-1"></i>{{ Auth::user()->centroAssistenza->nome }}
-                                            @endif
-                                        </small>
-                                    </span>
-                                </li>
-                                
-                                {{-- Logout --}}
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <form method="POST" action="{{ route('logout') }}" class="d-inline">
-                                        @csrf
-                                        <button type="submit" class="dropdown-item text-danger">
-                                            <i class="bi bi-box-arrow-right me-1"></i>Esci
-                                        </button>
-                                    </form>
-                                </li>
                             </ul>
                         </li>
-                    @endguest
-                </ul>
-            </div>
+                    @endif
+
+                    {{-- MENU AMMINISTRATIVO PER STAFF E ADMIN --}}
+                    @if($livello >= 3)
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                                <i class="bi bi-tools me-1"></i>
+                                @if($livello == 4)
+                                    Amministrazione
+                                @else
+                                    Gestione
+                                @endif
+                            </a>
+                            <ul class="dropdown-menu">
+                                @if($livello == 4)
+                                    {{-- ADMIN: Gestione completa sistema --}}
+                                    <li><h6 class="dropdown-header">Gestione Utenti</h6></li>
+                                    <li><a class="dropdown-item" href="{{ route('admin.users.index') }}">
+                                        <i class="bi bi-people me-1"></i>Tutti gli Utenti
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{{ route('admin.users.create') }}">
+                                        <i class="bi bi-person-plus me-1"></i>Nuovo Utente
+                                    </a></li>
+                                    
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><h6 class="dropdown-header">Gestione Prodotti</h6></li>
+                                    <li><a class="dropdown-item" href="{{ route('admin.prodotti.index') }}">
+                                        <i class="bi bi-box me-1"></i>Gestisci Prodotti
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{{ route('admin.prodotti.create') }}">
+                                        <i class="bi bi-plus-square me-1"></i>Nuovo Prodotto
+                                    </a></li>
+                                    
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><h6 class="dropdown-header">Centri Assistenza</h6></li>
+                                    {{-- 
+                                        IMPORTANTE: QUI L'ADMIN ACCEDE ALLA GESTIONE AMMINISTRATIVA
+                                        Questa è DIVERSA dal link pubblico sopra!
+                                        Route admin: route('admin.centri.index') -> /admin/centri
+                                    --}}
+                                    <li><a class="dropdown-item" href="{{ route('admin.centri.index') }}">
+                                        <i class="bi bi-building me-1"></i>Gestisci Centri
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{{ route('admin.centri.create') }}">
+                                        <i class="bi bi-plus-circle me-1"></i>Nuovo Centro
+                                    </a></li>
+                                    
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><h6 class="dropdown-header">Sistema</h6></li>
+                                    <li><a class="dropdown-item" href="{{ route('admin.statistiche.index') }}">
+                                        <i class="bi bi-graph-up me-1"></i>Statistiche Sistema
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{{ route('admin.manutenzione.index') }}">
+                                        <i class="bi bi-gear me-1"></i>Manutenzione
+                                    </a></li>
+                                @else
+                                    {{-- STAFF: Solo gestione soluzioni --}}
+                                    <li><a class="dropdown-item" href="{{ route('staff.statistiche') }}">
+                                        <i class="bi bi-graph-up me-1"></i>Mie Statistiche
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{{ route('staff.create.nuova.soluzione') }}">
+                                        <i class="bi bi-plus-circle me-1"></i>Crea Soluzione
+                                    </a></li>
+                                @endif
+                            </ul>
+                        </li>
+                    @endif
+                @endauth
+            </ul>
+
+            {{-- === MENU UTENTE (Lato destro) === --}}
+            <ul class="navbar-nav">
+                @guest
+                    {{-- UTENTE NON LOGGATO --}}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ route('login') }}">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>Accedi
+                        </a>
+                    </li>
+                @else
+                    {{-- UTENTE LOGGATO --}}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle me-1"></i>
+                            {{ Auth::user()->nome }} {{ Auth::user()->cognome }}
+                            {{-- Badge livello utente --}}
+                            <span class="badge badge-livello badge-livello-{{ Auth::user()->livello_accesso }} ms-1">
+                                @switch(Auth::user()->livello_accesso)
+                                    @case(4) Admin @break
+                                    @case(3) Staff @break  
+                                    @case(2) Tecnico @break
+                                    @default Utente
+                                @endswitch
+                            </span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            {{-- Link alla dashboard principale dell'utente --}}
+                            <li>
+                                @if(Auth::user()->livello_accesso == 4)
+                                    <a class="dropdown-item" href="{{ route('admin.dashboard') }}">
+                                        <i class="bi bi-speedometer2 me-1"></i>Dashboard Admin
+                                    </a>
+                                @elseif(Auth::user()->livello_accesso == 3)
+                                    <a class="dropdown-item" href="{{ route('staff.dashboard') }}">
+                                        <i class="bi bi-speedometer2 me-1"></i>Dashboard Staff
+                                    </a>
+                                @elseif(Auth::user()->livello_accesso == 2)
+                                    <a class="dropdown-item" href="{{ route('tecnico.dashboard') }}">
+                                        <i class="bi bi-speedometer2 me-1"></i>Dashboard Tecnico
+                                    </a>
+                                @else
+                                    <a class="dropdown-item" href="{{ route('dashboard') }}">
+                                        <i class="bi bi-speedometer2 me-1"></i>La Mia Dashboard
+                                    </a>
+                                @endif
+                            </li>
+                            
+                            {{-- Link specifici per livello --}}
+                            @if(Auth::user()->livello_accesso >= 3)
+                                <li><hr class="dropdown-divider"></li>
+                                @if(Auth::user()->livello_accesso == 3)
+                                    <li><a class="dropdown-item" href="{{ route('staff.statistiche') }}">
+                                        <i class="bi bi-graph-up me-1"></i>Mie Statistiche
+                                    </a></li>
+                                @elseif(Auth::user()->livello_accesso == 4)
+                                    <li><a class="dropdown-item" href="{{ route('admin.statistiche.index') }}">
+                                        <i class="bi bi-bar-chart me-1"></i>Statistiche Sistema
+                                    </a></li>
+                                @endif
+                            @endif
+                            
+                            {{-- Informazioni profilo --}}
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <span class="dropdown-item-text">
+                                    <small class="text-muted">
+                                        <i class="bi bi-person-badge me-1"></i>
+                                        {{ Auth::user()->username }}
+                                        @if(Auth::user()->centroAssistenza)
+                                            <br><i class="bi bi-geo-alt me-1"></i>{{ Auth::user()->centroAssistenza->nome }}
+                                        @endif
+                                    </small>
+                                </span>
+                            </li>
+                            
+                            {{-- Logout --}}
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="POST" action="{{ route('logout') }}" class="d-inline">
+                                    @csrf
+                                    <button type="submit" class="dropdown-item text-danger">
+                                        <i class="bi bi-box-arrow-right me-1"></i>Esci
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
+                @endguest
+            </ul>
         </div>
-    </nav>
+    </div>
+</nav>
 
     <!-- === BREADCRUMB (se presente) === -->
     @if(isset($breadcrumbs) && count($breadcrumbs) > 0)
