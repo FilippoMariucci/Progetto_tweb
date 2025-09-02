@@ -765,86 +765,116 @@ public function adminIndex(Request $request)
      * Route: POST /admin/centri/{centro}/assegna-tecnico
      */
     public function assegnaTecnico(Request $request, CentroAssistenza $centro)
-    {
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
+{
+    if (!Auth::check() || !Auth::user()->isAdmin()) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Non autorizzato'
+        ], 403);
+    }
+
+    $validator = Validator::make($request->all(), [
+        'tecnico_id' => 'required|exists:users,id'
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Tecnico non valido',
+            'errors' => $validator->errors()
+        ], 422);
+    }
+
+    try {
+        DB::beginTransaction();
+
+        $tecnico = User::findOrFail($request->tecnico_id);
+
+        // Verifica che sia effettivamente un tecnico
+        if ($tecnico->livello_accesso != '2') {
             return response()->json([
                 'success' => false,
-                'message' => 'Non autorizzato'
-            ], 403);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'tecnico_id' => 'required|exists:users,id'
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Tecnico non valido',
-                'errors' => $validator->errors()
+                'message' => 'L\'utente selezionato non è un tecnico'
             ], 422);
         }
 
-        try {
-            DB::beginTransaction();
-
-            $tecnico = User::findOrFail($request->tecnico_id);
-
-            // Verifica che sia effettivamente un tecnico
-            if ($tecnico->livello_accesso != '2') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'L\'utente selezionato non è un tecnico'
-                ], 422);
-            }
-
-            // Verifica che non sia già assegnato
-            if ($tecnico->centro_assistenza_id) {
-                $centroAttuale = CentroAssistenza::find($tecnico->centro_assistenza_id);
-                return response()->json([
-                    'success' => false,
-                    'message' => "Il tecnico è già assegnato al centro: {$centroAttuale->nome}"
-                ], 422);
-            }
-
-            // Assegnazione
-            $tecnico->centro_assistenza_id = $centro->id;
-            $tecnico->save();
-
-            DB::commit();
-
-            Log::info('Tecnico assegnato a centro', [
-                'tecnico_id' => $tecnico->id,
-                'centro_id' => $centro->id,
-                'admin_id' => Auth::id()
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => "Tecnico {$tecnico->nome_completo} assegnato con successo",
-                'tecnico' => [
-                    'id' => $tecnico->id,
-                    'nome_completo' => $tecnico->nome_completo,
-                    'specializzazione' => $tecnico->specializzazione
-                ]
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollback();
-
-            Log::error('Errore assegnazione tecnico', [
-                'tecnico_id' => $request->tecnico_id,
-                'centro_id' => $centro->id,
-                'admin_id' => Auth::id(),
-                'error' => $e->getMessage()
-            ]);
-
+        // Verifica che non sia già assegnato a QUESTO centro
+        if ($tecnico->centro_assistenza_id == $centro->id) {
             return response()->json([
                 'success' => false,
-                'message' => 'Errore nell\'assegnazione del tecnico'
-            ], 500);
+                'message' => 'Il tecnico è già assegnato a questo centro'
+            ], 422);
         }
+
+        // Rileva se è un trasferimento
+        $centroAttuale = null;
+        $isTransfer = false;
+        
+        if ($tecnico->centro_assistenza_id) {
+            $centroAttuale = CentroAssistenza::find($tecnico->centro_assistenza_id);
+            $isTransfer = true;
+        }
+
+        // Esegui l'assegnazione (o trasferimento)
+        $tecnico->centro_assistenza_id = $centro->id;
+        $tecnico->save();
+
+        DB::commit();
+
+        // Log dettagliato dell'operazione
+        if ($isTransfer) {
+            Log::info('Tecnico trasferito tra centri', [
+                'tecnico_id' => $tecnico->id,
+                'tecnico_nome' => $tecnico->nome_completo,
+                'centro_precedente_id' => $centroAttuale->id,
+                'centro_precedente_nome' => $centroAttuale->nome,
+                'centro_nuovo_id' => $centro->id,
+                'centro_nuovo_nome' => $centro->nome,
+                'admin_id' => Auth::id()
+            ]);
+            
+            $message = "Tecnico {$tecnico->nome_completo} trasferito da \"{$centroAttuale->nome}\" a \"{$centro->nome}\"";
+        } else {
+            Log::info('Tecnico assegnato a centro', [
+                'tecnico_id' => $tecnico->id,
+                'tecnico_nome' => $tecnico->nome_completo,
+                'centro_id' => $centro->id,
+                'centro_nome' => $centro->nome,
+                'admin_id' => Auth::id()
+            ]);
+            
+            $message = "Tecnico {$tecnico->nome_completo} assegnato al centro \"{$centro->nome}\"";
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'is_transfer' => $isTransfer,
+            'previous_center' => $isTransfer ? $centroAttuale->nome : null,
+            'tecnico' => [
+                'id' => $tecnico->id,
+                'nome_completo' => $tecnico->nome_completo,
+                'specializzazione' => $tecnico->specializzazione
+            ]
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollback();
+
+        Log::error('Errore assegnazione/trasferimento tecnico', [
+            'tecnico_id' => $request->tecnico_id,
+            'centro_id' => $centro->id,
+            'admin_id' => Auth::id(),
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Errore nell\'operazione: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     /**
  * Rimuovi tecnico da centro

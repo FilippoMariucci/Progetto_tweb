@@ -435,63 +435,149 @@ document.addEventListener('DOMContentLoaded', function() {
      * Gestisce l'invio del form di assegnazione tecnico
      */
     function gestisciAssegnazioneTecnico(e) {
-        e.preventDefault();
-        
-        const tecnicoId = selectTecnico.value;
-        if (!tecnicoId) {
-            mostraNotifica('Seleziona un tecnico da assegnare', 'warning');
+    e.preventDefault();
+    
+    const tecnicoId = selectTecnico.value;
+    if (!tecnicoId) {
+        mostraNotifica('Seleziona un tecnico da assegnare', 'warning');
+        return;
+    }
+    
+    // Controlla se è un trasferimento
+    const opzioneSelezionata = selectTecnico.options[selectTecnico.selectedIndex];
+    const centroAttuale = opzioneSelezionata.getAttribute('data-centro-attuale');
+    const nomeTecnico = opzioneSelezionata.text.split(' - ')[0].split(' (')[0];
+    
+    // Chiedi conferma per i trasferimenti
+    if (centroAttuale) {
+        const confermaMsg = `TRASFERIMENTO TECNICO\n\n` +
+                           `Tecnico: ${nomeTecnico}\n` +
+                           `Da: ${centroAttuale}\n` +
+                           `A: {{ $centro->nome }}\n\n` +
+                           `Il tecnico sarà automaticamente rimosso dal centro precedente.\n\n` +
+                           `Confermi il trasferimento?`;
+                           
+        if (!confirm(confermaMsg)) {
             return;
         }
+    }
+    
+    // Disabilita pulsante durante invio
+    btnAssegnaTecnico.disabled = true;
+    const originalText = btnAssegnaTecnico.innerHTML;
+    
+    if (centroAttuale) {
+        btnAssegnaTecnico.innerHTML = '<i class="bi bi-arrow-right me-1"></i> Trasferimento...';
+    } else {
+        btnAssegnaTecnico.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Assegnazione...';
+    }
+    
+    // Prepara e invia dati
+    const formData = new FormData();
+    formData.append('tecnico_id', tecnicoId);
+    formData.append('_token', CSRF_TOKEN);
+    
+    fetch(formAssegnazione.getAttribute('action'), {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => {
+        console.log('Risposta server:', response.status);
+        return response.json();
+    })
+    .then(data => {
+        console.log('Dati ricevuti:', data);
         
-        // Controlla se è un trasferimento
-        const opzioneSelezionata = selectTecnico.options[selectTecnico.selectedIndex];
-        const centroAttuale = opzioneSelezionata.getAttribute('data-centro-attuale');
+        if (data.success) {
+            // Messaggio specifico per trasferimenti vs assegnazioni
+            const tipologiaOperazione = data.is_transfer ? 'trasferito' : 'assegnato';
+            let messaggioSuccesso = data.message;
+            
+            // Mostra notifica di successo
+            mostraNotifica(messaggioSuccesso, 'success');
+            
+            // Se è un trasferimento, mostra info aggiuntive
+            if (data.is_transfer && data.previous_center) {
+                setTimeout(() => {
+                    mostraNotifica(
+                        `Il tecnico è stato automaticamente rimosso da "${data.previous_center}"`, 
+                        'info'
+                    );
+                }, 1000);
+            }
+            
+            console.log(`Tecnico ${tipologiaOperazione} con successo`);
+            
+            // Chiudi modal e ricarica pagina
+            setTimeout(() => {
+                bootstrap.Modal.getInstance(modalAssegnazione).hide();
+                location.reload();
+            }, 2000); // Tempo maggiore per leggere i messaggi
+            
+        } else {
+            throw new Error(data.message || 'Errore nell\'operazione');
+        }
+    })
+    .catch(error => {
+        console.error('Errore operazione:', error);
         
-        if (centroAttuale) {
-            const conferma = confirm(
-                `Il tecnico verrà trasferito dal centro "${centroAttuale}" a questo centro. Continuare?`
-            );
-            if (!conferma) return;
+        // Messaggi di errore specifici
+        let messaggioErrore = 'Errore nell\'operazione';
+        
+        if (error.message.includes('già assegnato a questo centro')) {
+            messaggioErrore = 'Il tecnico è già assegnato a questo centro';
+        } else if (error.message.includes('403')) {
+            messaggioErrore = 'Non hai i permessi per questa operazione';
+        } else if (error.message.includes('422')) {
+            messaggioErrore = 'Dati non validi';
+        } else if (error.message.includes('500')) {
+            messaggioErrore = 'Errore del server';
         }
         
-        // Disabilita pulsante durante invio
-        btnAssegnaTecnico.disabled = true;
-        btnAssegnaTecnico.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Assegnazione...';
-        
-        // Prepara e invia dati
-        const formData = new FormData();
-        formData.append('tecnico_id', tecnicoId);
-        formData.append('_token', CSRF_TOKEN);
-        
-        fetch(formAssegnazione.getAttribute('action'), {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                mostraNotifica(data.message, 'success');
-                setTimeout(() => {
-                    bootstrap.Modal.getInstance(modalAssegnazione).hide();
-                    location.reload();
-                }, 1500);
-            } else {
-                throw new Error(data.message || 'Errore nell\'assegnazione');
-            }
-        })
-        .catch(error => {
-            console.error('❌ Errore assegnazione:', error);
-            mostraNotifica('Errore: ' + error.message, 'danger');
-        })
-        .finally(() => {
-            btnAssegnaTecnico.disabled = false;
-            btnAssegnaTecnico.innerHTML = '<i class="bi bi-check-circle me-1"></i> Assegna Tecnico';
-        });
+        mostraNotifica(messaggioErrore + ': ' + error.message, 'danger');
+    })
+    .finally(() => {
+        // Ripristina pulsante
+        btnAssegnaTecnico.disabled = false;
+        btnAssegnaTecnico.innerHTML = originalText;
+    });
+}
+
+/**
+ * AGGIUNGI anche questa funzione per mostrare info sui trasferimenti
+ */
+function mostraInfoTrasferimento() {
+    const opzioneSelezionata = selectTecnico.options[selectTecnico.selectedIndex];
+    const centroAttuale = opzioneSelezionata?.getAttribute('data-centro-attuale');
+    
+    // Rimuovi info precedenti
+    const infoEsistente = document.getElementById('infoTrasferimento');
+    if (infoEsistente) {
+        infoEsistente.remove();
     }
+    
+    // Se è un trasferimento, mostra avviso
+    if (centroAttuale && selectTecnico.value) {
+        const infoDiv = document.createElement('div');
+        infoDiv.id = 'infoTrasferimento';
+        infoDiv.className = 'alert alert-warning mt-2';
+        infoDiv.innerHTML = `
+            <i class="bi bi-arrow-right-circle me-2"></i>
+            <strong>Trasferimento:</strong> Il tecnico sarà automaticamente rimosso da "${centroAttuale}"
+        `;
+        
+        selectTecnico.parentNode.appendChild(infoDiv);
+    }
+}
+
+// Aggiungi event listener per mostrare info trasferimenti
+if (selectTecnico) {
+    selectTecnico.addEventListener('change', mostraInfoTrasferimento);
+}
     
     /**
      * Mostra notifica temporanea
