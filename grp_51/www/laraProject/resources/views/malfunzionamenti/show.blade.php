@@ -144,7 +144,7 @@
                         
                         {{-- Torna all'elenco --}}
                         <a href="{{ route('malfunzionamenti.index', $prodotto) }}" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-left me-1"></i>Malfunzionamenti di {{ $prodotto->nome }}
+                            <i class="bi bi-exclamation-circle me-1"></i>Malfunzionamenti di: {{ $prodotto->nome }}
                         </a>
                         
                         {{-- SEGNALA PROBLEMA (per tecnici e staff) --}}
@@ -154,7 +154,7 @@
                 class="btn btn-outline-warning btn-sm segnala-btn"
                 onclick="segnalaMalfunzionamento('{{ $malfunzionamento->id }}')"
                 title="Segnala di aver riscontrato questo problema">
-            <i class="bi bi-exclamation-circle me-1"></i>Ho Questo Problema
+            <i class="bi bi-plus-circle me-1"></i>Ho Questo Problema
         </button>
     @endif
                         @endauth
