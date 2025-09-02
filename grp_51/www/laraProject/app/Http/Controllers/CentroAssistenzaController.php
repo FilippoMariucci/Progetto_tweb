@@ -1171,7 +1171,9 @@ public function adminIndex(Request $request)
      * Utilizzata per popolare select di assegnazione
      */
     public function getAvailableTecnici(CentroAssistenza $centro)
-    {
+{
+    try {
+        // Verifica autorizzazioni admin
         if (!Auth::check() || !Auth::user()->isAdmin()) {
             return response()->json([
                 'success' => false,
@@ -1179,52 +1181,76 @@ public function adminIndex(Request $request)
             ], 403);
         }
 
-        try {
-            // Tecnici non assegnati + eventuali filtri geografici
-            $query = User::where('livello_accesso', '2')
-                ->whereNull('centro_assistenza_id');
+        Log::info('Caricamento tecnici disponibili per centro', [
+            'centro_id' => $centro->id,
+            'centro_nome' => $centro->nome,
+            'admin_id' => Auth::id()
+        ]);
 
-            // Priorità a tecnici nella stessa provincia (opzionale)
-            $tecnici = $query->orderByRaw("
-                CASE 
-                    WHEN ? IS NOT NULL THEN 0 
-                    ELSE 1 
-                END, nome, cognome
-            ", [$centro->provincia])
-                ->get(['id', 'nome', 'cognome', 'username', 'specializzazione'])
-                ->map(function($tecnico) {
-                    return [
-                        'id' => $tecnico->id,
-                        'nome_completo' => $tecnico->nome_completo,
-                        'username' => $tecnico->username,
-                        'specializzazione' => $tecnico->specializzazione ?? 'Non specificata'
-                    ];
-                });
+        // Query per tecnici (livello 2)
+        $query = User::where('livello_accesso', 2)
+            ->select([
+                'id', 
+                'nome', 
+                'cognome', 
+                'specializzazione', 
+                'data_nascita',
+                'centro_assistenza_id'
+            ])
+            ->with(['centroAssistenza:id,nome,citta,provincia']);
 
-            return response()->json([
-                'success' => true,
-                'tecnici' => $tecnici,
-                'centro' => [
-                    'id' => $centro->id,
-                    'nome' => $centro->nome,
-                    'provincia' => $centro->provincia
-                ],
-                'total' => $tecnici->count()
-            ]);
+        // Escludi tecnici già assegnati a questo centro specifico
+        $query->where(function($q) use ($centro) {
+            $q->whereNull('centro_assistenza_id') // Tecnici liberi
+              ->orWhere('centro_assistenza_id', '!=', $centro->id); // Trasferibili da altri centri
+        });
 
-        } catch (\Exception $e) {
-            Log::error('Errore tecnici disponibili per centro', [
-                'centro_id' => $centro->id,
-                'admin_id' => Auth::id(),
-                'error' => $e->getMessage()
-            ]);
+        $tecnici = $query->orderBy('nome')
+            ->orderBy('cognome')
+            ->get()
+            ->map(function($tecnico) {
+                return [
+                    'id' => $tecnico->id,
+                    'nome_completo' => $tecnico->nome_completo,
+                    'specializzazione' => $tecnico->specializzazione ?? 'Non specificata',
+                    'eta' => $tecnico->eta,
+                    'centro_attuale' => $tecnico->centro_assistenza_id ? [
+                        'id' => $tecnico->centroAssistenza->id,
+                        'nome' => $tecnico->centroAssistenza->nome,
+                        'citta' => $tecnico->centroAssistenza->citta,
+                        'status' => 'assigned' // Tecnico già assegnato
+                    ] : [
+                        'status' => 'unassigned' // Tecnico libero
+                    ]
+                ];
+            });
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Errore nel caricamento dei tecnici disponibili'
-            ], 500);
-        }
+        return response()->json([
+            'success' => true,
+            'tecnici' => $tecnici,
+            'count' => $tecnici->count(),
+            'centro_target' => [
+                'id' => $centro->id,
+                'nome' => $centro->nome,
+                'citta' => $centro->citta
+            ]
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Errore caricamento tecnici disponibili per centro', [
+            'error' => $e->getMessage(),
+            'centro_id' => $centro->id,
+            'admin_id' => Auth::id(),
+            'trace' => $e->getTraceAsString()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Errore nel caricamento dei tecnici disponibili',
+            'error' => app()->environment('local') ? $e->getMessage() : 'Errore interno'
+        ], 500);
     }
+}
 
     // ================================================
     // SEZIONE 6: METODI UTILITY E HELPER

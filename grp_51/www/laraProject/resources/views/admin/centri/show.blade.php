@@ -358,19 +358,148 @@ document.addEventListener('DOMContentLoaded', function() {
     /**
      * Carica la lista dei tecnici disponibili per l'assegnazione
      */
-    function caricaTecniciDisponibili() {
-        console.log('🔄 Caricamento tecnici disponibili...');
+    /**
+ * SOSTITUISCI questa funzione nel JavaScript della vista show.blade.php
+ * Carica la lista dei tecnici disponibili per l'assegnazione
+ */
+function caricaTecniciDisponibili() {
+    console.log('🔄 Caricamento tecnici disponibili per centro ID:', CENTRO_ID);
+    
+    // Reset select
+    selectTecnico.innerHTML = '<option value="">Caricamento tecnici...</option>';
+    selectTecnico.disabled = true;
+    btnAssegnaTecnico.disabled = true;
+    
+    // === URL API CORRETTO - CORRISPONDE ALLA ROUTE ESISTENTE ===
+    const apiUrl = `${BASE_URL}/api/admin/centri/${CENTRO_ID}/tecnici-disponibili`;
+    console.log('🔗 URL API chiamata:', apiUrl);
+    console.log('🔐 CSRF Token presente:', CSRF_TOKEN ? 'SI' : 'NO');
+    
+    // Headers per la richiesta
+    const headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+    };
+    
+    // Aggiungi CSRF token se presente
+    if (CSRF_TOKEN) {
+        headers['X-CSRF-TOKEN'] = CSRF_TOKEN;
+    }
+    
+    // Chiamata API con gestione errori migliorata
+    fetch(apiUrl, {
+        method: 'GET',
+        headers: headers,
+        credentials: 'same-origin' // Include cookies di sessione
+    })
+    .then(response => {
+        console.log('📡 Risposta API:', response.status, response.statusText);
         
-        // Reset select
-        selectTecnico.innerHTML = '<option value="">Caricamento...</option>';
-        selectTecnico.disabled = true;
-        btnAssegnaTecnico.disabled = true;
+        // Debug dettagliato per errori HTTP
+        if (!response.ok) {
+            console.error('❌ Errore HTTP dettagliato:', {
+                status: response.status,
+                statusText: response.statusText,
+                url: response.url,
+                headers: Object.fromEntries(response.headers.entries())
+            });
+            
+            // Messaggi di errore specifici
+            let errorMessage = 'Errore HTTP ' + response.status;
+            switch (response.status) {
+                case 403:
+                    errorMessage = 'Non hai i permessi per accedere a questa funzione';
+                    break;
+                case 404:
+                    errorMessage = 'Route API non trovata. Verifica la configurazione delle route.';
+                    break;
+                case 422:
+                    errorMessage = 'Dati della richiesta non validi';
+                    break;
+                case 500:
+                    errorMessage = 'Errore interno del server';
+                    break;
+            }
+            
+            throw new Error(errorMessage);
+        }
         
-        // URL API per tecnici disponibili
-        const apiUrl = `${BASE_URL}/api/admin/centri/${CENTRO_ID}/tecnici-disponibili`;
+        return response.json();
+    })
+    .then(data => {
+        console.log('✅ Dati ricevuti dal server:', data);
         
-        // Chiamata API
-        fetch(apiUrl, {
+        if (data.success) {
+            popolaSelectTecnici(data.tecnici || []);
+            console.log(`✅ Caricati ${data.count || 0} tecnici disponibili`);
+            
+            // Log dettagli per debug
+            if (data.centro_target) {
+                console.log('🎯 Centro target:', data.centro_target);
+            }
+        } else {
+            console.error('❌ Errore nella risposta del server:', data.message);
+            throw new Error(data.message || 'Errore sconosciuto dal server');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Errore completo caricamento tecnici:', error);
+        
+        // Mostra messaggio di errore specifico nella select
+        let messaggioErrore = 'Errore nel caricamento';
+        
+        if (error.message.includes('403')) {
+            messaggioErrore = 'Accesso negato - verifica i permessi';
+        } else if (error.message.includes('404')) {
+            messaggioErrore = 'API non trovata - controlla le route';
+        } else if (error.message.includes('500')) {
+            messaggioErrore = 'Errore del server - controlla i log';
+        } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+            messaggioErrore = 'Errore di connessione - riprova';
+        }
+        
+        selectTecnico.innerHTML = `<option value="">⚠️ ${messaggioErrore}</option>`;
+        mostraNotifica('Errore: ' + messaggioErrore, 'danger');
+        
+        // Debug aggiuntivo per sviluppo
+        console.log('🔍 Debug info:', {
+            baseUrl: BASE_URL,
+            centroId: CENTRO_ID,
+            completeUrl: apiUrl,
+            userAgent: navigator.userAgent,
+            timestamp: new Date().toISOString()
+        });
+    })
+    .finally(() => {
+        // Riabilita la select anche in caso di errore
+        selectTecnico.disabled = false;
+        console.log('🏁 Completato tentativo caricamento tecnici');
+        
+        // Controlla se ci sono opzioni disponibili per abilitare il pulsante
+        if (selectTecnico.options.length > 1) { // Più di una opzione (escluso placeholder)
+            btnAssegnaTecnico.disabled = false;
+        }
+    });
+}
+
+/**
+ * TEST HELPER: Aggiungi questa funzione temporaneamente per debug
+ * RIMUOVI dopo aver risolto il problema
+ */
+function testApiConnection() {
+    console.log('🧪 TEST CONNESSIONE API CENTRI');
+    
+    const testUrls = [
+        `${BASE_URL}/api/admin/centri/${CENTRO_ID}/tecnici-disponibili`, // URL attuale
+        `${BASE_URL}/api/admin/tecnici-disponibili`, // URL alternativo
+        `${BASE_URL}/admin/centri/${CENTRO_ID}/assegna-tecnico`, // URL assegnazione
+    ];
+    
+    testUrls.forEach((url, index) => {
+        console.log(`📍 Test URL ${index + 1}: ${url}`);
+        
+        fetch(url, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
@@ -379,28 +508,18 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .then(response => {
-            if (!response.ok) {
-                throw new Error(`Errore HTTP: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                popolaSelectTecnici(data.tecnici || []);
-                console.log('✅ Tecnici caricati:', data.tecnici.length);
-            } else {
-                throw new Error(data.message || 'Errore nel caricamento');
-            }
+            console.log(`✅ URL ${index + 1} risponde:`, response.status, response.statusText);
         })
         .catch(error => {
-            console.error('❌ Errore caricamento tecnici:', error);
-            selectTecnico.innerHTML = '<option value="">Errore nel caricamento</option>';
-            mostraNotifica('Errore nel caricamento dei tecnici: ' + error.message, 'danger');
-        })
-        .finally(() => {
-            selectTecnico.disabled = false;
+            console.log(`❌ URL ${index + 1} fallisce:`, error.message);
         });
-    }
+    });
+}
+
+// Esegui test di connessione al caricamento (RIMUOVI in produzione)
+if (typeof CENTRO_ID !== 'undefined' && CENTRO_ID) {
+    testApiConnection();
+}
     
     /**
      * Popola la select con i tecnici disponibili
