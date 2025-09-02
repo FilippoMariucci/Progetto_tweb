@@ -412,26 +412,34 @@
                         
                         {{-- Link al catalogo: pubblico o tecnico in base all'autenticazione --}}
                         @auth
-                            @if(Auth::user()->livello_accesso >= 2)
-                                {{-- Catalogo tecnico completo con malfunzionamenti --}}
-                                <a href="{{ route('prodotti.completo.index') }}" class="btn btn-outline-warning btn-sm">
-                                    <i class="bi bi-tools me-2"></i>
-                                    Catalogo Tecnico
-                                </a>
-                            @else
-                                {{-- Catalogo pubblico senza malfunzionamenti --}}
-                                <a href="{{ route('prodotti.index') }}" class="btn btn-outline-primary btn-sm">
-                                    <i class="bi bi-box me-2"></i>
-                                    Catalogo Prodotti
-                                </a>
-                            @endif
-                        @else
-                            {{-- Utente non autenticato - catalogo pubblico --}}
-                            <a href="{{ route('prodotti.index') }}" class="btn btn-outline-primary btn-sm">
-                                <i class="bi bi-box me-2"></i>
-                                Catalogo Prodotti
-                            </a>
-                        @endauth
+    {{-- Tecnico (livelli 2 o 3) --}}
+    @if(Auth::user()->livello_accesso == 2 || Auth::user()->livello_accesso == 3)
+        <a href="{{ route('prodotti.completo.index') }}" class="btn btn-outline-warning btn-sm">
+            <i class="bi bi-tools me-2"></i>
+            Catalogo Tecnico
+        </a>
+
+    {{-- Admin (livello 4) --}}
+    @elseif(Auth::user()->livello_accesso == 4)
+        <a href="{{ route('admin.prodotti.index') }}" class="btn btn-outline-danger btn-sm">
+            <i class="bi bi-shield-lock me-2"></i>
+            Catalogo Admin
+        </a>
+
+    {{-- Utente autenticato ma con livello diverso --}}
+    @else
+        <a href="{{ route('prodotti.pubblico.index') }}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-box me-2"></i>
+            Catalogo Prodotti
+        </a>
+    @endif
+@else
+    {{-- Utente non autenticato --}}
+    <a href="{{ route('prodotti.pubblico.index') }}" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-box me-2"></i>
+        Catalogo Prodotti
+    </a>
+@endauth
                         
                         <a href="{{ route('home') }}" class="btn btn-outline-info btn-sm">
                             <i class="bi bi-house me-2"></i>
