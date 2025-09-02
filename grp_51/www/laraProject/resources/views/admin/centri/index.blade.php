@@ -376,32 +376,39 @@
                                     </td>
                                     
                                     {{-- Azioni --}}
-                                    <td>
-                                        <div class="btn-group" role="group">
-                                            {{-- Visualizza --}}
-                                            <a href="{{ route('centri.show', $centro->id) }}" 
-                                               class="btn btn-outline-primary btn-sm" 
-                                               title="Visualizza dettagli centro" 
-                                               target="_blank">
-                                                <i class="bi bi-eye"></i>
-                                            </a>
-                                            
-                                            {{-- Modifica --}}
-                                            <a href="{{ route('admin.centri.edit', $centro->id) }}" 
-                                               class="btn btn-outline-warning btn-sm" 
-                                               title="Modifica centro">
-                                                <i class="bi bi-pencil"></i>
-                                            </a>
-                                            
-                                            {{-- Elimina --}}
-                                          <button type="button" 
-        class="btn btn-outline-danger btn-sm" 
-        title="Elimina centro"
-        onclick="confirmDelete({{ $centro->id }}, '{{ addslashes($centro->nome) }}')">
-    <i class="bi bi-trash"></i>
-</button>
-                                        </div>
-                                    </td>
+                                    
+<td>
+    <div class="btn-group" role="group">
+        {{-- Visualizza --}}
+        <a href="{{ route('centri.show', $centro->id) }}" 
+           class="btn btn-outline-primary btn-sm" 
+           title="Visualizza dettagli centro" 
+           target="_blank">
+            <i class="bi bi-eye"></i>
+        </a>
+        
+        {{-- Modifica --}}
+        <a href="{{ route('admin.centri.edit', $centro->id) }}" 
+           class="btn btn-outline-warning btn-sm" 
+           title="Modifica centro">
+            <i class="bi bi-pencil"></i>
+        </a>
+        
+        {{-- Elimina - Form diretto funzionante --}}
+        <form action="{{ route('admin.centri.destroy', $centro) }}" 
+              method="POST" 
+              class="d-inline"
+              onsubmit="return confirm('Sei sicuro di voler eliminare il centro \"{{ $centro->nome }}\"?\n\nQuesta azione eliminerà anche i riferimenti ai tecnici associati e non può essere annullata.')">
+            @csrf
+            @method('DELETE')
+            <button type="submit" 
+                    class="btn btn-outline-danger btn-sm" 
+                    title="Elimina centro">
+                <i class="bi bi-trash"></i>
+            </button>
+        </form>
+    </div>
+</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -520,7 +527,7 @@
     @endif
 </div>
 
-{{-- Modal per conferma eliminazione --}}
+{{-- MODAL (assicurati che sia presente) --}}
 <div class="modal fade" id="deleteModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -533,11 +540,11 @@
             </div>
             <div class="modal-body">
                 <p>Sei sicuro di voler eliminare il centro assistenza:</p>
-                <p class="fw-bold text-danger" id="centro-name"></p>
+                <p class="fw-bold text-danger" id="centro-name">Nome centro</p>
                 <div class="alert alert-warning">
                     <i class="bi bi-exclamation-triangle me-2"></i>
                     <strong>Attenzione:</strong> Questa azione eliminerà anche i riferimenti 
-                    ai tecnici associati a questo centro.
+                    ai tecnici associati a questo centro e non può essere annullata.
                 </div>
             </div>
             <div class="modal-footer">

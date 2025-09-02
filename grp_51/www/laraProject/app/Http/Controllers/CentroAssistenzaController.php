@@ -710,58 +710,51 @@ public function adminIndex(Request $request)
      * Route: DELETE /admin/centri/{centro}
      */
     public function destroy(CentroAssistenza $centro)
-    {
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Non autorizzato'
-            ], 403);
-        }
-
-        try {
-            DB::beginTransaction();
-
-            // Controlla se il centro ha tecnici assegnati
-            $tecniciAssegnati = $centro->tecnici()->count();
-            
-            if ($tecniciAssegnati > 0) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Impossibile eliminare il centro: ha {$tecniciAssegnati} tecnici assegnati"
-                ], 422);
-            }
-
-            // Backup dati per log
-            $centroData = $centro->toArray();
-            $centro->delete();
-
-            DB::commit();
-
-            Log::warning('Centro eliminato', [
-                'centro_data' => $centroData,
-                'admin_id' => Auth::id()
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Centro eliminato con successo'
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollback();
-
-            Log::error('Errore eliminazione centro', [
-                'centro_id' => $centro->id,
-                'admin_id' => Auth::id(),
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Errore nell\'eliminazione'
-            ], 500);
-        }
+{
+    if (!Auth::check() || !Auth::user()->isAdmin()) {
+        abort(403, 'Non autorizzato');
     }
+
+    try {
+        DB::beginTransaction();
+
+        // Controlla se il centro ha tecnici assegnati
+        $tecniciAssegnati = $centro->tecnici()->count();
+        
+        if ($tecniciAssegnati > 0) {
+            return redirect()->back()
+                ->with('error', "Impossibile eliminare il centro: ha {$tecniciAssegnati} tecnici assegnati");
+        }
+
+        // Backup dati per log
+        $nomeCentro = $centro->nome;
+        $centroData = $centro->toArray();
+        
+        $centro->delete();
+
+        DB::commit();
+
+        Log::warning('Centro eliminato', [
+            'centro_data' => $centroData,
+            'admin_id' => Auth::id()
+        ]);
+
+        return redirect()->route('admin.centri.index')
+            ->with('success', "Centro \"{$nomeCentro}\" eliminato con successo");
+
+    } catch (\Exception $e) {
+        DB::rollback();
+
+        Log::error('Errore eliminazione centro', [
+            'centro_id' => $centro->id,
+            'admin_id' => Auth::id(),
+            'error' => $e->getMessage()
+        ]);
+
+        return redirect()->back()
+            ->with('error', 'Errore nell\'eliminazione del centro');
+    }
+}
 
     // ================================================
     // SEZIONE 4: GESTIONE TECNICI NEI CENTRI (Solo Admin)
@@ -935,55 +928,88 @@ public function adminIndex(Request $request)
      * Route: GET /api/admin/tecnici-disponibili
      * Utilizzata nelle interfacce di gestione centri
      */
-    public function getTecniciDisponibili()
-    {
+    public function getTecniciDisponibili(Request $request, CentroAssistenza $centro = null)
+{
+    try {
+        // Verifica autorizzazioni admin
         if (!Auth::check() || !Auth::user()->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Accesso non autorizzato'
+                'message' => 'Non autorizzato'
             ], 403);
         }
 
-        try {
-            // Tecnici non ancora assegnati a nessun centro
-            $tecnici = User::where('livello_accesso', '2')
-                ->whereNull('centro_assistenza_id')
-                ->orderBy('nome')
-                ->orderBy('cognome')
-                ->get(['id', 'nome', 'cognome', 'username', 'specializzazione', 'data_nascita', 'created_at'])
-                ->map(function($tecnico) {
-                    return [
-                        'id' => $tecnico->id,
-                        'nome_completo' => $tecnico->nome_completo,
-                        'username' => $tecnico->username,
-                        'specializzazione' => $tecnico->specializzazione ?? 'Non specificata',
-                        'data_nascita' => $tecnico->data_nascita ? 
-                            $tecnico->data_nascita->format('d/m/Y') : 'Non specificata',
-                        'registrato_da' => $tecnico->created_at->diffForHumans(),
-                        'eta' => $tecnico->data_nascita ? 
-                            $tecnico->data_nascita->age : null
-                    ];
-                });
+        Log::info('Caricamento tecnici disponibili', [
+            'centro_id' => $centro ? $centro->id : 'all',
+            'admin_id' => Auth::id()
+        ]);
 
-            return response()->json([
-                'success' => true,
-                'tecnici' => $tecnici,
-                'total' => $tecnici->count(),
-                'timestamp' => now()->toISOString()
-            ]);
+        // Query base per tecnici (livello 2)
+        $query = User::where('livello_accesso', 2)
+            ->select([
+                'id', 
+                'nome', 
+                'cognome', 
+                'specializzazione', 
+                'data_nascita',
+                'centro_assistenza_id'
+            ])
+            ->with(['centroAssistenza:id,nome,citta,provincia']);
 
-        } catch (\Exception $e) {
-            Log::error('Errore API tecnici disponibili', [
-                'admin_id' => Auth::id(),
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Errore nel caricamento dei tecnici disponibili'
-            ], 500);
+        // Se è per un centro specifico, escludi i tecnici già assegnati
+        if ($centro) {
+            $query->where(function($q) use ($centro) {
+                $q->whereNull('centro_assistenza_id') // Tecnici liberi
+                  ->orWhere('centro_assistenza_id', '!=', $centro->id); // Trasferibili
+            });
         }
+
+        $tecnici = $query->orderBy('nome')
+            ->orderBy('cognome')
+            ->get()
+            ->map(function($tecnico) {
+                return [
+                    'id' => $tecnico->id,
+                    'nome_completo' => $tecnico->nome_completo,
+                    'specializzazione' => $tecnico->specializzazione ?? 'Non specificata',
+                    'eta' => $tecnico->eta,
+                    'centro_attuale' => $tecnico->centro_assistenza_id ? [
+                        'id' => $tecnico->centroAssistenza->id,
+                        'nome' => $tecnico->centroAssistenza->nome,
+                        'citta' => $tecnico->centroAssistenza->citta,
+                        'status' => 'assigned' // Tecnico già assegnato
+                    ] : [
+                        'status' => 'unassigned' // Tecnico libero
+                    ]
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'tecnici' => $tecnici,
+            'count' => $tecnici->count(),
+            'centro_target' => $centro ? [
+                'id' => $centro->id,
+                'nome' => $centro->nome,
+                'citta' => $centro->citta
+            ] : null
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Errore caricamento tecnici disponibili', [
+            'error' => $e->getMessage(),
+            'centro_id' => $centro ? $centro->id : null,
+            'admin_id' => Auth::id()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Errore nel caricamento dei tecnici disponibili',
+            'error' => app()->environment('local') ? $e->getMessage() : null
+        ], 500);
     }
+}
+
 
     /**
      * API: Dettagli tecnico specifico
