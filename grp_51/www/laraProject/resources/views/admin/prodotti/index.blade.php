@@ -1,95 +1,51 @@
-{{-- Vista per gestione prodotti Admin - CORREZIONE ELIMINAZIONE --}}
+{{-- 
+    VISTA GESTIONE PRODOTTI ADMIN CON STILE CATALOGO TECNICO
+    Mantiene tutte le funzionalità admin originali ma con il design del catalogo completo
+--}}
+
 @extends('layouts.app')
 
 @section('title', 'Gestione Prodotti')
 
 @section('content')
-<div class="container-fluid mt-4">
+<div class="container-fluid px-3 px-lg-4">
     
-    <!-- === HEADER CON STATISTICHE === -->
-    <div class="row mb-4">
+    {{-- Header principale con stile identico al catalogo --}}
+    <div class="row mb-3">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <div class="d-flex align-items-center">
-                    <i class="bi bi-gear-fill text-primary me-3 fs-2"></i>
-                    <div>
-                        <h1 class="h2 mb-1">Gestione Prodotti</h1>
-                        <p class="text-muted mb-0">
-                            Amministrazione completa del catalogo prodotti
-                        </p>
-                    </div>
-                </div>
-                
-                <!-- Pulsante Nuovo Prodotto -->
-                <div>
-                    <a href="{{ route('admin.prodotti.create') }}" class="btn btn-success">
-                        <i class="bi bi-plus-circle me-1"></i>Nuovo Prodotto
-                    </a>
-                </div>
-            </div>
-            
-            <!-- Statistiche Rapide -->
-            <div class="row">
-                <div class="col-lg-3 col-md-6 mb-3">
-                    <div class="card card-stats bg-primary text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h3 class="mb-1">{{ $stats['total_prodotti'] ?? 0 }}</h3>
-                                    <p class="mb-0">Prodotti Totali</p>
-                                </div>
-                                <div class="align-self-center">
-                                    <i class="bi bi-box fs-1"></i>
-                                </div>
-                            </div>
+            <div class="card shadow-sm border-0 bg-gradient-primary text-white">
+                <div class="card-body py-3">
+                    <div class="row align-items-center">
+                        {{-- Titolo e descrizione --}}
+                        <div class="col-lg-8 col-md-7">
+                            <h2 class="mb-1 fw-bold">
+                                <i class="bi bi-gear-fill me-2"></i>
+                                Gestione Prodotti Admin
+                            </h2>
+                            <p class="mb-0 opacity-90">
+                                <span class="badge bg-danger text-white me-2">Amministrazione Completa</span>
+                                Controllo totale del catalogo prodotti
+                            </p>
                         </div>
-                    </div>
-                </div>
-                
-                <div class="col-lg-3 col-md-6 mb-3">
-                    <div class="card card-stats bg-success text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h3 class="mb-1">{{ $stats['attivi'] ?? 0 }}</h3>
-                                    <p class="mb-0">Attivi</p>
+                        
+                        {{-- Statistiche amministrative nella header --}}
+                        <div class="col-lg-4 col-md-5 mt-2 mt-md-0">
+                            @if(isset($stats))
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <div class="text-center bg-white bg-opacity-10 rounded p-2">
+                                            <div class="h5 fw-bold mb-0">{{ $stats['total_prodotti'] ?? 0 }}</div>
+                                            <small class="opacity-90">Totali</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="text-center bg-white bg-opacity-10 rounded p-2">
+                                            <div class="h5 fw-bold mb-0">{{ $stats['con_malfunzionamenti'] ?? 0 }}</div>
+                                            <small class="opacity-90">Problemi</small>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="align-self-center">
-                                    <i class="bi bi-check-circle fs-1"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="col-lg-3 col-md-6 mb-3">
-                    <div class="card card-stats bg-warning text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h3 class="mb-1">{{ $stats['inattivi'] ?? 0 }}</h3>
-                                    <p class="mb-0">Disattivati</p>
-                                </div>
-                                <div class="align-self-center">
-                                    <i class="bi bi-x-circle fs-1"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="col-lg-3 col-md-6 mb-3">
-                    <div class="card card-stats bg-danger text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h3 class="mb-1">{{ $stats['con_malfunzionamenti'] ?? 0 }}</h3>
-                                    <p class="mb-0">Con Problemi</p>
-                                </div>
-                                <div class="align-self-center">
-                                    <i class="bi bi-exclamation-triangle fs-1"></i>
-                                </div>
-                            </div>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -97,388 +53,460 @@
         </div>
     </div>
 
-    <!-- === FILTRI E RICERCA === -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">
-                <i class="bi bi-funnel me-2"></i>Filtri e Ricerca
-            </h5>
+    {{-- Pulsanti azione flottanti --}}
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050;">
+        <div class="d-flex flex-column gap-2">
+            {{-- Nuovo prodotto --}}
+            <a href="{{ route('admin.prodotti.create') }}" 
+               class="btn btn-success rounded-circle shadow" 
+               style="width: 50px; height: 50px;"
+               data-bs-toggle="tooltip" 
+               title="Aggiungi Nuovo Prodotto">
+                <i class="bi bi-plus" style="font-size: 1.25rem;"></i>
+            </a>
+            
+            {{-- Azioni bulk se ci sono selezioni --}}
+            <button class="btn btn-warning rounded-circle shadow d-none" 
+                    id="bulkActionsBtn"
+                    style="width: 50px; height: 50px;"
+                    data-bs-toggle="dropdown"
+                    title="Azioni Multiple">
+                <i class="bi bi-gear" style="font-size: 1.25rem;"></i>
+            </button>
+            {{-- Menu dropdown per azioni bulk --}}
+<ul class="dropdown-menu" aria-labelledby="bulkActionsBtn">
+    <li>
+        <button class="dropdown-item" type="button" onclick="selectAllProducts()">
+            <i class="bi bi-check-all me-2"></i>Seleziona Tutti
+        </button>
+    </li>
+    <li>
+        <button class="dropdown-item" type="button" onclick="deselectAllProducts()">
+            <i class="bi bi-x-square me-2"></i>Deseleziona Tutti
+        </button>
+    </li>
+    <li><hr class="dropdown-divider"></li>
+    <li>
+        <button class="dropdown-item text-success" type="button" onclick="bulkActivateProducts()">
+            <i class="bi bi-check-circle me-2"></i>Attiva Selezionati
+        </button>
+    </li>
+    <li>
+        <button class="dropdown-item text-warning" type="button" onclick="bulkDeactivateProducts()">
+            <i class="bi bi-x-circle me-2"></i>Disattiva Selezionati
+        </button>
+    </li>
+    <li>
+        <button class="dropdown-item text-danger" type="button" onclick="bulkDeleteProducts()">
+            <i class="bi bi-trash me-2"></i>Elimina Selezionati
+        </button>
+    </li>
+</ul>
         </div>
-        <div class="card-body">
-            <form method="GET" action="{{ route('admin.prodotti.index') }}" id="filterForm">
-                <div class="row">
-                    <!-- Ricerca -->
-                    <div class="col-md-4 mb-3">
-                        <label for="search" class="form-label fw-semibold">Ricerca</label>
-                        <div class="input-group">
-                            <input type="text" 
-                                   name="search" 
-                                   id="search"
-                                   class="form-control" 
-                                   value="{{ request('search') }}"
-                                   placeholder="Nome, modello, descrizione...">
-                            <button type="button" class="btn btn-outline-secondary" id="clearSearch">
-                                <i class="bi bi-x"></i>
-                            </button>
+    </div>
+
+    {{-- Form di ricerca e filtri con design catalogo --}}
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body py-3">
+                    <form method="GET" action="{{ route('admin.prodotti.index') }}" id="filterForm" class="row g-3">
+
+                        {{-- Campo di ricerca avanzata identico al catalogo --}}
+                        <div class="col-lg-4 col-md-6">
+                            <label for="search" class="form-label fw-semibold text-primary">
+                                <i class="bi bi-search me-1"></i>Ricerca Prodotti
+                            </label>
+                            <div class="input-group">
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="search" 
+                                       name="search" 
+                                       value="{{ request('search') }}"
+                                       placeholder="Nome, modello, descrizione..."
+                                       autocomplete="off">
+                                <button class="btn btn-outline-secondary" type="button" id="clearSearch" title="Pulisci ricerca">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">
+                                <strong>Suggerimento:</strong> Supporta ricerche parziali con <code>*</code>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <!-- Stato -->
-                    <div class="col-md-2 mb-3">
-                        <label for="status" class="form-label fw-semibold">Stato</label>
-                        <select name="status" id="status" class="form-select">
-                            <option value="">Tutti</option>
-                            <option value="attivi" {{ request('status') == 'attivi' ? 'selected' : '' }}>
-                                ✅ Attivi
-                            </option>
-                            <option value="inattivi" {{ request('status') == 'inattivi' ? 'selected' : '' }}>
-                                ❌ Disattivati
-                            </option>
-                        </select>
-                    </div>
-                    
-                    <!-- Staff Assegnato -->
-                    <div class="col-md-3 mb-3">
-                        <label for="staff_id" class="form-label fw-semibold">Staff Assegnato</label>
-                        <select name="staff_id" id="staff_id" class="form-select">
-                            <option value="">Tutti</option>
-                            <option value="0" {{ request('staff_id') === '0' ? 'selected' : '' }}>
-                                🚫 Non Assegnati
-                            </option>
-                            @foreach($staffMembers as $staff)
-                                <option value="{{ $staff->id }}" {{ request('staff_id') == $staff->id ? 'selected' : '' }}>
-                                    👤 {{ $staff->nome }} {{ $staff->cognome }}
+
+                        {{-- Filtro stato --}}
+                        <div class="col-lg-2 col-md-3">
+                            <label for="status" class="form-label fw-semibold text-primary">
+                                <i class="bi bi-funnel me-1"></i>Stato
+                            </label>
+                            <select name="status" id="status" class="form-select">
+                                <option value="">Tutti</option>
+                                <option value="attivi" {{ request('status') == 'attivi' ? 'selected' : '' }}>
+                                    ✅ Attivi
                                 </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    
-                    <!-- Pulsanti Azione -->
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label">&nbsp;</label>
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-search me-1"></i>Cerca
-                            </button>
+                                <option value="inattivi" {{ request('status') == 'inattivi' ? 'selected' : '' }}>
+                                    ❌ Disattivati
+                                </option>
+                            </select>
                         </div>
-                    </div>
-                </div>
-                
-                <!-- Filtri Attivi -->
-                @if(request()->hasAny(['search', 'status', 'staff_id']))
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <span class="badge bg-info">Filtri attivi:</span>
-                                
-                                @if(request('search'))
-                                    <span class="badge bg-secondary">
-                                        Ricerca: "{{ request('search') }}"
-                                        <a href="{{ request()->url() }}" class="text-white ms-1">×</a>
-                                    </span>
-                                @endif
-                                
-                                @if(request('status'))
-                                    <span class="badge bg-secondary">
-                                        Stato: {{ request('status') == 'attivi' ? 'Attivi' : 'Disattivati' }}
-                                    </span>
-                                @endif
-                                
-                                @if(request('staff_id'))
-                                    <span class="badge bg-secondary">
-                                        Staff: {{ request('staff_id') === '0' ? 'Non Assegnati' : $staffMembers->find(request('staff_id'))->nome_completo ?? 'N/A' }}
-                                    </span>
-                                @endif
-                                
-                                <a href="{{ route('admin.prodotti.index') }}" class="btn btn-sm btn-outline-secondary">
-                                    <i class="bi bi-arrow-clockwise me-1"></i>Reset
+
+                        {{-- Staff assegnato --}}
+                        <div class="col-lg-3 col-md-3">
+                            <label for="staff_id" class="form-label fw-semibold text-primary">
+                                <i class="bi bi-person-gear me-1"></i>Staff Assegnato
+                            </label>
+                            <select name="staff_id" id="staff_id" class="form-select">
+                                <option value="">Tutti</option>
+                                <option value="0" {{ request('staff_id') === '0' ? 'selected' : '' }}>
+                                    🚫 Non Assegnati
+                                </option>
+                                @foreach($staffMembers as $staff)
+                                    <option value="{{ $staff->id }}" {{ request('staff_id') == $staff->id ? 'selected' : '' }}>
+                                        👤 {{ $staff->nome }} {{ $staff->cognome }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        {{-- Pulsanti azione --}}
+                        <div class="col-lg-3 col-md-12">
+                            <label class="form-label d-none d-lg-block">&nbsp;</label>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary flex-fill">
+                                    <i class="bi bi-search me-1"></i>Cerca
+                                </button>
+                                <a href="{{ route('admin.prodotti.index') }}" 
+                                   class="btn btn-outline-secondary" 
+                                   title="Reset filtri">
+                                    <i class="bi bi-arrow-clockwise"></i>
                                 </a>
                             </div>
                         </div>
-                    </div>
-                @endif
-            </form>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- === TABELLA PRODOTTI === -->
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">
-                <i class="bi bi-table me-2"></i>Elenco Prodotti
-                <span class="badge bg-primary ms-2">{{ $prodotti->total() }}</span>
-            </h5>
-            
-            <!-- Azioni Bulk -->
-            <div class="dropdown">
-                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="bulkActions" data-bs-toggle="dropdown">
-                    <i class="bi bi-three-dots-vertical me-1"></i>Azioni
-                </button>
-                <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="#" onclick="selectAll()">
-                        <i class="bi bi-check-all me-2"></i>Seleziona Tutti
-                    </a></li>
-                    <li><a class="dropdown-item" href="#" onclick="deselectAll()">
-                        <i class="bi bi-x-square me-2"></i>Deseleziona Tutti
-                    </a></li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item text-success" href="#" onclick="bulkActivate()">
-                        <i class="bi bi-check-circle me-2"></i>Attiva Selezionati
-                    </a></li>
-                    <li><a class="dropdown-item text-warning" href="#" onclick="bulkDeactivate()">
-                        <i class="bi bi-x-circle me-2"></i>Disattiva Selezionati
-                    </a></li>
-                    <li><a class="dropdown-item text-danger" href="#" onclick="bulkDelete()">
-                        <i class="bi bi-trash me-2"></i>Elimina Selezionati
-                    </a></li>
-                </ul>
+    {{-- Filtri rapidi admin --}}
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="badge bg-secondary py-2 px-3">
+                    <i class="bi bi-funnel me-1"></i>Filtri Admin:
+                </span>
+                
+                <a href="{{ route('admin.prodotti.index') }}" 
+                   class="badge {{ !request()->hasAny(['search', 'status', 'staff_id']) ? 'bg-primary' : 'bg-light text-dark border' }} py-2 px-3 text-decoration-none">
+                    Tutti i Prodotti
+                </a>
+                
+                <a href="{{ route('admin.prodotti.index') }}?status=attivi" 
+                   class="badge {{ request('status') === 'attivi' ? 'bg-success' : 'bg-light text-dark border' }} py-2 px-3 text-decoration-none">
+                    Solo Attivi
+                </a>
+                
+                <a href="{{ route('admin.prodotti.index') }}?staff_id=0" 
+                   class="badge {{ request('staff_id') === '0' ? 'bg-warning' : 'bg-light text-dark border' }} py-2 px-3 text-decoration-none">
+                    Non Assegnati
+                </a>
+                
+                <a href="{{ route('admin.prodotti.index') }}?status=inattivi" 
+                   class="badge {{ request('status') === 'inattivi' ? 'bg-danger' : 'bg-light text-dark border' }} py-2 px-3 text-decoration-none">
+                    Disattivati
+                </a>
             </div>
         </div>
-        
-        <div class="card-body p-0">
-            @if($prodotti->count() > 0)
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-dark">
-                            <tr>
-                                <th style="width: 40px;">
-                                    <input type="checkbox" id="selectAllCheckbox" class="form-check-input">
-                                </th>
-                                <th style="width: 80px;">Foto</th>
-                                <th>
-                                    <a href="{{ request()->fullUrlWithQuery(['sort' => 'nome', 'order' => request('order') == 'asc' ? 'desc' : 'asc']) }}" 
-                                       class="text-white text-decoration-none">
-                                        Nome Prodotto
-                                        @if(request('sort') == 'nome')
-                                            <i class="bi bi-arrow-{{ request('order') == 'asc' ? 'up' : 'down' }}"></i>
-                                        @endif
-                                    </a>
-                                </th>
-                                <th>Modello</th>
-                                <th>Categoria</th>
-                                <th>Prezzo</th>
-                                <th>Stato</th>
-                                <th>Staff</th>
-                                <th>Problemi</th>
-                                <th>
-                                    <a href="{{ request()->fullUrlWithQuery(['sort' => 'created_at', 'order' => request('order') == 'asc' ? 'desc' : 'asc']) }}" 
-                                       class="text-white text-decoration-none">
-                                        Creato
-                                        @if(request('sort') == 'created_at')
-                                            <i class="bi bi-arrow-{{ request('order') == 'asc' ? 'up' : 'down' }}"></i>
-                                        @endif
-                                    </a>
-                                </th>
-                                <th style="width: 120px;">Azioni</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($prodotti as $prodotto)
-                                <tr class="align-middle">
-                                    <!-- Checkbox -->
-                                    <td>
-                                        <input type="checkbox" class="form-check-input product-checkbox" value="{{ $prodotto->id }}">
-                                    </td>
-                                    
-                                    <!-- Foto -->
-                                    <td>
-                                        @if($prodotto->foto)
-                                            <img src="{{ asset('storage/' . $prodotto->foto) }}" 
-                                                 class="img-thumbnail" 
-                                                 style="width: 50px; height: 50px; object-fit: cover;"
-                                                 alt="{{ $prodotto->nome }}">
-                                        @else
-                                            <div class="bg-light rounded d-flex align-items-center justify-content-center" 
-                                                 style="width: 50px; height: 50px;">
-                                                <i class="bi bi-image text-muted"></i>
-                                            </div>
-                                        @endif
-                                    </td>
-                                    
-                                    <!-- Nome -->
-                                    <td>
-                                        <div>
-                                            <strong>{{ $prodotto->nome }}</strong>
-                                        </div>
-                                        <small class="text-muted">
-                                            {{ Str::limit($prodotto->descrizione, 60) }}
-                                        </small>
-                                    </td>
-                                    
-                                    <!-- Modello -->
-                                    <td>
-                                        <code class="bg-light px-2 py-1 rounded">{{ $prodotto->modello }}</code>
-                                    </td>
-                                    
-                                    <!-- Categoria -->
-                                    <td>
-                                        <span class="badge bg-info">
-                                            {{ $prodotto->categoria_label }}
-                                        </span>
-                                    </td>
-                                    
-                                    <!-- Prezzo -->
-                                    <td>
-                                        @if($prodotto->prezzo)
-                                            <strong>€ {{ number_format($prodotto->prezzo, 2, ',', '.') }}</strong>
-                                        @else
-                                            <span class="text-muted">N/A</span>
-                                        @endif
-                                    </td>
-                                    
-                                    <!-- Stato -->
-                                    <td>
-                                        @if($prodotto->attivo)
-                                            <i class="bi bi-check-circle text-success fs-5" title="Attivo"></i>
-                                        @else
-                                            <i class="bi bi-x-circle text-danger fs-5" title="Disattivato"></i>
-                                        @endif
-                                    </td>
-                                    
-                                    <!-- Staff Assegnato -->
-                                    <td>
-                                        @if($prodotto->staffAssegnato)
-                                            <span class="badge bg-primary">
-                                                {{ $prodotto->staffAssegnato->nome }} {{ $prodotto->staffAssegnato->cognome }}
-                                            </span>
-                                        @else
-                                            <span class="text-muted">Non assegnato</span>
-                                        @endif
-                                    </td>
-                                    
-                                    <!-- Malfunzionamenti -->
-                                    <td>
-                                        @if($prodotto->malfunzionamenti_count > 0)
-                                            <span class="badge bg-warning">
-                                                {{ $prodotto->malfunzionamenti_count }} problema{{ $prodotto->malfunzionamenti_count > 1 ? 'i' : '' }}
-                                            </span>
-                                        @else
-                                            <span class="badge bg-success">Nessuno</span>
-                                        @endif
-                                    </td>
-                                    
-                                    <!-- Data Creazione -->
-                                    <td>
-                                        <small>
-                                            {{ $prodotto->created_at->format('d/m/Y') }}<br>
-                                            <span class="text-muted">{{ $prodotto->created_at->format('H:i') }}</span>
-                                        </small>
-                                    </td>
-                                    
-                                    <!-- Azioni - SEZIONE CORRETTA -->
-                                    <td>
-                                        <div class="dropdown">
-                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" 
-                                                    type="button" 
-                                                    data-bs-toggle="dropdown">
-                                                <i class="bi bi-three-dots"></i>
-                                            </button>
-                                            <ul class="dropdown-menu">
-                                                <li>
-                                                    <a class="dropdown-item" href="{{ route('admin.prodotti.show', $prodotto) }}">
-                                                        <i class="bi bi-eye me-2"></i>Visualizza
-                                                    </a>
-                                                </li>
-                                                <li>
-                                                    <a class="dropdown-item" href="{{ route('admin.prodotti.edit', $prodotto) }}">
-                                                        <i class="bi bi-pencil me-2"></i>Modifica
-                                                    </a>
-                                                </li>
-                                                <li><hr class="dropdown-divider"></li>
-                                                
-                                                {{-- Toggle stato attivo/inattivo --}}
-                                                @if(Route::has('admin.prodotti.toggle-status'))
-                                                    <li>
-                                                        <form action="{{ route('admin.prodotti.toggle-status', $prodotto) }}" 
-                                                              method="POST" 
-                                                              onsubmit="return confirmToggleStatus({{ $prodotto->attivo ? 'true' : 'false' }})">
-                                                            @csrf
-                                                            <button type="submit" 
-                                                                    class="dropdown-item {{ $prodotto->attivo ? 'text-danger' : 'text-success' }}">
-                                                                <i class="bi bi-{{ $prodotto->attivo ? 'pause' : 'play' }} me-2"></i>
-                                                                {{ $prodotto->attivo ? 'Disattiva' : 'Attiva' }}
-                                                            </button>
-                                                        </form>
-                                                    </li>
-                                                @endif
-                                                
-                                                {{-- CORREZIONE: Form per eliminazione invece di onclick --}}
-                                                <li>
-                                                    <form action="{{ route('admin.prodotti.destroy', $prodotto) }}" 
-                                                          method="POST" 
-                                                          class="d-inline"
-                                                          onsubmit="return confirm('Sei sicuro di voler eliminare il prodotto \"{{ $prodotto->nome }}\"?\n\nQuesta azione non può essere annullata.')">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit" class="dropdown-item text-danger">
-                                                            <i class="bi bi-trash me-2"></i>Elimina
-                                                        </button>
-                                                    </form>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+    </div>
+
+    {{-- Statistiche dettagliate --}}
+    @if(isset($stats))
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <span class="badge bg-primary">{{ $stats['total_prodotti'] }} prodotti totali</span>
+                    <span class="badge bg-success">{{ $stats['attivi'] ?? 0 }} attivi</span>
+                    <span class="badge bg-warning">{{ $stats['inattivi'] ?? 0 }} disattivati</span>
+                    <span class="badge bg-danger">{{ $stats['con_malfunzionamenti'] ?? 0 }} con problemi</span>
+                    
+                    {{-- Filtri applicati --}}
+                    @if(request('search'))
+                        <span class="badge bg-info">Ricerca: "{{ request('search') }}"</span>
+                    @endif
+                    @if(request('status'))
+                        <span class="badge bg-secondary">Stato: {{ ucfirst(request('status')) }}</span>
+                    @endif
+                    @if(request('staff_id') === '0')
+                        <span class="badge bg-warning">Solo Non Assegnati</span>
+                    @elseif(request('staff_id'))
+                        <span class="badge bg-info">Staff: {{ $staffMembers->find(request('staff_id'))->nome_completo ?? 'N/A' }}</span>
+                    @endif
                 </div>
-                
-                {{-- Paginazione compatta --}}
-                @if($prodotti->hasPages())
-                    <div class="row mt-4">
-                        <div class="col-12">
-                            <div class="d-flex justify-content-between align-items-center">
-                                {{-- Info paginazione a sinistra --}}
-                                <small class="text-muted">
-                                    {{ $prodotti->firstItem() }}-{{ $prodotti->lastItem() }} di {{ $prodotti->total() }}
-                                </small>
+            </div>
+        </div>
+    @endif
+
+    {{-- Messaggio risultati ricerca identico al catalogo --}}
+    @if(request()->hasAny(['search', 'status', 'staff_id']))
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="alert alert-info border-0 shadow-sm py-2">
+                    <div class="row align-items-center">
+                        <div class="col-lg-8">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-info-circle-fill me-2"></i>
+                                <div>
+                                    <strong>Risultati filtrati:</strong>
+                                    Trovati <span class="badge bg-primary">{{ $prodotti->total() }}</span> prodotti
+                                    @if(request('search'))
+                                        per "<em class="text-primary">{{ request('search') }}</em>"
+                                    @endif
+                                    @if(request('status'))
+                                        con stato "<em class="text-primary">{{ request('status') }}</em>"
+                                    @endif
+                                    @if(request('staff_id'))
+                                        {{ request('staff_id') === '0' ? 'non assegnati' : 'per staff selezionato' }}
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4 text-end mt-2 mt-lg-0">
+                            <a href="{{ route('admin.prodotti.index') }}" class="btn btn-outline-info btn-sm">
+                                <i class="bi bi-x-circle me-1"></i>Rimuovi filtri
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Griglia prodotti con stile catalogo ma funzionalità admin --}}
+    <div class="row g-3 mb-4" id="prodotti-admin-grid">
+        @forelse($prodotti as $prodotto)
+            <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6">
+                {{-- Card prodotto con design identico al catalogo ma con controlli admin --}}
+                <div class="card h-100 shadow-sm border-0 product-card admin-card
+                    {{-- Stessi bordi colorati del catalogo --}}
+                    @if($prodotto->hasMalfunzionamentiCritici())
+                        border-danger-subtle
+                    @elseif($prodotto->malfunzionamenti_count > 0)
+                        border-warning-subtle
+                    @elseif($prodotto->attivo)
+                        border-success-subtle
+                    @else
+                        border-secondary-subtle
+                    @endif
+                ">
+                    
+                    {{-- Checkbox di selezione per azioni bulk (admin only) --}}
+                    <div class="position-absolute top-0 start-0 m-2" style="z-index: 10;">
+                        <input type="checkbox" 
+                               class="form-check-input product-checkbox shadow" 
+                               value="{{ $prodotto->id }}"
+                               style="transform: scale(1.2);">
+                    </div>
+                    
+                    <div class="position-relative overflow-hidden">
+                        @if($prodotto->foto)
+                            <img src="{{ asset('storage/' . $prodotto->foto) }}" 
+                                 class="card-img-top product-image" 
+                                 alt="{{ $prodotto->nome }}"
+                                 style="height: 160px; object-fit: cover;">
+                        @else
+                            <div class="card-img-top d-flex align-items-center justify-content-center bg-light" 
+                                 style="height: 160px;">
+                                <i class="bi bi-box text-muted" style="font-size: 2.5rem;"></i>
+                            </div>
+                        @endif
+                        
+                        {{-- Badge categoria --}}
+                        <div class="position-absolute top-0 end-0 m-2">
+                            <span class="badge bg-secondary bg-opacity-90 px-2 py-1 mb-1 d-block">
+                                <i class="bi bi-tag me-1"></i>{{ $prodotto->categoria_label ?? ucfirst($prodotto->categoria) }}
+                            </span>
+                        </div>
+
+                        {{-- Indicatori stato admin --}}
+                        <div class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-75">
+                            <div class="d-flex justify-content-between align-items-center p-2">
+                                {{-- Stato attivo/inattivo --}}
+                                <div>
+                                    @if($prodotto->attivo)
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle me-1"></i>Attivo
+                                        </span>
+                                    @else
+                                        <span class="badge bg-danger">
+                                            <i class="bi bi-x-circle me-1"></i>Inattivo
+                                        </span>
+                                    @endif
+                                </div>
                                 
-                                {{-- Controlli paginazione piccoli a destra --}}
-                                <nav aria-label="Paginazione prodotti">
-                                    <ul class="pagination pagination-sm mb-0">
-                                        {{-- Previous --}}
-                                        @if ($prodotti->onFirstPage())
-                                            <li class="page-item disabled">
-                                                <span class="page-link">‹</span>
-                                            </li>
-                                        @else
-                                            <li class="page-item">
-                                                <a class="page-link" href="{{ $prodotti->appends(request()->query())->previousPageUrl() }}">‹</a>
-                                            </li>
-                                        @endif
-
-                                        {{-- Numeri pagina --}}
-                                        @foreach ($prodotti->getUrlRange(1, $prodotti->lastPage()) as $page => $url)
-                                            @if ($page == $prodotti->currentPage())
-                                                <li class="page-item active">
-                                                    <span class="page-link">{{ $page }}</span>
-                                                </li>
-                                            @else
-                                                <li class="page-item">
-                                                    <a class="page-link" href="{{ $prodotti->appends(request()->query())->url($page) }}">{{ $page }}</a>
-                                                </li>
-                                            @endif
-                                        @endforeach
-
-                                        {{-- Next --}}
-                                        @if ($prodotti->hasMorePages())
-                                            <li class="page-item">
-                                                <a class="page-link" href="{{ $prodotti->appends(request()->query())->nextPageUrl() }}">›</a>
-                                            </li>
-                                        @else
-                                            <li class="page-item disabled">
-                                                <span class="page-link">›</span>
-                                            </li>
-                                        @endif
-                                    </ul>
-                                </nav>
+                                {{-- Contatori problemi --}}
+                                <div class="d-flex gap-1">
+                                    @if($prodotto->malfunzionamenti_count > 0)
+                                        <span class="badge bg-warning" 
+                                              data-bs-toggle="tooltip" 
+                                              title="{{ $prodotto->malfunzionamenti_count }} problemi totali">
+                                            {{ $prodotto->malfunzionamenti_count }}
+                                        </span>
+                                    @endif
+                                    
+                                    @if(isset($prodotto->critici_count) && $prodotto->critici_count > 0)
+                                        <span class="badge bg-danger" 
+                                              data-bs-toggle="tooltip" 
+                                              title="{{ $prodotto->critici_count }} critici">
+                                            {{ $prodotto->critici_count }}
+                                        </span>
+                                    @endif
+                                </div>
                             </div>
                         </div>
                     </div>
-                @endif
-            @else
-                <!-- Nessun Risultato -->
+
+                    {{-- Corpo della card --}}
+                    <div class="card-body d-flex flex-column p-3">
+                        {{-- Titolo con stato --}}
+                        <h6 class="card-title mb-2 fw-bold
+                            @if(!$prodotto->attivo)
+                                text-muted
+                            @elseif($prodotto->hasMalfunzionamentiCritici())
+                                text-danger
+                            @elseif($prodotto->malfunzionamenti_count > 0)
+                                text-warning
+                            @else
+                                text-primary
+                            @endif
+                        ">
+                            {{ $prodotto->nome }}
+                        </h6>
+                        
+                        {{-- Modello e prezzo --}}
+                        <div class="row g-1 mb-2 small">
+                            @if($prodotto->modello)
+                                <div class="col-12">
+                                    <span class="text-muted">
+                                        <i class="bi bi-gear me-1"></i>{{ $prodotto->modello }}
+                                    </span>
+                                </div>
+                            @endif
+                            @if($prodotto->prezzo)
+                                <div class="col-12">
+                                    <span class="text-success fw-bold">
+                                        <i class="bi bi-tag me-1"></i>€ {{ number_format($prodotto->prezzo, 2, ',', '.') }}
+                                    </span>
+                                </div>
+                            @endif
+                        </div>
+
+                        <p class="card-text flex-grow-1 text-muted small">
+                            {{ Str::limit($prodotto->descrizione, 80, '...') }}
+                        </p>
+
+                        {{-- Informazioni amministrative --}}
+                        <div class="row g-1 mb-2 small">
+                            <div class="col-6">
+                                <div class="text-center p-2 bg-light rounded">
+                                    <strong class="text-{{ $prodotto->malfunzionamenti_count > 0 ? 'warning' : 'success' }}">
+                                        {{ $prodotto->malfunzionamenti_count ?? 0 }}
+                                    </strong>
+                                    <br><small class="text-muted">Problemi</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center p-2 bg-light rounded">
+                                    <strong class="text-muted">
+                                        {{ $prodotto->created_at->format('d/m/Y') }}
+                                    </strong>
+                                    <br><small class="text-muted">Creato</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Staff assegnato --}}
+                        @if($prodotto->staffAssegnato)
+                            <p class="text-muted small mb-2">
+                                <i class="bi bi-person-badge me-1"></i>
+                                Staff: {{ $prodotto->staffAssegnato->nome_completo }}
+                            </p>
+                        @else
+                            <p class="text-warning small mb-2">
+                                <i class="bi bi-person-x me-1"></i>
+                                Nessun staff assegnato
+                            </p>
+                        @endif
+
+                        {{-- Pulsanti azione admin --}}
+                        <div class="d-grid gap-1">
+                            {{-- Visualizza dettagli --}}
+                            <a href="{{ route('admin.prodotti.show', $prodotto) }}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye me-1"></i>Visualizza
+                            </a>
+                            
+                            {{-- Azioni rapide in dropdown --}}
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100" 
+                                        type="button" 
+                                        data-bs-toggle="dropdown">
+                                    <i class="bi bi-gear me-1"></i>Azioni
+                                </button>
+                                <ul class="dropdown-menu w-100">
+                                    <li>
+                                        <a class="dropdown-item" href="{{ route('admin.prodotti.edit', $prodotto) }}">
+                                            <i class="bi bi-pencil me-2"></i>Modifica
+                                        </a>
+                                    </li>
+                                    
+                                    @if($prodotto->malfunzionamenti_count > 0)
+                                        <li>
+                                            <a class="dropdown-item" href="{{ route('malfunzionamenti.index', $prodotto) }}">
+                                                <i class="bi bi-tools me-2"></i>Malfunzionamenti ({{ $prodotto->malfunzionamenti_count }})
+                                            </a>
+                                        </li>
+                                    @endif
+                                    
+                                    <li><hr class="dropdown-divider"></li>
+                                    
+                                    {{-- Toggle stato --}}
+                                    @if(Route::has('admin.prodotti.toggle-status'))
+                                        <li>
+                                            <form action="{{ route('admin.prodotti.toggle-status', $prodotto) }}" 
+                                                  method="POST" 
+                                                  onsubmit="return confirmToggleStatus({{ $prodotto->attivo ? 'true' : 'false' }})">
+                                                @csrf
+                                                <button type="submit" 
+                                                        class="dropdown-item {{ $prodotto->attivo ? 'text-danger' : 'text-success' }}">
+                                                    <i class="bi bi-{{ $prodotto->attivo ? 'pause' : 'play' }} me-2"></i>
+                                                    {{ $prodotto->attivo ? 'Disattiva' : 'Attiva' }}
+                                                </button>
+                                            </form>
+                                        </li>
+                                    @endif
+                                    
+                                    {{-- Eliminazione --}}
+                                    <li>
+                                        <form action="{{ route('admin.prodotti.destroy', $prodotto) }}" 
+                                              method="POST" 
+                                              class="d-inline"
+                                              onsubmit="return confirm('Sei sicuro di voler eliminare il prodotto \"{{ $prodotto->nome }}\"?\n\nQuesta azione non può essere annullata.')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="dropdown-item text-danger">
+                                                <i class="bi bi-trash me-2"></i>Elimina
+                                            </button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @empty
+            {{-- Stato vuoto --}}
+            <div class="col-12">
                 <div class="text-center py-5">
                     <i class="bi bi-search fs-1 text-muted mb-3"></i>
                     <h4 class="text-muted">Nessun prodotto trovato</h4>
@@ -500,282 +528,146 @@
                         </a>
                     </div>
                 </div>
-            @endif
+            </div>
+        @endforelse
+    </div>
+
+    {{-- Paginazione identica al catalogo --}}
+    @if($prodotti->hasPages())
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="text-center mb-2">
+                    <small class="text-muted">
+                        Visualizzati {{ $prodotti->firstItem() }}-{{ $prodotti->lastItem() }} 
+                        di {{ $prodotti->total() }} prodotti
+                    </small>
+                </div>
+                
+                <div class="d-flex justify-content-center">
+                    <nav aria-label="Paginazione prodotti">
+                        <ul class="pagination pagination-sm mb-0">
+                            @if ($prodotti->onFirstPage())
+                                <li class="page-item disabled">
+                                    <span class="page-link">‹</span>
+                                </li>
+                            @else
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ $prodotti->appends(request()->query())->previousPageUrl() }}">‹</a>
+                                </li>
+                            @endif
+
+                            @foreach ($prodotti->getUrlRange(1, $prodotti->lastPage()) as $page => $url)
+                                @if ($page == $prodotti->currentPage())
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ $page }}</span>
+                                    </li>
+                                @else
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ $prodotti->appends(request()->query())->url($page) }}">{{ $page }}</a>
+                                    </li>
+                                @endif
+                            @endforeach
+
+                            @if ($prodotti->hasMorePages())
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ $prodotti->appends(request()->query())->nextPageUrl() }}">›</a>
+                                </li>
+                            @else
+                                <li class="page-item disabled">
+                                    <span class="page-link">›</span>
+                                </li>
+                            @endif
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Sezione informazioni admin --}}
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-gradient-light border-0 shadow-sm">
+                <div class="card-body text-center py-4">
+                    <div class="row justify-content-center">
+                        <div class="col-lg-8">
+                            <h5 class="text-primary mb-2">
+                                <i class="bi bi-shield-check me-2"></i>
+                                Pannello Amministrazione Prodotti
+                            </h5>
+                            <p class="mb-3 text-muted">
+                                Controllo completo sui prodotti: creazione, modifica, assegnazione staff e gestione malfunzionamenti.
+                            </p>
+                            
+                            <div class="d-flex gap-2 justify-content-center flex-wrap">
+                                <a href="{{ route('admin.dashboard') }}" class="btn btn-primary">
+                                    <i class="bi bi-speedometer2 me-1"></i>
+                                    Dashboard Admin
+                                </a>
+                                
+                                <a href="{{ route('admin.prodotti.create') }}" class="btn btn-success">
+                                    <i class="bi bi-plus-circle me-1"></i>
+                                    Nuovo Prodotto
+                                </a>
+                                
+                                <a href="{{ route('admin.users.index') }}" class="btn btn-outline-info">
+                                    <i class="bi bi-people me-1"></i>
+                                    Gestione Utenti
+                                </a>
+                                
+                                <a href="{{ route('prodotti.completo.index') }}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-eye me-1"></i>
+                                    Vista Tecnica
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
-
 @endsection
-
-@push('styles')
-<style>
-/* Stile paginazione compatta identico all'immagine */
-nav[aria-label="Paginazione prodotti"] .pagination,
-.pagination-compact .pagination,
-.pagination {
-    margin-bottom: 0 !important;
-    justify-content: center !important;
-    display: flex !important;
-    gap: 4px !important;
-}
-
-nav[aria-label="Paginazione prodotti"] .pagination .page-item,
-.pagination-compact .pagination .page-item,
-.pagination .page-item {
-    margin: 0 !important;
-}
-
-nav[aria-label="Paginazione prodotti"] .pagination .page-link,
-.pagination-compact .pagination .page-link,
-.pagination .page-link {
-    border: 1px solid #dee2e6 !important;
-    border-radius: 6px !important;
-    color: #6c757d !important;
-    background-color: #fff !important;
-    padding: 6px 12px !important;
-    font-size: 14px !important;
-    font-weight: 400 !important;
-    line-height: 1.2 !important;
-    text-decoration: none !important;
-    margin: 0 !important;
-    min-width: 32px !important;
-    height: 32px !important;
-    text-align: center !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    box-shadow: none !important;
-}
-
-nav[aria-label="Paginazione prodotti"] .pagination .page-link:hover,
-.pagination-compact .pagination .page-link:hover,
-.pagination .page-link:hover {
-    color: #495057 !important;
-    background-color: #f8f9fa !important;
-    border-color: #dee2e6 !important;
-    text-decoration: none !important;
-    transform: none !important;
-}
-
-nav[aria-label="Paginazione prodotti"] .pagination .page-item.active .page-link,
-.pagination-compact .pagination .page-item.active .page-link,
-.pagination .page-item.active .page-link {
-    color: #fff !important;
-    background-color: #007bff !important;
-    border-color: #007bff !important;
-    font-weight: 500 !important;
-    z-index: 1 !important;
-}
-
-nav[aria-label="Paginazione prodotti"] .pagination .page-item.disabled .page-link,
-.pagination-compact .pagination .page-item.disabled .page-link,
-.pagination .page-item.disabled .page-link {
-    color: #6c757d !important;
-    background-color: #fff !important;
-    border-color: #dee2e6 !important;
-    opacity: 0.65 !important;
-    cursor: not-allowed !important;
-}
-
-/* Frecce specifiche - più piccole */
-nav[aria-label="Paginazione prodotti"] .pagination .page-link[rel="prev"],
-nav[aria-label="Paginazione prodotti"] .pagination .page-link[rel="next"],
-.pagination .page-link[rel="prev"],
-.pagination .page-link[rel="next"] {
-    font-size: 12px !important;
-    padding: 6px 10px !important;
-    min-width: 32px !important;
-}
-
-/* Rimuovi tutti gli stili extra che possono interferire */
-nav[aria-label="Paginazione prodotti"] .pagination .page-link:focus,
-.pagination .page-link:focus {
-    box-shadow: none !important;
-    outline: 2px solid #007bff !important;
-    outline-offset: 2px !important;
-}
-
-/* Su mobile ancora più compatto */
-@media (max-width: 768px) {
-    nav[aria-label="Paginazione prodotti"] .pagination .page-link,
-    .pagination .page-link {
-        padding: 4px 8px !important;
-        font-size: 12px !important;
-        min-width: 28px !important;
-        height: 28px !important;
-    }
-    
-    nav[aria-label="Paginazione prodotti"] .pagination,
-    .pagination {
-        gap: 2px !important;
-    }
-}
-
-.table td {
-    vertical-align: middle;
-    white-space: nowrap;
-}
-
-.table td:nth-child(3) { /* Colonna Nome */
-    white-space: normal;
-    min-width: 200px;
-    max-width: 250px;
-}
-
-.badge {
-    font-size: 0.7rem;
-    white-space: nowrap;
-}
-
-.card-stats {
-    border: none;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    transition: transform 0.2s ease;
-}
-
-.card-stats:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-}
-
-.table th {
-    border-top: none;
-    font-weight: 600;
-    font-size: 0.875rem;
-}
-
-.table-hover tbody tr:hover {
-    background-color: rgba(0,123,255,0.05);
-}
-
-.img-thumbnail {
-    border: 2px solid #dee2e6;
-}
-
-/* Custom dropdown styling */
-.dropdown-menu {
-    border: none;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-}
-
-.dropdown-item:hover {
-    background-color: #f8f9fa;
-}
-
-/* Responsive table */
-@media (max-width: 768px) {
-    .table-responsive {
-        font-size: 0.875rem;
-    }
-    
-    .card-stats h3 {
-        font-size: 1.5rem;
-    }
-}
-
-/* NUOVO: Stile per form eliminazione */
-.delete-form {
-    display: inline !important;
-}
-
-.dropdown-item form {
-    margin: 0 !important;
-}
-
-.dropdown-item button {
-    border: none !important;
-    background: none !important;
-    padding: 0 !important;
-    text-align: left !important;
-    width: 100% !important;
-    color: inherit !important;
-}
-
-.dropdown-item button:hover {
-    background: none !important;
-    color: inherit !important;
-}
-</style>
-@endpush
 
 @push('scripts')
 <script>
+    // === JAVASCRIPT COMPLETO PER ADMIN PRODOTTI CON STILE CATALOGO ===
+
 $(document).ready(function() {
-    // Imposta token CSRF per tutte le richieste AJAX
+    // === INIZIALIZZAZIONE ===
+    // Configura token CSRF per le richieste AJAX
     $.ajaxSetup({
         headers: {
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
         }
     });
     
-    console.log('✅ Admin prodotti inizializzato con azioni bulk corrette');
+    // Inizializza tooltip Bootstrap
+    $('[data-bs-toggle="tooltip"]').tooltip();
     
-    // === GESTIONE SELEZIONE MULTIPLA ===
+    console.log('🚀 Admin prodotti con stile catalogo inizializzato');
     
-    /**
-     * Seleziona/deseleziona tutti i checkbox quando si clicca sul checkbox principale
-     */
-    $('#selectAllCheckbox').on('change', function() {
-        const isChecked = $(this).is(':checked');
-        $('.product-checkbox').prop('checked', isChecked);
-        updateBulkActionsUI();
-        console.log(`🔄 Selezionati tutti: ${isChecked}`);
-    });
+    // === GESTIONE FORM RICERCA (identica al catalogo) ===
     
     /**
-     * Aggiorna stato del checkbox principale quando cambiano quelli individuali
-     */
-    $(document).on('change', '.product-checkbox', function() {
-        const total = $('.product-checkbox').length;
-        const checked = $('.product-checkbox:checked').length;
-        
-        // Imposta stato indeterminato se alcuni sono selezionati
-        $('#selectAllCheckbox').prop('indeterminate', checked > 0 && checked < total);
-        $('#selectAllCheckbox').prop('checked', checked === total);
-        
-        updateBulkActionsUI();
-        console.log(`🔄 Selezionati: ${checked}/${total}`);
-    });
-    
-    /**
-     * Aggiorna la disponibilità delle azioni bulk in base ai prodotti selezionati
-     */
-    function updateBulkActionsUI() {
-        const selectedCount = $('.product-checkbox:checked').length;
-        const hasSelection = selectedCount > 0;
-        
-        // Abilita/disabilita pulsante azioni
-        $('#bulkActions').prop('disabled', !hasSelection);
-        
-        // Mostra conteggio nella dropdown se ci sono selezioni
-        if (hasSelection) {
-            $('#bulkActions').html(`<i class="bi bi-three-dots-vertical me-1"></i>Azioni (${selectedCount})`);
-        } else {
-            $('#bulkActions').html('<i class="bi bi-three-dots-vertical me-1"></i>Azioni');
-        }
-        
-        console.log(`🎯 Azioni bulk ${hasSelection ? 'abilitate' : 'disabilitate'}: ${selectedCount} prodotti`);
-    }
-    
-    // === FILTRI E RICERCA ===
-    
-    /**
-     * Cancella il campo di ricerca e risubmit il form
+     * Pulisci campo ricerca e rimetti focus
      */
     $('#clearSearch').on('click', function() {
-        $('#search').val('');
-        $('#filterForm').submit();
+        $('#search').val('').focus();
+        console.log('🔍 Campo ricerca pulito');
     });
     
     /**
-     * Sottometti automaticamente il form quando cambiano i filtri
+     * Submit automatico quando cambiano filtri
      */
     $('#status, #staff_id').on('change', function() {
+        console.log('🔄 Filtro cambiato:', $(this).attr('id'), '=', $(this).val());
         $('#filterForm').submit();
     });
     
     /**
      * Ricerca con debounce per evitare troppe richieste
+     * Attualmente disabilitata ma pronta per l'uso
      */
     let searchTimeout;
     $('#search').on('input', function() {
@@ -784,60 +676,141 @@ $(document).ready(function() {
         
         searchTimeout = setTimeout(() => {
             if (searchTerm.length >= 3 || searchTerm.length === 0) {
-                console.log(`🔍 Auto-ricerca: "${searchTerm}"`);
-                // Decommentare se si vuole ricerca automatica:
+                console.log(`🔍 Auto-ricerca potenziale: "${searchTerm}"`);
+                // Decommentare per abilitare ricerca automatica:
                 // $('#filterForm').submit();
             }
         }, 500);
     });
     
-    // === AZIONI SUI PRODOTTI ===
+    /**
+     * Shortcut tastiera per ricerca (Ctrl+K o Cmd+K)
+     * Migliora l'accessibilità e la velocità d'uso
+     */
+    $(document).on('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            $('#search').focus();
+            console.log('⌨️ Shortcut ricerca attivato');
+        }
+    });
+    
+    // === GESTIONE SELEZIONE PRODOTTI PER AZIONI BULK ===
     
     /**
-     * Conferma il toggle dello stato attivo/inattivo del prodotto
+     * Gestione checkbox singoli prodotti
+     * Evidenzia visivamente le card selezionate
+     */
+    $(document).on('change', '.product-checkbox', function() {
+        const isChecked = $(this).is(':checked');
+        const productId = $(this).val();
+        const card = $(this).closest('.product-card');
+        
+        // Evidenzia visivamente la card selezionata
+        if (isChecked) {
+            card.addClass('selected');
+            console.log(`✅ Prodotto ${productId} selezionato`);
+        } else {
+            card.removeClass('selected');
+            console.log(`❌ Prodotto ${productId} deselezionato`);
+        }
+        
+        updateBulkActionsUI();
+    });
+    
+    /**
+     * Aggiorna interfaccia azioni bulk
+     * Mostra/nasconde pulsante azioni multiple in base alle selezioni
+     */
+    function updateBulkActionsUI() {
+        const selectedCount = $('.product-checkbox:checked').length;
+        const hasSelection = selectedCount > 0;
+        const bulkBtn = $('#bulkActionsBtn');
+        
+        if (hasSelection) {
+            bulkBtn.removeClass('d-none').attr('title', `${selectedCount} prodotti selezionati`);
+            console.log(`📊 Azioni bulk disponibili: ${selectedCount} prodotti`);
+        } else {
+            bulkBtn.addClass('d-none');
+            console.log('📊 Azioni bulk nascoste: nessuna selezione');
+        }
+        
+        // Aggiorna tooltip se Bootstrap è disponibile
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            const tooltipInstance = bootstrap.Tooltip.getInstance(bulkBtn[0]);
+            if (tooltipInstance) {
+                tooltipInstance.dispose();
+                new bootstrap.Tooltip(bulkBtn[0]);
+            }
+        }
+    }
+    
+    // === AZIONI SUI PRODOTTI INDIVIDUALI ===
+    
+    /**
+     * Conferma toggle stato prodotto (attivo/inattivo)
+     * Mostra loading durante l'operazione
      */
     window.confirmToggleStatus = function(currentStatus) {
         const action = currentStatus ? 'disattivare' : 'attivare';
         const confirmed = confirm(`Sei sicuro di voler ${action} questo prodotto?`);
         
         if (confirmed) {
-            console.log(`🔄 Toggle status prodotto: ${currentStatus ? 'disattiva' : 'attiva'}`);
+            console.log(`🔄 Toggle status confermato: ${action}`);
+            showCardLoading();
         }
         
         return confirmed;
     };
     
-    // === AZIONI BULK CORRETTE ===
+    /**
+     * Mostra loading su card durante operazioni
+     * Fornisce feedback visivo immediato all'utente
+     */
+    function showCardLoading() {
+        const loadingOverlay = $(`
+            <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white bg-opacity-75" style="z-index: 10;">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `);
+        
+        $('.product-card').append(loadingOverlay);
+        
+        // Rimuovi loading dopo 3 secondi se la pagina non si ricarica
+        setTimeout(() => {
+            loadingOverlay.remove();
+        }, 3000);
+    }
+    
+    // === AZIONI BULK SUI PRODOTTI ===
     
     /**
-     * Seleziona tutti i prodotti visibili nella pagina
+     * Seleziona tutti i prodotti visibili nella pagina corrente
      */
-    window.selectAll = function() {
-        $('.product-checkbox').prop('checked', true);
-        $('#selectAllCheckbox').prop('checked', true);
-        updateBulkActionsUI();
+    window.selectAllProducts = function() {
+        $('.product-checkbox').prop('checked', true).trigger('change');
         console.log('✅ Tutti i prodotti selezionati');
     };
     
     /**
      * Deseleziona tutti i prodotti
      */
-    window.deselectAll = function() {
-        $('.product-checkbox').prop('checked', false);
-        $('#selectAllCheckbox').prop('checked', false);
-        $('#selectAllCheckbox').prop('indeterminate', false);
-        updateBulkActionsUI();
+    window.deselectAllProducts = function() {
+        $('.product-checkbox').prop('checked', false).trigger('change');
         console.log('❌ Tutti i prodotti deselezionati');
     };
     
     /**
-     * Attiva tutti i prodotti selezionati
+     * Attiva tutti i prodotti selezionati in bulk
+     * Include conferma utente e gestione errori
      */
-    window.bulkActivate = function() {
-        const selected = getSelectedProducts();
+    window.bulkActivateProducts = function() {
+        const selected = getSelectedProductIds();
         
         if (selected.length === 0) {
-            alert('⚠️ Seleziona almeno un prodotto per attivarlo');
+            alert('⚠️ Seleziona almeno un prodotto da attivare');
             return;
         }
         
@@ -846,19 +819,19 @@ $(document).ready(function() {
             `Attivare ${selected.length} prodotti selezionati?`;
             
         if (confirm(message)) {
-            console.log(`🟢 Avvio attivazione bulk: ${selected.length} prodotti`);
+            console.log(`🟢 Attivazione bulk confermata: ${selected.length} prodotti`);
             executeBulkAction('activate', selected);
         }
     };
     
     /**
-     * Disattiva tutti i prodotti selezionati
+     * Disattiva tutti i prodotti selezionati in bulk
      */
-    window.bulkDeactivate = function() {
-        const selected = getSelectedProducts();
+    window.bulkDeactivateProducts = function() {
+        const selected = getSelectedProductIds();
         
         if (selected.length === 0) {
-            alert('⚠️ Seleziona almeno un prodotto per disattivarlo');
+            alert('⚠️ Seleziona almeno un prodotto da disattivare');
             return;
         }
         
@@ -867,19 +840,20 @@ $(document).ready(function() {
             `Disattivare ${selected.length} prodotti selezionati?`;
             
         if (confirm(message)) {
-            console.log(`🟡 Avvio disattivazione bulk: ${selected.length} prodotti`);
+            console.log(`🟡 Disattivazione bulk confermata: ${selected.length} prodotti`);
             executeBulkAction('deactivate', selected);
         }
     };
     
     /**
-     * Elimina tutti i prodotti selezionati
+     * Elimina tutti i prodotti selezionati in bulk
+     * Include doppia conferma per operazioni irreversibili
      */
-    window.bulkDelete = function() {
-        const selected = getSelectedProducts();
+    window.bulkDeleteProducts = function() {
+        const selected = getSelectedProductIds();
         
         if (selected.length === 0) {
-            alert('⚠️ Seleziona almeno un prodotto per eliminarlo');
+            alert('⚠️ Seleziona almeno un prodotto da eliminare');
             return;
         }
         
@@ -888,46 +862,44 @@ $(document).ready(function() {
             `🗑️ ATTENZIONE: Eliminare definitivamente ${selected.length} prodotti selezionati?\n\nQuesta azione non può essere annullata.`;
             
         if (confirm(message)) {
-            console.log(`🔴 Avvio eliminazione bulk: ${selected.length} prodotti`);
+            console.log(`🔴 Eliminazione bulk confermata: ${selected.length} prodotti`);
             executeBulkAction('delete', selected);
         }
     };
     
     /**
-     * Ottiene gli ID dei prodotti attualmente selezionati
+     * Ottiene array degli ID dei prodotti attualmente selezionati
+     * @returns {number[]} Array di ID prodotti
      */
-    function getSelectedProducts() {
-        const selected = $('.product-checkbox:checked').map(function() {
+    function getSelectedProductIds() {
+        return $('.product-checkbox:checked').map(function() {
             return parseInt($(this).val());
         }).get();
-        
-        console.log(`📋 Prodotti selezionati:`, selected);
-        return selected;
     }
     
     /**
-     * FUNZIONE CRITICA: Esegue l'azione bulk sui prodotti selezionati
+     * FUNZIONE CRITICA: Esegue azione bulk sui prodotti selezionati
+     * Gestisce chiamata AJAX con error handling completo
+     * 
+     * @param {string} action - Tipo di azione (activate, deactivate, delete)
+     * @param {number[]} productIds - Array di ID prodotti
      */
     function executeBulkAction(action, productIds) {
         if (!productIds || productIds.length === 0) {
-            console.error('❌ Nessun prodotto da processare');
+            console.error('❌ Nessun prodotto per azione bulk');
             showToast('Errore: nessun prodotto selezionato', 'error');
             return;
         }
         
-        console.log(`🚀 Esecuzione azione bulk:`, {
-            action: action,
-            productIds: productIds,
-            count: productIds.length
-        });
+        console.log(`🚀 Esecuzione azione bulk: ${action} su ${productIds.length} prodotti`);
         
-        // Mostra indicatore di caricamento
+        // Mostra overlay di caricamento
         showLoadingOverlay(`Esecuzione ${action} su ${productIds.length} prodotti...`);
         
-        // Disabilita pulsanti per evitare click multipli
-        $('#bulkActions').prop('disabled', true);
+        // Disabilita interfaccia durante operazione
+        $('#bulkActionsBtn').prop('disabled', true);
         
-        // Esegui chiamata AJAX
+        // Chiamata AJAX con gestione errori completa
         $.ajax({
             url: '{{ route("admin.prodotti.bulk-action") }}',
             type: 'POST',
@@ -939,53 +911,39 @@ $(document).ready(function() {
             timeout: 30000, // 30 secondi timeout
             success: function(response) {
                 console.log('✅ Risposta bulk action:', response);
-                
                 hideLoadingOverlay();
                 
                 if (response.success) {
                     const message = response.message || `Azione ${action} completata con successo`;
                     showToast(message, 'success');
                     
-                    // Aggiorna la pagina dopo un breve delay per mostrare il messaggio
+                    // Ricarica la pagina dopo un breve delay per mostrare il messaggio
                     setTimeout(() => {
                         window.location.reload();
                     }, 1500);
-                    
                 } else {
                     console.error('❌ Errore nella risposta:', response.message);
                     showToast('Errore: ' + (response.message || 'Operazione fallita'), 'error');
-                    $('#bulkActions').prop('disabled', false);
+                    $('#bulkActionsBtn').prop('disabled', false);
                 }
             },
             error: function(xhr, status, error) {
-                console.error('❌ Errore AJAX bulk action:', {
-                    status: status,
-                    error: error,
-                    response: xhr.responseText,
-                    xhr: xhr
-                });
-                
+                console.error('❌ Errore AJAX bulk action:', { status, error, xhr });
                 hideLoadingOverlay();
-                $('#bulkActions').prop('disabled', false);
+                $('#bulkActionsBtn').prop('disabled', false);
                 
+                // Gestione errori specifici
                 let errorMessage = 'Errore di comunicazione con il server';
                 
                 if (xhr.status === 422) {
                     // Errore di validazione
-                    try {
-                        const errorResponse = JSON.parse(xhr.responseText);
-                        errorMessage = 'Dati non validi: ' + (errorResponse.message || 'Controlla i dati inseriti');
-                    } catch (e) {
-                        errorMessage = 'Errore di validazione dei dati';
-                    }
+                    errorMessage = 'Dati non validi: controlla i prodotti selezionati';
                 } else if (xhr.status === 403) {
                     errorMessage = 'Non hai i permessi per eseguire questa operazione';
                 } else if (xhr.status === 500) {
                     errorMessage = 'Errore interno del server. Riprova più tardi.';
                 } else if (status === 'timeout') {
                     errorMessage = 'Operazione scaduta. Il server potrebbe essere sovraccarico.';
-                } else if (status === 'abort') {
-                    errorMessage = 'Operazione annullata';
                 } else if (xhr.status === 0) {
                     errorMessage = 'Errore di connessione. Controlla la tua connessione internet.';
                 }
@@ -995,13 +953,70 @@ $(document).ready(function() {
         });
     }
     
+    // === GESTIONE IMMAGINI E UX ===
+    
+    /**
+     * Gestione errori caricamento immagini
+     * Sostituisce immagini mancanti con placeholder
+     */
+    $('.product-image').on('error', function() {
+        $(this).replaceWith(`
+            <div class="card-img-top d-flex align-items-center justify-content-center bg-light" 
+                 style="height: 160px;">
+                <i class="bi bi-image text-muted" style="font-size: 2.5rem;"></i>
+            </div>
+        `);
+    });
+    
+    /**
+     * Loading per form submit
+     * Fornisce feedback durante ricerca/filtri
+     */
+    $('form').on('submit', function() {
+        const $submitBtn = $(this).find('button[type="submit"]');
+        const originalText = $submitBtn.html();
+        
+        $submitBtn.html('<i class="bi bi-hourglass-split me-1 loading-spinner"></i>Cercando...')
+                  .prop('disabled', true);
+        
+        // Ripristina dopo timeout se la pagina non cambia
+        setTimeout(function() {
+            $submitBtn.html(originalText).prop('disabled', false);
+        }, 5000);
+    });
+    
+    // === EVIDENZIAZIONE RICERCA ===
+    
+    /**
+     * Evidenzia termini di ricerca nei risultati
+     * Migliora la visibilità dei risultati trovati
+     */
+    const searchTerm = '{{ request("search") }}';
+    if (searchTerm && !searchTerm.includes('*') && searchTerm.length > 2) {
+        $('.card-title, .card-text').each(function() {
+            const text = $(this).html();
+            const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
+            const highlighted = text.replace(regex, '<mark class="bg-warning">$1</mark>');
+            $(this).html(highlighted);
+        });
+        console.log(`🔍 Evidenziati termini di ricerca: "${searchTerm}"`);
+    }
+    
+    /**
+     * Escape caratteri speciali per regex sicura
+     * Previene errori con caratteri speciali nella ricerca
+     */
+    function escapeRegex(text) {
+        return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+    }
+    
     // === UTILITY FUNCTIONS ===
     
     /**
-     * Mostra overlay di caricamento
+     * Mostra overlay di caricamento fullscreen
+     * @param {string} message - Messaggio da mostrare
      */
     function showLoadingOverlay(message = 'Caricamento...') {
-        // Rimuovi overlay esistenti
         $('#loadingOverlay').remove();
         
         const overlay = $(`
@@ -1019,11 +1034,11 @@ $(document).ready(function() {
         `);
         
         $('body').append(overlay);
-        console.log(`⏳ Loading overlay mostrato: ${message}`);
+        console.log(`⏳ Loading overlay: ${message}`);
     }
     
     /**
-     * Nasconde overlay di caricamento
+     * Nasconde overlay di caricamento con animazione
      */
     function hideLoadingOverlay() {
         $('#loadingOverlay').fadeOut(300, function() {
@@ -1033,7 +1048,9 @@ $(document).ready(function() {
     }
     
     /**
-     * Mostra notifica toast migliorata
+     * Mostra notifica toast con diversi tipi di messaggio
+     * @param {string} message - Messaggio da mostrare
+     * @param {string} type - Tipo: success, error, warning, info
      */
     function showToast(message, type = 'success') {
         // Rimuovi toast precedenti
@@ -1068,115 +1085,781 @@ $(document).ready(function() {
         `);
         
         $('body').append(toast);
-        
         console.log(`📢 Toast mostrato (${type}): ${message}`);
         
-        // Auto-rimuovi dopo 5 secondi per successo, 10 per errori
+        // Auto-rimuovi dopo timeout appropriato
         const autoHideDelay = type === 'error' ? 10000 : 5000;
         setTimeout(() => {
             toast.fadeOut(500, () => toast.remove());
         }, autoHideDelay);
     }
     
+    // === GESTIONE RESPONSIVE ===
+    
     /**
-     * Gestione responsive della tabella
+     * Adatta layout per schermi piccoli
+     * Gestisce comportamento responsive dinamico
      */
-    function handleResponsiveTable() {
+    function handleResponsiveLayout() {
         const isSmallScreen = $(window).width() < 768;
         
         if (isSmallScreen) {
-            // Su mobile, nascondi alcune colonne meno importanti
-            $('.table th:nth-child(4), .table td:nth-child(4)').hide(); // Modello
-            $('.table th:nth-child(6), .table td:nth-child(6)').hide(); // Prezzo  
-            $('.table th:nth-child(10), .table td:nth-child(10)').hide(); // Data creazione
+            // Su mobile, impila i filtri verticalmente
+            $('.form-label.d-none.d-lg-block').removeClass('d-none d-lg-block');
+            console.log('📱 Layout mobile attivato');
         } else {
-            // Su desktop, mostra tutte le colonne
-            $('.table th, .table td').show();
+            // Su desktop, layout orizzontale
+            console.log('🖥️ Layout desktop attivato');
         }
     }
     
-    // Esegui responsive check al caricamento e resize
-    handleResponsiveTable();
-    $(window).on('resize', handleResponsiveTable);
-    
-    // === AUTO-REFRESH STATISTICHE ===
+    // Esegui controllo responsive al caricamento e resize
+    handleResponsiveLayout();
+    $(window).on('resize', debounce(handleResponsiveLayout, 250));
     
     /**
-     * Aggiorna le statistiche via AJAX ogni 5 minuti
+     * Funzione debounce per ottimizzare eventi resize
      */
-    function updateStatsCards() {
-        if ($('.product-checkbox:checked').length > 0) {
-            // Non aggiornare se ci sono selezioni attive
-            return;
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+    
+    // === ANALYTICS E DEBUG ===
+    
+    /**
+     * Log statistiche ricerca per analytics
+     * Utile per monitorare comportamenti utente
+     */
+    @if(request('search') || request('status') || request('staff_id'))
+        console.log('📊 Ricerca admin:', {
+            termine: '{{ request("search") }}',
+            status: '{{ request("status") }}',
+            staff_id: '{{ request("staff_id") }}',
+            risultati: {{ $prodotti->total() }},
+            pagina: {{ $prodotti->currentPage() }}
+        });
+    @endif
+    
+    /**
+     * Debug helper per development
+     * Fornisce informazioni utili durante lo sviluppo
+     */
+    @if(app()->environment('local'))
+        window.debugAdminProdotti = function() {
+            console.log('🔍 Debug Admin Prodotti:', {
+                prodotti_totali: {{ $prodotti->total() }},
+                prodotti_in_pagina: {{ $prodotti->count() }},
+                prodotti_selezionati: $('.product-checkbox:checked').length,
+                filtri_attivi: {
+                    search: '{{ request("search") }}' || null,
+                    status: '{{ request("status") }}' || null,
+                    staff_id: '{{ request("staff_id") }}' || null
+                },
+                csrf_token: $('meta[name="csrf-token"]').attr('content'),
+                bulk_action_route: '{{ route("admin.prodotti.bulk-action") }}'
+            });
+        };
+        
+        // Debug automatico ogni minuto in development
+        setInterval(window.debugAdminProdotti, 60000);
+        
+        // Esporta funzioni globali per testing
+        window.testFunctions = {
+            selectAllProducts,
+            deselectAllProducts,
+            getSelectedProductIds,
+            showToast,
+            updateBulkActionsUI
+        };
+    @endif
+    
+    // === GESTIONE EVENTI AVANZATA ===
+    
+    /**
+     * Gestione tasti scorciatoia avanzati
+     */
+    $(document).on('keydown', function(e) {
+        // ESC per deselezionare tutto
+        if (e.key === 'Escape') {
+            if ($('.product-checkbox:checked').length > 0) {
+                deselectAllProducts();
+                e.preventDefault();
+            }
         }
         
-        $.get('{{ route("api.admin.stats-update") }}')
-            .done(function(response) {
-                if (response.success && response.stats) {
-                    // Aggiorna i contatori nelle card statistiche
-                    const stats = response.stats;
-                    const statElements = [
-                        { key: 'total_prodotti', selector: '.card-stats:eq(0) h3' },
-                        { key: 'attivi', selector: '.card-stats:eq(1) h3' },
-                        { key: 'inattivi', selector: '.card-stats:eq(2) h3' },
-                        { key: 'con_malfunzionamenti', selector: '.card-stats:eq(3) h3' }
-                    ];
-                    
-                    statElements.forEach(({ key, selector }) => {
-                        if (stats[key] !== undefined) {
-                            $(selector).text(stats[key]);
-                        }
-                    });
-                    
-                    console.log('📊 Statistiche aggiornate automaticamente');
-                }
-            })
-            .fail(function() {
-                console.log('⚠️ Errore aggiornamento statistiche automatico (normale se route non esiste)');
-            });
-    }
+        // Ctrl+A per selezionare tutto (solo se focus non è su input)
+        if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !$(e.target).is('input, textarea')) {
+            selectAllProducts();
+            e.preventDefault();
+        }
+    });
     
-    // Avvia auto-refresh statistiche ogni 5 minuti
-    setInterval(updateStatsCards, 300000);
+    /**
+     * Click fuori dalle card per deselezionare (opzionale)
+     */
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('.product-card, .btn').length && 
+            $('.product-checkbox:checked').length > 0 && 
+            e.target.type !== 'checkbox') {
+            // Decommentare per abilitare deseleziona cliccando fuori
+            // deselectAllProducts();
+        }
+    });
     
-    // === TOOLTIP E ACCESSIBILITÀ ===
-    
-    // Inizializza tooltip se Bootstrap li supporta
-    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-        $('[data-bs-toggle="tooltip"]').each(function() {
-            new bootstrap.Tooltip(this);
-        });
-    }
+    // === FINALIZZAZIONE ===
     
     // Inizializza stato UI
     updateBulkActionsUI();
     
-    console.log('🎉 Sistema admin prodotti completamente inizializzato');
+    // Log completamento inizializzazione
+    console.log('🎉 Sistema admin prodotti con stile catalogo completamente inizializzato');
+    
+    // Performance monitoring in development
+    if (typeof performance !== 'undefined') {
+        console.log('⚡ Statistiche caricamento:', {
+            prodotti_renderizzati: {{ $prodotti->count() }},
+            tempo_dom_ready: Math.round(performance.now()) + 'ms',
+            memoria_utilizzata: performance.memory ? 
+                `${Math.round(performance.memory.usedJSHeapSize / 1024 / 1024)}MB` : 'N/A'
+        });
+    }
+    
+    // Pulizia memoria al cambio pagina
+    $(window).on('beforeunload', function() {
+        $('.toast-notification').remove();
+        $('#loadingOverlay').remove();
+        console.log('🧹 Pulizia risorse completata');
+    });
 });
 
-/**
- * Funzioni globali di utilità per debugging
- */
-window.debugBulkActions = function() {
-    const selected = $('.product-checkbox:checked').length;
-    const total = $('.product-checkbox').length;
-    
-    console.log('🔍 Debug Bulk Actions:', {
-        prodotti_totali: total,
-        prodotti_selezionati: selected,
-        pulsante_abilitato: !$('#bulkActions').prop('disabled'),
-        csrf_token: $('meta[name="csrf-token"]').attr('content'),
-        route_bulk_action: '{{ route("admin.prodotti.bulk-action") }}'
-    });
-};
+// === FUNZIONI GLOBALI PER COMPATIBILITÀ ===
 
-// Debugging automatico ogni 30 secondi in ambiente di sviluppo
-@if(app()->environment('local'))
-setInterval(() => {
-    if ($('.product-checkbox:checked').length > 0) {
-        window.debugBulkActions();
-    }
-}, 30000);
-@endif
+/**
+ * Funzioni esposte globalmente per retrocompatibilità
+ * e per l'uso da parte di altri script
+ */
+window.adminProdottiActions = {
+    selectAll: function() { selectAllProducts(); },
+    deselectAll: function() { deselectAllProducts(); },
+    bulkActivate: function() { bulkActivateProducts(); },
+    bulkDeactivate: function() { bulkDeactivateProducts(); },
+    bulkDelete: function() { bulkDeleteProducts(); }
+};
 </script>
+@endpush
+
+{{-- CSS identico al catalogo con aggiunte per funzionalità admin --}}
+@push('styles')
+<style>
+/* === STILI CARD PRODOTTO IDENTICI AL CATALOGO === */
+
+/* Card prodotto base con bordo elegante */
+.product-card {
+    transition: all 0.2s ease;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    /* Bordo sottile per tutte le card */
+    border: 1px solid #e9ecef !important;
+}
+
+.product-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 0.75rem 2rem rgba(0,0,0,0.15) !important;
+    /* Bordo blu al hover */
+    border-color: #007bff !important;
+}
+
+/* Card con problemi critici - bordo rosso */
+.product-card.border-danger-subtle {
+    border-left: 4px solid #dc3545 !important;
+    border-top: 1px solid #fecaca !important;
+    border-right: 1px solid #fecaca !important;
+    border-bottom: 1px solid #fecaca !important;
+    background-color: #fef7f7;
+}
+
+.product-card.border-danger-subtle:hover {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0.75rem 2rem rgba(220, 53, 69, 0.2) !important;
+}
+
+/* Card con problemi non critici - bordo arancione */
+.product-card.border-warning-subtle {
+    border-left: 4px solid #ffc107 !important;
+    border-top: 1px solid #fff3cd !important;
+    border-right: 1px solid #fff3cd !important;
+    border-bottom: 1px solid #fff3cd !important;
+    background-color: #fffbf0;
+}
+
+.product-card.border-warning-subtle:hover {
+    border-color: #ffc107 !important;
+    box-shadow: 0 0.75rem 2rem rgba(255, 193, 7, 0.2) !important;
+}
+
+/* Card senza problemi attive - bordo verde */
+.product-card.border-success-subtle {
+    border-left: 3px solid #28a745 !important;
+    border-top: 1px solid #d4edda !important;
+    border-right: 1px solid #d4edda !important;
+    border-bottom: 1px solid #d4edda !important;
+}
+
+.product-card.border-success-subtle:hover {
+    border-color: #28a745 !important;
+    box-shadow: 0 0.75rem 2rem rgba(40, 167, 69, 0.15) !important;
+}
+
+/* Card inattive - bordo grigio */
+.product-card.border-secondary-subtle {
+    border-left: 3px solid #6c757d !important;
+    border-top: 1px solid #e9ecef !important;
+    border-right: 1px solid #e9ecef !important;
+    border-bottom: 1px solid #e9ecef !important;
+    background-color: #f8f9fa;
+}
+
+.product-card.border-secondary-subtle:hover {
+    border-color: #6c757d !important;
+    box-shadow: 0 0.75rem 2rem rgba(108, 117, 125, 0.15) !important;
+}
+
+/* === AGGIUNTE SPECIFICHE PER ADMIN === */
+
+/* Stile per le card admin con checkbox */
+.admin-card {
+    position: relative;
+}
+
+/* Checkbox di selezione prodotto */
+.product-checkbox {
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 2px solid #007bff;
+    border-radius: 0.25rem;
+    backdrop-filter: blur(2px);
+}
+
+.product-checkbox:checked {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.product-checkbox:hover {
+    border-color: #0056b3;
+    background-color: rgba(255, 255, 255, 1);
+    transform: scale(1.05);
+}
+
+/* Card selezionate per azioni bulk */
+.product-card.selected {
+    border: 2px solid #007bff !important;
+    background-color: #f8f9ff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1) !important;
+    transform: translateY(-2px);
+}
+
+/* Pulsanti azione flottanti */
+.btn.rounded-circle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn.rounded-circle:hover {
+    transform: scale(1.1) translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.btn.rounded-circle:active {
+    transform: scale(0.95) translateY(0px);
+}
+
+/* Animazione per pulsanti flottanti */
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-3px); }
+}
+
+.btn.rounded-circle:not(:hover) {
+    animation: float 3s ease-in-out infinite;
+}
+
+/* Responsive - checkbox più grandi su mobile */
+@media (max-width: 768px) {
+    .product-checkbox {
+        transform: scale(1.4);
+    }
+    
+    .product-card {
+        margin-bottom: 1rem;
+    }
+    
+    .btn.rounded-circle {
+        width: 45px !important;
+        height: 45px !important;
+    }
+    
+    .btn.rounded-circle i {
+        font-size: 1.1rem !important;
+    }
+}
+
+/* Hover effects per dropdown azioni */
+.dropdown-item {
+    transition: all 0.15s ease;
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+    padding-left: 1.25rem;
+    transform: translateX(2px);
+}
+
+.dropdown-item.text-danger:hover {
+    background-color: #f8d7da;
+    color: #721c24 !important;
+}
+
+.dropdown-item.text-success:hover {
+    background-color: #d4edda;
+    color: #155724 !important;
+}
+
+/* Stili per form eliminazione inline */
+.dropdown-item form {
+    margin: 0;
+}
+
+.dropdown-item form button {
+    border: none;
+    background: none;
+    padding: 0.25rem 1rem;
+    text-align: left;
+    width: 100%;
+    color: inherit;
+    transition: all 0.15s ease;
+}
+
+.dropdown-item form button:hover {
+    background: none;
+    color: inherit;
+    padding-left: 1.25rem;
+}
+
+/* Badge stato prodotto */
+.badge {
+    font-size: 0.7rem;
+    font-weight: 500;
+    border-radius: 0.35rem;
+}
+
+.badge.bg-success {
+    background-color: #28a745 !important;
+    border: 1px solid #1e7e34;
+}
+
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+    border: 1px solid #bd2130;
+}
+
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    border: 1px solid #e0a800;
+    color: #212529 !important;
+}
+
+/* === PAGINAZIONE IDENTICA AL CATALOGO === */
+
+.pagination {
+    margin-bottom: 0 !important;
+    justify-content: center !important;
+    display: flex !important;
+    gap: 4px !important;
+}
+
+.pagination .page-item {
+    margin: 0 !important;
+}
+
+.pagination .page-link {
+    border: 1px solid #dee2e6 !important;
+    border-radius: 6px !important;
+    color: #6c757d !important;
+    background-color: #fff !important;
+    padding: 6px 12px !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 1.2 !important;
+    text-decoration: none !important;
+    margin: 0 !important;
+    min-width: 32px !important;
+    height: 32px !important;
+    text-align: center !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: none !important;
+    transition: all 0.15s ease;
+}
+
+.pagination .page-link:hover {
+    color: #495057 !important;
+    background-color: #f8f9fa !important;
+    border-color: #dee2e6 !important;
+    text-decoration: none !important;
+    transform: translateY(-1px);
+}
+
+.pagination .page-item.active .page-link {
+    color: #fff !important;
+    background-color: #007bff !important;
+    border-color: #007bff !important;
+    font-weight: 500 !important;
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+}
+
+.pagination .page-item.disabled .page-link {
+    color: #6c757d !important;
+    background-color: #fff !important;
+    border-color: #dee2e6 !important;
+    opacity: 0.65 !important;
+    cursor: not-allowed !important;
+}
+
+/* Frecce di navigazione */
+.pagination .page-link:contains('‹'),
+.pagination .page-link:contains('›') {
+    font-weight: bold;
+    font-size: 16px;
+}
+
+/* === GRADIENTI E SFONDI === */
+
+/* Card gradient header identico al catalogo */
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;
+    color: white;
+    border: none;
+}
+
+.bg-gradient-light {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+    border: 1px solid #dee2e6;
+}
+
+/* Sfondo per le statistiche nell'header */
+.bg-white.bg-opacity-10 {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* === FORM ELEMENTI === */
+
+/* Stili per etichette form */
+.form-label.fw-semibold {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+}
+
+/* Stili per campi input e select */
+.form-control,
+.form-select {
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    transition: all 0.15s ease;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+    outline: none;
+}
+
+/* Input group con pulsante */
+.input-group .btn {
+    border-left: none;
+}
+
+.input-group .form-control:focus + .btn {
+    border-color: #86b7fe;
+}
+
+/* === BADGE FILTRI === */
+
+/* Badge per filtri rapidi */
+.badge.py-2.px-3 {
+    font-size: 0.8rem;
+    font-weight: 500;
+    border-radius: 1rem;
+    transition: all 0.15s ease;
+}
+
+.badge.py-2.px-3:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Badge con bordo per filtri inattivi */
+.badge.bg-light.text-dark.border {
+    background-color: #f8f9fa !important;
+    border: 1px solid #dee2e6 !important;
+    color: #495057 !important;
+}
+
+.badge.bg-light.text-dark.border:hover {
+    background-color: #e9ecef !important;
+    border-color: #adb5bd !important;
+}
+
+/* === ALERT E MESSAGGI === */
+
+/* Alert risultati ricerca */
+.alert-info {
+    background-color: #d1ecf1;
+    border: 1px solid #b6d4dd;
+    border-left: 4px solid #0dcaf0;
+    color: #0c5460;
+    border-radius: 0.375rem;
+}
+
+.alert .badge {
+    font-size: 0.75rem;
+}
+
+/* === TOOLTIP E ACCESSIBILITÀ === */
+
+/* Cursore per elementi con tooltip */
+[data-bs-toggle="tooltip"] {
+    cursor: help;
+}
+
+/* Focus visibile per accessibilità */
+.btn:focus,
+.form-control:focus,
+.form-select:focus {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+}
+
+/* === ANIMAZIONI === */
+
+/* Animazione caricamento */
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.loading-spinner {
+    animation: spin 1s linear infinite;
+}
+
+/* Animazione per evidenziazione ricerca */
+@keyframes highlight {
+    0% { background-color: #fff3cd; }
+    100% { background-color: transparent; }
+}
+
+mark.bg-warning {
+    animation: highlight 2s ease-out;
+    padding: 0 0.2em;
+    border-radius: 0.25rem;
+}
+
+/* Animazione per toast notifications */
+.toast-notification {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* === STATI DI CARICAMENTO === */
+
+/* Overlay di caricamento */
+#loadingOverlay {
+    backdrop-filter: blur(2px);
+}
+
+#loadingOverlay .card {
+    border: none;
+    box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.2);
+    border-radius: 1rem;
+}
+
+/* Stato loading per pulsanti */
+.btn.loading {
+    pointer-events: none;
+    opacity: 0.6;
+    position: relative;
+}
+
+.btn.loading::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    margin: auto;
+    border: 2px solid transparent;
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* === RESPONSIVE DESIGN === */
+
+/* Tablet */
+@media (max-width: 992px) {
+    .form-label.d-none.d-lg-block {
+        display: block !important;
+        margin-top: 1rem;
+    }
+    
+    .col-lg-4.col-md-6 .input-group {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Mobile */
+@media (max-width: 576px) {
+    .container-fluid {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    
+    .card-body.py-3 {
+        padding: 1rem !important;
+    }
+    
+    .d-flex.gap-2.justify-content-center.flex-wrap {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .d-flex.gap-2.justify-content-center.flex-wrap .btn {
+        margin-bottom: 0.5rem;
+    }
+    
+    .badge.py-2.px-3 {
+        font-size: 0.7rem;
+        padding: 0.4rem 0.8rem !important;
+    }
+}
+
+/* === MIGLIORAMENTI SPECIFICI === */
+
+/* Separatori dropdown */
+.dropdown-divider {
+    margin: 0.5rem 0;
+    opacity: 0.3;
+}
+
+/* Icone nei dropdown */
+.dropdown-item i {
+    width: 16px;
+    text-align: center;
+}
+
+/* Stato vuoto */
+.text-center.py-5 i {
+    opacity: 0.3;
+    transition: opacity 0.3s ease;
+}
+
+.text-center.py-5:hover i {
+    opacity: 0.5;
+}
+
+/* Miglioramenti tipografici */
+.fw-bold {
+    font-weight: 600 !important;
+}
+
+.text-muted {
+    color: #6c757d !important;
+}
+
+/* Ombre personalizzate */
+.shadow-sm {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+}
+
+.shadow {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.shadow-lg {
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.175) !important;
+}
+
+/* === PERSONALIZZAZIONI FINALI === */
+
+/* Scrollbar personalizzata per webkit browsers */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Transizioni globali */
+* {
+    transition: none;
+}
+
+.product-card,
+.btn,
+.form-control,
+.form-select,
+.badge,
+.dropdown-item {
+    transition: all 0.15s ease;
+}
+
+/* Anti-aliasing per font più nitidi */
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Focus ring personalizzato */
+:focus-visible {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+}
+</style>
 @endpush
