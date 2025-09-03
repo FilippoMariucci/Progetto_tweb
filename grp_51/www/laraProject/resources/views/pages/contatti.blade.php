@@ -317,7 +317,7 @@
                         <div class="col-md-6">
                             <h6>Prima di Contattarci</h6>
                             <ul class="list-unstyled">
-                                <li><i class="bi bi-search text-info me-2"></i>Consulta la <a href="{{ route('prodotti.index') }}" class="text-decoration-none">base di conoscenza prodotti</a></li>
+                                <li><i class="bi bi-search text-info me-2"></i>Consulta la <a href="{{ route('prodotti.pubblico.index') }}" class="text-decoration-none">base di conoscenza prodotti</a></li>
                                 <li><i class="bi bi-geo-alt text-info me-2"></i>Trova il <a href="{{ route('centri.index') }}" class="text-decoration-none">centro assistenza</a> più vicino</li>
                                 <li><i class="bi bi-file-text text-info me-2"></i>Leggi la <a href="{{ route('documentazione') }}" class="text-decoration-none" target="_blank">documentazione</a></li>
                             </ul>

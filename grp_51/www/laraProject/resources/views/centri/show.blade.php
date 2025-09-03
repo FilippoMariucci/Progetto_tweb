@@ -21,24 +21,7 @@
 @section('content')
 <div class="container mt-4">
     
-    {{-- Breadcrumb per navigazione --}}
-    <nav aria-label="breadcrumb" class="mb-4">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item">
-                <a href="{{ route('home') }}">
-                    <i class="bi bi-house"></i> Home
-                </a>
-            </li>
-            <li class="breadcrumb-item">
-                <a href="{{ route('centri.index') }}">
-                    <i class="bi bi-geo-alt"></i> Centri Assistenza
-                </a>
-            </li>
-            <li class="breadcrumb-item active" aria-current="page">
-                {{ Str::limit($centro->nome, 40) }}
-            </li>
-        </ol>
-    </nav>
+    
 
     <div class="row">
         {{-- Colonna principale con i dettagli del centro --}}

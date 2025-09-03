@@ -1,301 +1,250 @@
-{{-- 
-    Vista Statistiche Amministratore - CORRETTA per AdminController
-    File: resources/views/admin/statistiche.blade.php
+{{--
+    Statistiche Admin - Layout Compatto e Lineare
+    Sistema Assistenza Tecnica - Gruppo 51
     
-    Questa vista funziona perfettamente con il tuo AdminController esistente
-    Usa esattamente le variabili che il controller passa: compact('stats', 'distribuzioneUtenti', ...)
+    Vista ottimizzata per amministratori con layout compatto, 
+    grafici più piccoli e informazioni essenziali
 --}}
+
 @extends('layouts.app')
 
-@section('title', 'Statistiche Avanzate - Admin')
+@section('title', 'Statistiche Sistema - Admin')
 
 @section('content')
-<div class="container-fluid mt-4">
-    {{-- Header della pagina --}}
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 class="h2 mb-1">
-                        <i class="bi bi-graph-up text-success me-2"></i>
-                        Statistiche Avanzate
-                    </h1>
-                    <p class="text-muted mb-0">Analisi dettagliate e metriche del sistema</p>
-                    <small class="text-muted">
-                        Periodo analisi: ultimi {{ $periodo ?? 30 }} giorni
-                    </small>
-                </div>
-                <div>
-                    {{-- Pulsanti azioni --}}
-                    <div class="btn-group me-2">
-                        <a href="{{ route('admin.statistiche.index', ['periodo' => 7]) }}" 
-                           class="btn btn-outline-info {{ ($periodo ?? 30) == 7 ? 'active' : '' }}">
-                            7 giorni
-                        </a>
-                        <a href="{{ route('admin.statistiche.index', ['periodo' => 30]) }}" 
-                           class="btn btn-outline-info {{ ($periodo ?? 30) == 30 ? 'active' : '' }}">
-                            30 giorni
-                        </a>
-                        <a href="{{ route('admin.statistiche.index', ['periodo' => 90]) }}" 
-                           class="btn btn-outline-info {{ ($periodo ?? 30) == 90 ? 'active' : '' }}">
-                            90 giorni
-                        </a>
-                    </div>
-                    <button id="refresh-stats" class="btn btn-outline-success me-2">
-                        <i class="bi bi-arrow-clockwise me-1"></i>Aggiorna
-                    </button>
-                    <a href="{{ route('admin.dashboard') }}" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left me-1"></i>Dashboard
-                    </a>
-                </div>
-            </div>
+<div class="container mt-4">
+    {{-- === HEADER COMPATTO === --}}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2 class="mb-1">
+                <i class="bi bi-graph-up text-success me-2"></i>
+                Statistiche Sistema
+            </h2>
+            <p class="text-muted small mb-0">Analisi dettagliate del sistema</p>
+            <small class="text-muted">Periodo: ultimi {{ $periodo ?? 30 }} giorni</small>
+        </div>
+        <div class="btn-group btn-group-sm">
+            {{-- Controlli periodo --}}
+            <a href="{{ route('admin.statistiche', ['periodo' => 7]) }}" 
+               class="btn btn-outline-success {{ ($periodo ?? 30) == 7 ? 'active' : '' }}">7g</a>
+            <a href="{{ route('admin.statistiche', ['periodo' => 30]) }}" 
+               class="btn btn-outline-success {{ ($periodo ?? 30) == 30 ? 'active' : '' }}">30g</a>
+            <a href="{{ route('admin.statistiche', ['periodo' => 90]) }}" 
+               class="btn btn-outline-success {{ ($periodo ?? 30) == 90 ? 'active' : '' }}">90g</a>
+            {{-- Azioni --}}
+            <button class="btn btn-primary" onclick="aggiornaStatistiche()">
+                <i class="bi bi-arrow-clockwise"></i> Aggiorna
+            </button>
+            <a href="{{ route('admin.dashboard') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Dashboard
+            </a>
         </div>
     </div>
 
-    {{-- Statistiche Generali - USA LE VARIABILI DEL TUO CONTROLLER --}}
-    <div class="row g-4 mb-4">
-        <div class="col-md-3">
-            <div class="card text-center h-100">
-                <div class="card-body">
-                    <i class="bi bi-people display-4 text-primary mb-3"></i>
-                    <h3 class="mb-1" id="total-users">{{ $stats['utenti_totali'] ?? 0 }}</h3>
-                    <p class="text-muted mb-0">Utenti Totali</p>
-                    {{-- Mostra crescita nuovi utenti --}}
+    {{-- === STATISTICHE COMPATTE - STILE CARD PICCOLE === --}}
+    <div class="row g-2 mb-3">
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-2">
+                    <i class="bi bi-people text-primary fs-4"></i>
+                    <h5 class="fw-bold mb-0 mt-1">{{ $stats['utenti_totali'] ?? 0 }}</h5>
+                    <small class="text-muted">Utenti Totali</small>
                     @if(isset($stats['nuovi_utenti']) && $stats['nuovi_utenti'] > 0)
-                        <small class="text-success">
-                            <i class="bi bi-arrow-up"></i>
-                            +{{ $stats['nuovi_utenti'] }} nuovi
-                        </small>
+                        <br><small class="text-success">+{{ $stats['nuovi_utenti'] }} nuovi</small>
                     @endif
                 </div>
             </div>
         </div>
-
-        <div class="col-md-3">
-            <div class="card text-center h-100">
-                <div class="card-body">
-                    <i class="bi bi-box display-4 text-info mb-3"></i>
-                    <h3 class="mb-1" id="total-products">{{ $stats['prodotti_totali'] ?? 0 }}</h3>
-                    <p class="text-muted mb-0">Prodotti</p>
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-2">
+                    <i class="bi bi-box text-info fs-4"></i>
+                    <h5 class="fw-bold mb-0 mt-1">{{ $stats['prodotti_totali'] ?? 0 }}</h5>
+                    <small class="text-muted">Prodotti</small>
                     @if(isset($stats['nuovi_prodotti']) && $stats['nuovi_prodotti'] > 0)
-                        <small class="text-info">
-                            <i class="bi bi-plus-circle"></i>
-                            +{{ $stats['nuovi_prodotti'] }} nuovi
-                        </small>
+                        <br><small class="text-info">+{{ $stats['nuovi_prodotti'] }} nuovi</small>
                     @endif
                 </div>
             </div>
         </div>
-
-        <div class="col-md-3">
-            <div class="card text-center h-100">
-                <div class="card-body">
-                    <i class="bi bi-wrench display-4 text-warning mb-3"></i>
-                    <h3 class="mb-1" id="total-malfunctions">{{ $stats['malfunzionamenti_totali'] ?? 0 }}</h3>
-                    <p class="text-muted mb-0">Malfunzionamenti</p>
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-2">
+                    <i class="bi bi-wrench text-warning fs-4"></i>
+                    <h5 class="fw-bold mb-0 mt-1">{{ $stats['malfunzionamenti_totali'] ?? 0 }}</h5>
+                    <small class="text-muted">Soluzioni</small>
                     @if(isset($stats['nuove_soluzioni']) && $stats['nuove_soluzioni'] > 0)
-                        <small class="text-warning">
-                            <i class="bi bi-plus-circle"></i>
-                            +{{ $stats['nuove_soluzioni'] }} nuove soluzioni
-                        </small>
+                        <br><small class="text-warning">+{{ $stats['nuove_soluzioni'] }} nuove</small>
                     @endif
                 </div>
             </div>
         </div>
-
-        <div class="col-md-3">
-            <div class="card text-center h-100">
-                <div class="card-body">
-                    <i class="bi bi-geo-alt display-4 text-success mb-3"></i>
-                    <h3 class="mb-1" id="total-centers">{{ $stats['centri_totali'] ?? 0 }}</h3>
-                    <p class="text-muted mb-0">Centri Assistenza</p>
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-2">
+                    <i class="bi bi-geo-alt text-success fs-4"></i>
+                    <h5 class="fw-bold mb-0 mt-1">{{ $stats['centri_totali'] ?? 0 }}</h5>
+                    <small class="text-muted">Centri</small>
                     @if(isset($stats['utenti_attivi']) && $stats['utenti_attivi'] > 0)
-                        <small class="text-success">
-                            {{ $stats['utenti_attivi'] }} utenti attivi
-                        </small>
+                        <br><small class="text-success">{{ $stats['utenti_attivi'] }} attivi</small>
                     @endif
                 </div>
             </div>
         </div>
     </div>
 
-    {{-- Prima riga di grafici --}}
-    <div class="row g-4 mb-4">
-        {{-- Grafico Distribuzione Utenti --}}
-        <div class="col-lg-6">
-            <div class="card h-100">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-pie-chart me-2"></i>
-                        Distribuzione Utenti per Livello
-                    </h5>
+    {{-- === LAYOUT LINEARE - GRAFICI AFFIANCATI === --}}
+    <div class="row g-3 mb-3">
+        {{-- Grafico Utenti per Livello - Compatto --}}
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-primary text-white py-2">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-pie-chart me-1"></i>
+                        Utenti per Livello
+                    </h6>
                 </div>
-                <div class="card-body">
-                    <canvas id="usersChart" height="300"></canvas>
-                    
-                    {{-- Legenda con dati reali --}}
-                    <div class="mt-3">
-                        <div class="row text-center">
-                            @if(isset($distribuzioneUtenti) && count($distribuzioneUtenti) > 0)
-                                @foreach($distribuzioneUtenti as $livello => $count)
-                                    <div class="col-6 col-md-3 mb-2">
-                                        <div class="d-flex align-items-center justify-content-center">
-                                            <span class="badge badge-livello-{{ $livello }} me-2">{{ $count }}</span>
-                                            <small>
-                                                @switch($livello)
-                                                    @case('1') Pubblico @break
-                                                    @case('2') Tecnici @break
-                                                    @case('3') Staff @break
-                                                    @case('4') Admin @break
-                                                    @default Livello {{ $livello }} @break
-                                                @endswitch
-                                            </small>
-                                        </div>
-                                    </div>
-                                @endforeach
-                            @else
-                                <div class="col-12">
-                                    <p class="text-muted">Nessun dato disponibile</p>
+                <div class="card-body p-2">
+                    <canvas id="graficoUtenti" height="120"></canvas>
+                    {{-- Legenda compatta --}}
+                    <div class="row g-1 mt-2">
+                        @if(isset($distribuzioneUtenti) && count($distribuzioneUtenti) > 0)
+                            @foreach($distribuzioneUtenti as $livello => $count)
+                                <div class="col-6 small text-center">
+                                    <span class="badge badge-livello-{{ $livello }}">{{ $count }}</span>
+                                    @switch($livello)
+                                        @case('1') Pubblico @break
+                                        @case('2') Tecnici @break
+                                        @case('3') Staff @break
+                                        @case('4') Admin @break
+                                        @default Livello {{ $livello }}
+                                    @endswitch
                                 </div>
-                            @endif
-                        </div>
+                            @endforeach
+                        @endif
                     </div>
                 </div>
             </div>
         </div>
 
-        {{-- Grafico Prodotti per Categoria --}}
-        <div class="col-lg-6">
-            <div class="card h-100">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-bar-chart me-2"></i>
+        {{-- Grafico Prodotti per Categoria - Compatto --}}
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-info text-white py-2">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-bar-chart me-1"></i>
                         Prodotti per Categoria
-                    </h5>
+                    </h6>
                 </div>
-                <div class="card-body">
-                    <canvas id="productsChart" height="300"></canvas>
-                    
-                    {{-- Dettagli categorie --}}
+                <div class="card-body p-2">
+                    <canvas id="graficoProdotti" height="120"></canvas>
+                    {{-- Dettagli compatti --}}
                     @if(isset($prodottiPerCategoria) && count($prodottiPerCategoria) > 0)
-                        <div class="mt-3">
-                            <div class="row">
-                                @foreach($prodottiPerCategoria as $categoria => $count)
-                                    <div class="col-6 col-md-4 mb-1">
-                                        <small class="text-muted">
-                                            <strong>{{ ucfirst($categoria) }}:</strong> {{ $count }}
-                                        </small>
-                                    </div>
-                                @endforeach
-                            </div>
+                        <div class="row g-1 mt-2">
+                            @foreach(array_slice($prodottiPerCategoria, 0, 4, true) as $categoria => $count)
+                                <div class="col-6 small text-center">
+                                    <span class="badge bg-info">{{ $count }}</span>
+                                    {{ ucfirst($categoria) }}
+                                </div>
+                            @endforeach
                         </div>
                     @endif
                 </div>
             </div>
         </div>
-    </div>
 
-    {{-- Seconda riga di grafici --}}
-    <div class="row g-4 mb-4">
-        {{-- Grafico Malfunzionamenti per Gravità --}}
-        <div class="col-lg-6">
-            <div class="card h-100">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        Malfunzionamenti per Gravità
-                    </h5>
+        {{-- Grafico Gravità - Compatto --}}
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-warning text-dark py-2">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        Per Gravità
+                    </h6>
                 </div>
-                <div class="card-body">
-                    <canvas id="malfunctionsChart" height="300"></canvas>
-                    
+                <div class="card-body p-2">
+                    <canvas id="graficoGravita" height="120"></canvas>
                     {{-- Dettagli gravità --}}
                     @if(isset($malfunzionamentiPerGravita) && count($malfunzionamentiPerGravita) > 0)
-                        <div class="mt-3">
-                            <div class="row">
-                                @foreach($malfunzionamentiPerGravita as $gravita => $count)
-                                    <div class="col-6 mb-2">
-                                        <div class="d-flex align-items-center">
-                                            @switch($gravita)
-                                                @case('critica')
-                                                    <span class="badge bg-danger me-2">{{ $count }}</span>
-                                                    <small>Critica</small>
-                                                    @break
-                                                @case('alta')
-                                                    <span class="badge bg-warning me-2">{{ $count }}</span>
-                                                    <small>Alta</small>
-                                                    @break
-                                                @case('media')
-                                                    <span class="badge bg-info me-2">{{ $count }}</span>
-                                                    <small>Media</small>
-                                                    @break
-                                                @case('bassa')
-                                                    <span class="badge bg-success me-2">{{ $count }}</span>
-                                                    <small>Bassa</small>
-                                                    @break
-                                                @default
-                                                    <span class="badge bg-secondary me-2">{{ $count }}</span>
-                                                    <small>{{ ucfirst($gravita) }}</small>
-                                            @endswitch
-                                        </div>
-                                    </div>
-                                @endforeach
-                            </div>
+                        <div class="row g-1 mt-2">
+                            @foreach($malfunzionamentiPerGravita as $gravita => $count)
+                                <div class="col-6 small text-center">
+                                    @switch($gravita)
+                                        @case('critica')
+                                            <span class="badge bg-danger">{{ $count }}</span> Critica
+                                            @break
+                                        @case('alta')
+                                            <span class="badge bg-warning text-dark">{{ $count }}</span> Alta
+                                            @break
+                                        @case('media')
+                                            <span class="badge bg-info">{{ $count }}</span> Media
+                                            @break
+                                        @case('bassa')
+                                            <span class="badge bg-success">{{ $count }}</span> Bassa
+                                            @break
+                                        @default
+                                            <span class="badge bg-secondary">{{ $count }}</span> {{ ucfirst($gravita) }}
+                                    @endswitch
+                                </div>
+                            @endforeach
                         </div>
                     @endif
                 </div>
             </div>
         </div>
+    </div>
 
-        {{-- Grafico Crescita nel Tempo --}}
-        <div class="col-lg-6">
-            <div class="card h-100">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-graph-up me-2"></i>
-                        Crescita Utenti e Soluzioni
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <canvas id="growthChart" height="300"></canvas>
+    {{-- === ANDAMENTO CRESCITA COMPATTO === --}}
+    @if(isset($crescitaUtenti) && count($crescitaUtenti) > 0)
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-success text-white py-2">
+                        <h6 class="mb-0 fw-semibold">
+                            <i class="bi bi-graph-up me-1"></i>
+                            Crescita Utenti e Soluzioni
+                        </h6>
+                    </div>
+                    <div class="card-body p-2">
+                        <canvas id="graficoCrescita" height="120"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    @endif
 
-    {{-- Tabelle Dettagliate --}}
-    <div class="row g-4 mb-4">
-        {{-- Top Prodotti Problematici --}}
-        <div class="col-lg-6">
-            <div class="card h-100">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-exclamation-circle me-2"></i>
+    {{-- === SEZIONE DETTAGLI LINEARI === --}}
+    <div class="row g-3 mb-3">
+        {{-- Prodotti Problematici --}}
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-danger text-white py-2">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-exclamation-circle me-1"></i>
                         Prodotti con Più Problemi
-                    </h5>
+                    </h6>
                 </div>
-                <div class="card-body">
-                    @if(isset($prodottiProblematici) && $prodottiProblematici->count() > 0)
-                        <div class="table-responsive">
-                            <table class="table table-sm table-hover">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Prodotto</th>
-                                        <th>Categoria</th>
-                                        <th class="text-center">Problemi</th>
-                                        <th class="text-center">Azioni</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($prodottiProblematici->take(10) as $prodotto)
-                                        <tr>
-                                            <td>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr class="small">
+                                    <th class="py-2">Prodotto</th>
+                                    <th class="py-2">Categoria</th>
+                                    <th class="py-2 text-center">Problemi</th>
+                                    <th class="py-2 text-end">Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if(isset($prodottiProblematici) && $prodottiProblematici->count() > 0)
+                                    @foreach($prodottiProblematici->take(6) as $prodotto)
+                                        <tr class="small">
+                                            <td class="py-2">
                                                 <strong>{{ $prodotto->nome }}</strong>
                                                 @if($prodotto->modello)
                                                     <br><small class="text-muted">{{ $prodotto->modello }}</small>
                                                 @endif
                                             </td>
-                                            <td>
+                                            <td class="py-2">
                                                 @if($prodotto->categoria)
                                                     <span class="badge bg-secondary">
                                                         {{ ucfirst($prodotto->categoria) }}
@@ -304,12 +253,12 @@
                                                     <span class="text-muted">-</span>
                                                 @endif
                                             </td>
-                                            <td class="text-center">
-                                                <span class="badge bg-warning">
+                                            <td class="py-2 text-center">
+                                                <span class="badge bg-warning text-dark">
                                                     {{ $prodotto->malfunzionamenti_count }}
                                                 </span>
                                             </td>
-                                            <td class="text-center">
+                                            <td class="py-2 text-end">
                                                 <a href="{{ route('admin.prodotti.show', $prodotto->id) }}" 
                                                    class="btn btn-sm btn-outline-primary">
                                                     <i class="bi bi-eye"></i>
@@ -317,71 +266,69 @@
                                             </td>
                                         </tr>
                                     @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @else
-                        <div class="text-center py-4">
-                            <i class="bi bi-check-circle display-1 text-success"></i>
-                            <h5 class="text-success mt-2">Ottimo!</h5>
-                            <p class="text-muted">Nessun prodotto con problemi significativi</p>
-                        </div>
-                    @endif
+                                @else
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-3 small">
+                                            Nessun prodotto problematico
+                                        </td>
+                                    </tr>
+                                @endif
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
 
-        {{-- Staff Più Attivi --}}
-        <div class="col-lg-6">
-            <div class="card h-100">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-people me-2"></i>
-                        Staff Più Attivi
-                    </h5>
+        {{-- Staff Attivi --}}
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-secondary text-white py-2">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-people me-1"></i>
+                        Staff Attivi
+                    </h6>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-2">
                     @if(isset($staffAttivi) && $staffAttivi->count() > 0)
-                        <div class="table-responsive">
-                            <table class="table table-sm table-hover">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Staff</th>
-                                        <th class="text-center">Soluzioni Create</th>
-                                        <th class="text-center">Prodotti Assegnati</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($staffAttivi->take(10) as $staff)
-                                        <tr>
-                                            <td>
-                                                <strong>{{ $staff->nome_completo }}</strong>
-                                                <br><small class="text-muted">{{ $staff->username }}</small>
-                                            </td>
-                                            <td class="text-center">
-                                                <span class="badge bg-info">
-                                                    {{ $staff->malfunzionamenti_creati_count }}
+                        <div class="list-group list-group-flush">
+                            @foreach($staffAttivi->take(5) as $staff)
+                                <div class="list-group-item px-0 border-0 py-1">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1 me-1">
+                                            <h6 class="mb-1 fw-semibold small text-truncate">
+                                                {{ $staff->nome_completo }}
+                                            </h6>
+                                            <p class="text-muted small mb-1">
+                                                <i class="bi bi-person me-1"></i>
+                                                {{ $staff->username }}
+                                            </p>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge bg-info">
+                                                {{ $staff->malfunzionamenti_creati_count }}
+                                            </span>
+                                            @if(isset($staff->prodotti_assegnati_count))
+                                                <br><span class="badge bg-success mt-1">
+                                                    {{ $staff->prodotti_assegnati_count }}
                                                 </span>
-                                            </td>
-                                            <td class="text-center">
-                                                @if(isset($staff->prodotti_assegnati_count))
-                                                    <span class="badge bg-success">
-                                                        {{ $staff->prodotti_assegnati_count }}
-                                                    </span>
-                                                @else
-                                                    <span class="text-muted">-</span>
-                                                @endif
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                        
+                        <div class="text-center mt-2">
+                            <a href="{{ route('admin.utenti.index') }}" 
+                               class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-list me-1"></i>Vedi Tutti
+                            </a>
                         </div>
                     @else
-                        <div class="text-center py-4">
-                            <i class="bi bi-person-plus display-1 text-info"></i>
-                            <h5 class="text-info mt-2">Nessun Staff Attivo</h5>
-                            <p class="text-muted">Nessuna attività registrata nel periodo selezionato</p>
+                        <div class="text-center py-3">
+                            <i class="bi bi-person-plus display-6 text-muted opacity-50"></i>
+                            <p class="text-muted small mt-2 mb-0">Nessun staff attivo</p>
                         </div>
                     @endif
                 </div>
@@ -389,63 +336,59 @@
         </div>
     </div>
 
-    {{-- Metriche Aggiuntive --}}
-    <div class="row g-4">
+    {{-- === METRICHE AGGIUNTIVE COMPATTE === --}}
+    <div class="row">
         <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-speedometer2 me-2"></i>
-                        Metriche Aggiuntive
-                    </h5>
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-dark text-white py-2">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-speedometer2 me-1"></i>
+                        Metriche Sistema
+                    </h6>
                 </div>
-                <div class="card-body">
-                    <div class="row g-4 text-center">
-                        {{-- Aggiornamenti Soluzioni --}}
-                        <div class="col-md-3">
-                            <div class="p-3 bg-primary bg-opacity-10 rounded">
-                                <i class="bi bi-arrow-clockwise text-primary fs-1 mb-2"></i>
-                                <h4 class="mb-1">
+                <div class="card-body p-2">
+                    <div class="row g-2">
+                        {{-- Soluzioni Aggiornate --}}
+                        <div class="col-lg-3 col-md-6">
+                            <div class="text-center p-2 bg-primary bg-opacity-10 rounded">
+                                <i class="bi bi-arrow-clockwise text-primary fs-4"></i>
+                                <div class="h5 text-primary mb-0 mt-1">
                                     {{ $stats['soluzioni_aggiornate'] ?? 0 }}
-                                </h4>
-                                <small class="text-muted">Soluzioni Aggiornate</small>
-                                <br><small class="text-muted">Ultimi {{ $periodo ?? 30 }} giorni</small>
+                                </div>
+                                <small class="text-muted">Aggiornate</small>
                             </div>
                         </div>
 
-                        {{-- Periodo Analisi --}}
-                        <div class="col-md-3">
-                            <div class="p-3 bg-info bg-opacity-10 rounded">
-                                <i class="bi bi-calendar3 text-info fs-1 mb-2"></i>
-                                <h4 class="mb-1">
+                        {{-- Periodo --}}
+                        <div class="col-lg-3 col-md-6">
+                            <div class="text-center p-2 bg-info bg-opacity-10 rounded">
+                                <i class="bi bi-calendar3 text-info fs-4"></i>
+                                <div class="h5 text-info mb-0 mt-1">
                                     {{ $periodo ?? 30 }}
-                                </h4>
-                                <small class="text-muted">Giorni Analizzati</small>
-                                <br><small class="text-muted">Dal {{ now()->subDays($periodo ?? 30)->format('d/m/Y') }}</small>
+                                </div>
+                                <small class="text-muted">Giorni</small>
                             </div>
                         </div>
 
                         {{-- Ultimo Aggiornamento --}}
-                        <div class="col-md-3">
-                            <div class="p-3 bg-success bg-opacity-10 rounded">
-                                <i class="bi bi-clock text-success fs-1 mb-2"></i>
-                                <h4 class="mb-1" id="last-update">
+                        <div class="col-lg-3 col-md-6">
+                            <div class="text-center p-2 bg-success bg-opacity-10 rounded">
+                                <i class="bi bi-clock text-success fs-4"></i>
+                                <div class="h5 text-success mb-0 mt-1" id="last-update">
                                     {{ now()->format('H:i') }}
-                                </h4>
-                                <small class="text-muted">Ultimo Aggiornamento</small>
-                                <br><small class="text-muted">{{ now()->format('d/m/Y') }}</small>
+                                </div>
+                                <small class="text-muted">Ultimo Update</small>
                             </div>
                         </div>
 
-                        {{-- Database Status --}}
-                        <div class="col-md-3">
-                            <div class="p-3 bg-warning bg-opacity-10 rounded">
-                                <i class="bi bi-database text-warning fs-1 mb-2"></i>
-                                <h4 class="mb-1">
-                                    <span class="badge bg-success">Online</span>
-                                </h4>
-                                <small class="text-muted">Stato Database</small>
-                                <br><small class="text-muted">Sistema operativo</small>
+                        {{-- Stato Sistema --}}
+                        <div class="col-lg-3 col-md-6">
+                            <div class="text-center p-2 bg-warning bg-opacity-10 rounded">
+                                <i class="bi bi-database text-warning fs-4"></i>
+                                <div class="h5 text-warning mb-0 mt-1">
+                                    <span class="badge bg-success">OK</span>
+                                </div>
+                                <small class="text-muted">Sistema</small>
                             </div>
                         </div>
                     </div>
@@ -453,24 +396,32 @@
             </div>
         </div>
     </div>
+
 </div>
 @endsection
 
-{{-- JavaScript per i grafici e aggiornamenti --}}
 @push('scripts')
-{{-- Chart.js per i grafici --}}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-/**
- * JavaScript per la pagina Statistiche Admin
- * Usa i dati reali passati dal controller PHP
- */
+// === CONFIGURAZIONE GRAFICI COMPATTI ===
 
-// Variabili globali per i grafici
-let usersChart, productsChart, malfunctionsChart, growthChart;
+// Configurazione comune per tutti i grafici
+const commonOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: {
+            display: false // Nasconde legenda per risparmiare spazio
+        }
+    },
+    elements: {
+        point: {
+            radius: 3 // Punti più piccoli
+        }
+    }
+};
 
-// Dati dal controller PHP - CORRETTI
+// Dati dal controller PHP
 const distribuzioneUtenti = @json($distribuzioneUtenti ?? []);
 const prodottiPerCategoria = @json($prodottiPerCategoria ?? []);
 const malfunzionamentiPerGravita = @json($malfunzionamentiPerGravita ?? []);
@@ -478,61 +429,27 @@ const crescitaUtenti = @json($crescitaUtenti ?? []);
 const crescitaSoluzioni = @json($crescitaSoluzioni ?? []);
 
 $(document).ready(function() {
-    console.log('📊 Inizializzazione statistiche admin');
+    console.log('📊 Statistiche Admin Compatte inizializzate');
     console.log('📊 Dati ricevuti:', {
         distribuzioneUtenti,
         prodottiPerCategoria,
         malfunzionamentiPerGravita
     });
     
-    // Inizializza tutti i grafici
+    // Inizializza grafici
     initializeCharts();
-    
-    // Gestione pulsante refresh
-    $('#refresh-stats').on('click', function() {
-        refreshAllStats();
-    });
 });
 
-/**
- * Inizializza tutti i grafici della pagina
- */
-function initializeCharts() {
-    try {
-        // Grafico distribuzione utenti (Pie Chart)
-        initUsersChart();
-        
-        // Grafico prodotti per categoria (Bar Chart)  
-        initProductsChart();
-        
-        // Grafico malfunzionamenti per gravità (Doughnut Chart)
-        initMalfunctionsChart();
-        
-        // Grafico crescita nel tempo (Line Chart)
-        initGrowthChart();
-        
-        console.log('✅ Tutti i grafici inizializzati');
-    } catch (error) {
-        console.error('❌ Errore inizializzazione grafici:', error);
-    }
-}
-
-/**
- * Inizializza il grafico distribuzione utenti
- */
+// Grafico Utenti - Compatto
 function initUsersChart() {
-    const ctx = document.getElementById('usersChart');
-    if (!ctx) {
-        console.warn('Canvas usersChart non trovato');
-        return;
-    }
+    const ctx = document.getElementById('graficoUtenti');
+    if (!ctx) return;
     
     const labels = [];
     const values = [];
     const colors = ['#6c757d', '#0dcaf0', '#ffc107', '#dc3545'];
     
-    // Prepara i dati per il grafico
-    Object.entries(distribuzioneUtenti).forEach(([livello, count], index) => {
+    Object.entries(distribuzioneUtenti).forEach(([livello, count]) => {
         switch(livello) {
             case '1': labels.push('Pubblico'); break;
             case '2': labels.push('Tecnici'); break;
@@ -543,49 +460,28 @@ function initUsersChart() {
         values.push(count);
     });
     
-    if (values.length === 0) {
-        console.warn('Nessun dato per grafico utenti');
-        ctx.getContext('2d').fillText('Nessun dato disponibile', 50, 50);
-        return;
-    }
+    if (values.length === 0) return;
     
-    usersChart = new Chart(ctx, {
-        type: 'pie',
+    new Chart(ctx, {
+        type: 'doughnut',
         data: {
             labels: labels,
             datasets: [{
                 data: values,
                 backgroundColor: colors.slice(0, labels.length),
-                borderWidth: 2,
-                borderColor: '#fff'
+                borderWidth: 1
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((context.parsed / total) * 100).toFixed(1);
-                            return `${context.label}: ${context.parsed} (${percentage}%)`;
-                        }
-                    }
-                }
-            }
+            ...commonOptions,
+            cutout: '50%'
         }
     });
 }
 
-/**
- * Inizializza il grafico prodotti per categoria
- */
+// Grafico Prodotti - Compatto  
 function initProductsChart() {
-    const ctx = document.getElementById('productsChart');
+    const ctx = document.getElementById('graficoProdotti');
     if (!ctx) return;
     
     const labels = Object.keys(prodottiPerCategoria).map(cat => 
@@ -593,60 +489,50 @@ function initProductsChart() {
     );
     const values = Object.values(prodottiPerCategoria);
     
-    if (values.length === 0) {
-        console.warn('Nessun dato per grafico prodotti');
-        return;
-    }
+    if (values.length === 0) return;
     
-    productsChart = new Chart(ctx, {
+    new Chart(ctx, {
         type: 'bar',
         data: {
             labels: labels,
             datasets: [{
-                label: 'Numero Prodotti',
                 data: values,
                 backgroundColor: '#0dcaf0',
-                borderColor: '#0dcaf0',
                 borderWidth: 1
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            ...commonOptions,
             scales: {
+                x: {
+                    display: false
+                },
                 y: {
                     beginAtZero: true,
+                    display: false,
                     ticks: {
                         stepSize: 1
                     }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
                 }
             }
         }
     });
 }
 
-/**
- * Inizializza il grafico malfunzionamenti per gravità
- */
-function initMalfunctionsChart() {
-    const ctx = document.getElementById('malfunctionsChart');
+// Grafico Gravità - Compatto
+function initGravityChart() {
+    const ctx = document.getElementById('graficoGravita');
     if (!ctx) return;
     
     const labels = [];
     const values = [];
     const colors = [];
     
-    // Ordine specifico per gravità
     const gravitaOrder = ['critica', 'alta', 'media', 'bassa'];
     const gravitaColors = {
         'critica': '#dc3545',
-        'alta': '#fd7e14', 
-        'media': '#ffc107',
+        'alta': '#ffc107', 
+        'media': '#0dcaf0',
         'bassa': '#198754'
     };
     
@@ -658,42 +544,29 @@ function initMalfunctionsChart() {
         }
     });
     
-    if (values.length === 0) {
-        console.warn('Nessun dato per grafico malfunzionamenti');
-        return;
-    }
+    if (values.length === 0) return;
     
-    malfunctionsChart = new Chart(ctx, {
-        type: 'doughnut',
+    new Chart(ctx, {
+        type: 'pie',
         data: {
             labels: labels,
             datasets: [{
                 data: values,
                 backgroundColor: colors,
-                borderWidth: 2,
-                borderColor: '#fff'
+                borderWidth: 1
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                }
-            }
+            ...commonOptions
         }
     });
 }
 
-/**
- * Inizializza il grafico crescita nel tempo
- */
+// Grafico Crescita - Compatto
 function initGrowthChart() {
-    const ctx = document.getElementById('growthChart');
+    const ctx = document.getElementById('graficoCrescita');
     if (!ctx) return;
     
-    // Prepara i dati per il grafico lineare
     const labels = crescitaUtenti.map(item => {
         const date = new Date(item.data);
         return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
@@ -702,106 +575,95 @@ function initGrowthChart() {
     const utentiData = crescitaUtenti.map(item => item.count || 0);
     const soluzioniData = crescitaSoluzioni.map(item => item.count || 0);
     
-    growthChart = new Chart(ctx, {
+    new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
             datasets: [{
-                label: 'Nuovi Utenti',
+                label: 'Utenti',
                 data: utentiData,
                 borderColor: '#0dcaf0',
                 backgroundColor: 'rgba(13, 202, 240, 0.1)',
-                tension: 0.4,
-                fill: true
+                tension: 0.3,
+                fill: true,
+                borderWidth: 2
             }, {
-                label: 'Nuove Soluzioni',
+                label: 'Soluzioni',
                 data: soluzioniData,
                 borderColor: '#198754',
                 backgroundColor: 'rgba(25, 135, 84, 0.1)',
-                tension: 0.4,
-                fill: true
+                tension: 0.3,
+                fill: true,
+                borderWidth: 2
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            ...commonOptions,
             scales: {
+                x: {
+                    display: false
+                },
                 y: {
                     beginAtZero: true,
+                    display: false,
                     ticks: {
                         stepSize: 1
                     }
                 }
-            },
-            plugins: {
-                legend: {
-                    position: 'top'
-                }
             }
         }
     });
 }
 
-/**
- * Aggiorna tutte le statistiche tramite AJAX
- */
-function refreshAllStats() {
-    const btn = $('#refresh-stats');
-    btn.prop('disabled', true);
-    btn.html('<i class="bi bi-arrow-clockwise me-1"></i>Aggiornamento...');
+function initializeCharts() {
+    try {
+        initUsersChart();
+        initProductsChart();
+        initGravityChart();
+        initGrowthChart();
+        console.log('✅ Tutti i grafici admin inizializzati');
+    } catch (error) {
+        console.error('❌ Errore inizializzazione grafici:', error);
+    }
+}
+
+// === FUNZIONI UTILITY ===
+function aggiornaStatistiche() {
+    const btn = event.target;
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-arrow-repeat spinner-border spinner-border-sm"></i>';
+    btn.disabled = true;
     
-    // Usa la route corretta del tuo AdminController
-    $.ajax({
-        url: '{{ route("api.admin.stats-update") }}',
-        method: 'GET',
-        success: function(response) {
-            if (response.success) {
-                // Aggiorna i contatori
-                updateCounters(response.stats);
-                
-                showNotification('Statistiche aggiornate con successo', 'success');
-                
-                // Aggiorna timestamp
-                $('#last-update').text(new Date().toLocaleTimeString('it-IT', {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                }));
-            } else {
-                showNotification('Errore nell\'aggiornamento: ' + response.message, 'danger');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Errore AJAX:', error);
-            showNotification('Errore durante l\'aggiornamento delle statistiche', 'danger');
-        },
-        complete: function() {
-            btn.prop('disabled', false);
-            btn.html('<i class="bi bi-arrow-clockwise me-1"></i>Aggiorna');
+    setTimeout(() => location.reload(), 1000);
+}
+
+// === ANIMAZIONI CONTATORI ===
+function animateCounters() {
+    $('.h5.fw-bold').each(function() {
+        const $counter = $(this);
+        const text = $counter.text().trim();
+        const target = parseInt(text.replace(/[^\d]/g, ''));
+        
+        if (!isNaN(target) && target > 0 && target < 1000) {
+            $counter.text('0');
+            
+            $({ counter: 0 }).animate({ counter: target }, {
+                duration: 1500,
+                easing: 'swing',
+                step: function() {
+                    $counter.text(Math.ceil(this.counter));
+                },
+                complete: function() {
+                    $counter.text(target);
+                }
+            });
         }
     });
 }
 
-/**
- * Aggiorna i contatori numerici
- */
-function updateCounters(stats) {
-    if (stats.total_utenti !== undefined) {
-        $('#total-users').text(stats.total_utenti);
-    }
-    if (stats.total_prodotti !== undefined) {
-        $('#total-products').text(stats.total_prodotti);
-    }
-    if (stats.total_soluzioni !== undefined) {
-        $('#total-malfunctions').text(stats.total_soluzioni);
-    }
-    if (stats.total_centri !== undefined) {
-        $('#total-centers').text(stats.total_centri);
-    }
-}
+setTimeout(animateCounters, 500);
 
-/**
- * Funzione helper per mostrare notificazioni
- */
+// === NOTIFICHE ===
 function showNotification(message, type = 'success') {
     const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
     const icon = type === 'success' ? 'check-circle' : 'exclamation-triangle';
@@ -816,235 +678,342 @@ function showNotification(message, type = 'success') {
     `);
     
     $('body').append(alert);
-    
-    // Auto-rimuovi dopo 4 secondi
-    setTimeout(() => {
-        alert.alert('close');
-    }, 4000);
+    setTimeout(() => alert.alert('close'), 4000);
 }
 
-/**
- * Funzione helper per formattare numeri
- */
-function formatNumber(num) {
-    return new Intl.NumberFormat('it-IT').format(num);
-}
+// Auto-refresh ogni 10 minuti
+setInterval(() => {
+    console.log('🔄 Auto-refresh statistiche admin');
+}, 600000);
 
-/**
- * Controllo se i grafici sono stati inizializzati correttamente
- */
-function checkChartsStatus() {
-    const charts = {
-        'usersChart': usersChart,
-        'productsChart': productsChart, 
-        'malfunctionsChart': malfunctionsChart,
-        'growthChart': growthChart
-    };
-    
-    Object.entries(charts).forEach(([name, chart]) => {
-        if (!chart) {
-            console.warn(`Grafico ${name} non inizializzato`);
-        } else {
-            console.log(`✅ Grafico ${name} OK`);
-        }
-    });
-}
-
-// Debug: Verifica stato grafici dopo 2 secondi
-setTimeout(checkChartsStatus, 2000);
-
-// Auto-refresh ogni 5 minuti (300000ms)
-setInterval(refreshAllStats, 300000);
-
-console.log('✅ Sistema statistiche admin completamente inizializzato');
+console.log('✅ Statistiche Admin Compatte caricate');
 </script>
+@endpush
 
-{{-- Stili personalizzati per la pagina statistiche --}}
+@push('styles')
 <style>
+/* === STILI COMPATTI PER STATISTICHE ADMIN === */
+
 /* Badge per livelli utente */
 .badge-livello-1 { background-color: #6c757d !important; color: white !important; }
 .badge-livello-2 { background-color: #0dcaf0 !important; color: white !important; }
 .badge-livello-3 { background-color: #ffc107 !important; color: #000 !important; }
 .badge-livello-4 { background-color: #dc3545 !important; color: white !important; }
 
-/* Altezza fissa per i grafici */
-#usersChart, #productsChart, #malfunctionsChart, #growthChart {
-    height: 300px !important;
+/* Card più compatte */
+.card {
+    border-radius: 8px;
+    border: none !important;
 }
 
-/* Miglioramenti responsivi */
+.card-header {
+    border-radius: 8px 8px 0 0 !important;
+    font-size: 0.9rem;
+}
+
+.card-body {
+    font-size: 0.9rem;
+}
+
+/* Tabelle più compatte */
+.table-sm td, .table-sm th {
+    padding: 0.4rem;
+    font-size: 0.85rem;
+}
+
+/* Grafici più piccoli e responsive */
+canvas {
+    max-height: 120px !important;
+}
+
+/* Badge più piccoli */
+.badge {
+    font-size: 0.7rem;
+}
+
+/* Bottoni più compatti */
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+}
+
+/* Liste compatte */
+.list-group-item {
+    font-size: 0.85rem;
+}
+
+/* Progress bar e elementi interattivi */
+.progress {
+    border-radius: 6px;
+}
+
+.progress-bar {
+    transition: width 0.4s ease;
+}
+
+/* Responsive migliorato */
 @media (max-width: 768px) {
-    .container-fluid {
-        padding-left: 10px;
-        padding-right: 10px;
+    .card-body {
+        padding: 0.75rem;
     }
     
     .table-responsive {
-        font-size: 0.875rem;
+        font-size: 0.8rem;
     }
     
-    .display-4 {
-        font-size: 2rem !important;
+    .col-lg-4, .col-lg-8 {
+        margin-bottom: 0.5rem;
     }
     
-    .btn-group .btn {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.875rem;
+    .btn-group-sm {
+        flex-wrap: wrap;
+    }
+    
+    .btn-group-sm .btn {
+        margin-bottom: 0.25rem;
+        border-radius: 0.375rem !important;
     }
 }
 
-/* Animazioni per le card */
+@media (max-width: 576px) {
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        align-items: start !important;
+    }
+    
+    .btn-group {
+        margin-top: 0.5rem;
+        width: 100%;
+    }
+    
+    .small {
+        font-size: 0.75rem !important;
+    }
+    
+    .h5 {
+        font-size: 1.1rem !important;
+    }
+    
+    .fs-4 {
+        font-size: 1.2rem !important;
+    }
+}
+
+/* Animazioni leggere */
 .card {
-    transition: all 0.2s ease-in-out;
-    border: none;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: transform 0.2s ease;
 }
 
 .card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
 }
 
-/* Miglioramenti per le tabelle */
-.table-hover tbody tr:hover {
-    background-color: rgba(0, 123, 255, 0.05);
+/* Loading spinner */
+.spinner-border-sm {
+    width: 0.8rem;
+    height: 0.8rem;
 }
 
-/* Stili per i badge nelle tabelle */
-.table .badge {
-    font-size: 0.75rem;
+/* Colori personalizzati */
+.text-muted {
+    color: #6c757d !important;
 }
 
-/* Miglioramenti per le icone */
-.display-1, .display-4, .fs-1 {
-    line-height: 1;
-}
-
-/* Stili per i pulsanti periodo */
-.btn-group .btn.active {
-    background-color: #0dcaf0 !important;
-    border-color: #0dcaf0 !important;
-    color: white !important;
-}
-
-/* Stili per le notificazioni */
-.alert.position-fixed {
-    border-radius: 0.5rem;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-}
-
-/* Miglioramenti accessibilità */
-.btn:focus, 
-.form-control:focus {
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-}
-
-/* Loading states */
-.btn:disabled {
-    opacity: 0.6;
-}
-
-/* Placeholder per grafici vuoti */
-canvas:empty::before {
-    content: "Caricamento grafico...";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: #6c757d;
-    font-size: 0.875rem;
-}
-
-/* Miglioramenti tipografici */
 .fw-semibold {
     font-weight: 600;
 }
 
-.text-truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+/* Effetti speciali per le statistiche */
+.bg-opacity-10 {
+    background-color: rgba(var(--bs-primary-rgb), 0.1) !important;
 }
 
-/* Stili per stati vuoti */
-.text-center .display-1 {
-    opacity: 0.3;
+/* Stile per le icone nelle card */
+.fs-4 {
+    font-size: 1.25rem !important;
 }
 
-/* Transizioni fluide */
-.card, .btn, .badge, .alert {
-    transition: all 0.2s ease-in-out;
+/* Hover per le righe della tabella */
+.table-hover tbody tr:hover {
+    --bs-table-accent-bg: rgba(0, 0, 0, 0.025);
 }
 
-/* Fix per chart.js responsive */
-.card-body canvas {
-    max-height: 300px !important;
+/* Alert personalizzati */
+.alert {
+    border-radius: 8px;
+    font-size: 0.9rem;
 }
 
-/* Stili per il periodo selezionato */
-.period-info {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-radius: 0.5rem;
-    padding: 0.5rem 1rem;
-    margin-bottom: 1rem;
-}
-
-/* Miglioramenti per mobile */
-@media (max-width: 576px) {
-    .btn-group {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.25rem;
+/* Ottimizzazioni per stampa */
+@media print {
+    .btn, .btn-group {
+        display: none !important;
     }
     
-    .btn-group .btn {
-        flex: 1;
-        min-width: auto;
+    .card {
+        border: 1px solid #dee2e6 !important;
+        break-inside: avoid;
     }
-    
-    h1.h2 {
-        font-size: 1.5rem;
+}
+
+/* Scrollbar personalizzata per le tabelle */
+.table-responsive::-webkit-scrollbar {
+    height: 6px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 6px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 6px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Effetto focus migliorato */
+.btn:focus {
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+/* Stile per elementi disabilitati */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Animazione per il refresh */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.spinner-border {
+    animation: spin 1s linear infinite;
+}
+
+/* Margini consistenti */
+.mb-3 {
+    margin-bottom: 1rem !important;
+}
+
+.mt-4 {
+    margin-top: 1.5rem !important;
+}
+
+/* Stile per link */
+a {
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Stili specifici per badge di stato */
+.badge.bg-success {
+    background-color: #198754 !important;
+}
+
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #000 !important;
+}
+
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.badge.bg-info {
+    background-color: #0dcaf0 !important;
+}
+
+/* Stili per le cards con colori specifici */
+.card-header.bg-primary {
+    background-color: #0d6efd !important;
+}
+
+.card-header.bg-info {
+    background-color: #0dcaf0 !important;
+}
+
+.card-header.bg-warning {
+    background-color: #ffc107 !important;
+}
+
+.card-header.bg-success {
+    background-color: #198754 !important;
+}
+
+.card-header.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.card-header.bg-secondary {
+    background-color: #6c757d !important;
+}
+
+.card-header.bg-dark {
+    background-color: #212529 !important;
+}
+
+/* Finali responsive per ultra-piccoli schermi */
+@media (max-width: 360px) {
+    .container {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
     }
     
     .card-body {
-        padding: 1rem 0.75rem;
-    }
-}
-
-/* Stili per indicatori di stato */
-.status-indicator {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    margin-right: 0.5rem;
-}
-
-.status-indicator.online {
-    background-color: #198754;
-}
-
-.status-indicator.warning {
-    background-color: #ffc107;
-}
-
-.status-indicator.error {
-    background-color: #dc3545;
-}
-
-/* Debug styles (solo in ambiente di sviluppo) */
-@media screen and (max-width: 1px) {
-    .debug-info {
-        position: fixed;
-        top: 10px;
-        left: 10px;
-        background: rgba(0, 0, 0, 0.8);
-        color: white;
         padding: 0.5rem;
-        font-size: 0.75rem;
-        border-radius: 0.25rem;
-        z-index: 9999;
     }
+    
+    .btn-group-sm .btn {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+    }
+    
+    .h2 {
+        font-size: 1.3rem !important;
+    }
+}
+
+/* Stili per tooltip */
+.tooltip {
+    font-size: 0.8rem;
+}
+
+/* Miglioramenti accessibilità */
+.sr-only {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0,0,0,0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* Focus visibile per accessibilità */
+.btn:focus-visible, 
+.form-control:focus-visible {
+    outline: 2px solid #0d6efd;
+    outline-offset: 2px;
+}
+
+/* Transizioni fluide globali */
+* {
+    box-sizing: border-box;
+}
+
+.card, .btn, .badge, .alert, .table-hover tbody tr {
+    transition: all 0.2s ease-in-out;
 }
 </style>
 @endpush

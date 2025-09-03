@@ -364,7 +364,7 @@
                         Hai bisogno di assistenza tecnica? Il nostro team è pronto ad aiutarti con competenza e professionalità.
                     </p>
                     <div class="d-flex flex-wrap justify-content-center gap-3">
-                        <a href="{{ route('prodotti.index') }}" class="btn btn-light btn-lg">
+                        <a href="{{ route('prodotti.pubblico.index') }}" class="btn btn-light btn-lg">
                             <i class="bi bi-search me-2"></i>Cerca Soluzioni
                         </a>
                         <a href="{{ route('centri.index') }}" class="btn btn-outline-light btn-lg">

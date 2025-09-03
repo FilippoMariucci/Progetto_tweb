@@ -1,248 +1,147 @@
-{{-- 
-    VISTA STATISTICHE STAFF AZIENDALE
-    File: resources/views/staff/statistiche.blade.php
+{{--
+    Statistiche Staff - Layout Compatto e Lineare
+    Sistema Assistenza Tecnica - Gruppo 51
     
-    Questa vista mostra le statistiche dettagliate per i membri dello staff aziendale (Livello 3).
-    Include andamento mensile, distribuzione per categoria, e azioni rapide per operazioni comuni.
+    Vista ottimizzata per staff con layout compatto, 
+    grafici più piccoli e informazioni essenziali
 --}}
 
-{{-- Estende il layout principale dell'applicazione --}}
 @extends('layouts.app')
 
-{{-- Definisce il titolo dinamico della pagina --}}
-@section('title', 'Statistiche Staff - ' . ($user->nome_completo ?? $user->name ?? 'Staff'))
+@section('title', 'Le mie Statistiche - Staff')
 
-{{-- Contenuto principale della pagina --}}
 @section('content')
-<div class="container-fluid mt-4">
-    
-    {{-- === SEZIONE HEADER PRINCIPALE === --}}
-    <div class="row mb-4">
-        <div class="col-12">
-            {{-- Header con titolo e controlli --}}
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                {{-- Informazioni principale --}}
-                <div>
-                    {{-- Titolo della pagina con icona --}}
-                    <h1 class="h2 mb-1">
-                        <i class="bi bi-graph-up text-warning me-2"></i>
-                        Statistiche Staff Aziendale
-                    </h1>
-                    {{-- Descrizione della pagina --}}
-                    <p class="text-muted mb-0">
-                        Analisi dettagliate della tua attività di staff tecnico
-                    </p>
-                    {{-- Informazioni contestuali sul periodo e utente --}}
-                    <small class="text-muted">
-                        Staff: {{ $user->nome_completo ?? $user->name ?? $user->username }}
-                        • Periodo: ultimi {{ $periodo }} giorni
-                    </small>
-                </div>
-                
-                {{-- Controlli per cambiare periodo e refresh --}}
-                <div>
-                    {{-- Gruppo pulsanti per selezionare il periodo di analisi --}}
-                    <div class="btn-group me-2">
-                        <a href="{{ route('staff.statistiche', ['periodo' => 7]) }}" 
-                           class="btn btn-outline-warning {{ $periodo == 7 ? 'active' : '' }}">
-                            7 giorni
-                        </a>
-                        <a href="{{ route('staff.statistiche', ['periodo' => 30]) }}" 
-                           class="btn btn-outline-warning {{ $periodo == 30 ? 'active' : '' }}">
-                            30 giorni
-                        </a>
-                        <a href="{{ route('staff.statistiche', ['periodo' => 90]) }}" 
-                           class="btn btn-outline-warning {{ $periodo == 90 ? 'active' : '' }}">
-                            90 giorni
-                        </a>
-                    </div>
-                    {{-- Pulsante per aggiornare le statistiche --}}
-                    <button id="refresh-stats" class="btn btn-outline-success me-2">
-                        <i class="bi bi-arrow-clockwise me-1"></i>Aggiorna
-                    </button>
-                    {{-- Link per tornare alla dashboard --}}
-                    <a href="{{ route('staff.dashboard') }}" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left me-1"></i>Dashboard
-                    </a>
-                </div>
-            </div>
-
-            {{-- Breadcrumb per la navigazione --}}
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ route('home') }}">Home</a></li>
-                    <li class="breadcrumb-item"><a href="{{ route('staff.dashboard') }}">Dashboard Staff</a></li>
-                    <li class="breadcrumb-item active">Statistiche</li>
-                </ol>
-            </nav>
+<div class="container mt-4">
+    {{-- === HEADER COMPATTO === --}}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2 class="mb-1">
+                <i class="bi bi-graph-up text-warning me-2"></i>
+                Le mie Statistiche
+            </h2>
+            <p class="text-muted small mb-0">{{ $user->nome_completo ?? $user->name ?? 'Staff Aziendale' }}</p>
+            <small class="text-muted">Periodo: ultimi {{ $periodo }} giorni</small>
+        </div>
+        <div class="btn-group btn-group-sm">
+            {{-- Controlli periodo --}}
+            <a href="{{ route('staff.statistiche', ['periodo' => 7]) }}" 
+               class="btn btn-outline-warning {{ $periodo == 7 ? 'active' : '' }}">7g</a>
+            <a href="{{ route('staff.statistiche', ['periodo' => 30]) }}" 
+               class="btn btn-outline-warning {{ $periodo == 30 ? 'active' : '' }}">30g</a>
+            <a href="{{ route('staff.statistiche', ['periodo' => 90]) }}" 
+               class="btn btn-outline-warning {{ $periodo == 90 ? 'active' : '' }}">90g</a>
+            {{-- Azioni --}}
+            <button class="btn btn-primary" onclick="aggiornaStatistiche()">
+                <i class="bi bi-arrow-clockwise"></i> Aggiorna
+            </button>
+            <a href="{{ route('staff.dashboard') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Dashboard
+            </a>
         </div>
     </div>
 
     {{-- Alert di errore se presente --}}
     @if(isset($error))
-        <div class="alert alert-warning border-start border-warning border-4 mb-4">
+        <div class="alert alert-warning border-start border-warning border-4 mb-3">
             <i class="bi bi-exclamation-triangle me-2"></i>
             {{ $error }}
         </div>
     @endif
 
-    {{-- === STATISTICHE GENERALI - PRIMO ROW === --}}
-    <div class="row g-3 mb-4">
-        {{-- Card: Soluzioni Create --}}
-        <div class="col-xl-3 col-lg-6">
-            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
-                <div class="card-body text-white">
-                    <div class="d-flex align-items-center">
-                        {{-- Icona della statistica --}}
-                        <div class="flex-shrink-0">
-                            <i class="bi bi-tools display-4 opacity-75"></i>
-                        </div>
-                        {{-- Valore e descrizione --}}
-                        <div class="flex-grow-1 ms-3 text-end">
-                            <h3 class="mb-0 fw-bold">{{ $stats['soluzioni_create'] ?? 0 }}</h3>
-                            <small class="text-white-50">Soluzioni Create</small>
-                        </div>
-                    </div>
-                </div>
-                {{-- Footer con informazioni aggiuntive --}}
-                <div class="card-footer bg-transparent border-0 text-white-50">
-                    <small>
-                        <i class="bi bi-check-circle me-1"></i>
-                        Totali da sempre
-                    </small>
+    {{-- === STATISTICHE COMPATTE - STILE CARD PICCOLE === --}}
+    <div class="row g-2 mb-3">
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-2">
+                    <i class="bi bi-tools text-success fs-4"></i>
+                    <h5 class="fw-bold mb-0 mt-1">{{ $stats['soluzioni_create'] ?? 0 }}</h5>
+                    <small class="text-muted">Soluzioni Create</small>
                 </div>
             </div>
         </div>
-
-        {{-- Card: Modifiche Apportate --}}
-        <div class="col-xl-3 col-lg-6">
-            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #17a2b8 0%, #6f42c1 100%);">
-                <div class="card-body text-white">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i class="bi bi-pencil-square display-4 opacity-75"></i>
-                        </div>
-                        <div class="flex-grow-1 ms-3 text-end">
-                            <h3 class="mb-0 fw-bold">{{ $stats['soluzioni_modificate'] ?? 0 }}</h3>
-                            <small class="text-white-50">Soluzioni Modificate</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer bg-transparent border-0 text-white-50">
-                    <small>
-                        <i class="bi bi-arrow-clockwise me-1"></i>
-                        Aggiornamenti effettuati
-                    </small>
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-2">
+                    <i class="bi bi-pencil-square text-info fs-4"></i>
+                    <h5 class="fw-bold mb-0 mt-1">{{ $stats['soluzioni_modificate'] ?? 0 }}</h5>
+                    <small class="text-muted">Modifiche</small>
                 </div>
             </div>
         </div>
-
-        {{-- Card: Problemi Critici Risolti --}}
-        <div class="col-xl-3 col-lg-6">
-            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);">
-                <div class="card-body text-white">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i class="bi bi-exclamation-triangle display-4 opacity-75"></i>
-                        </div>
-                        <div class="flex-grow-1 ms-3 text-end">
-                            <h3 class="mb-0 fw-bold">{{ $stats['critiche_risolte'] ?? 0 }}</h3>
-                            <small class="text-white-50">Critiche Risolte</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer bg-transparent border-0 text-white-50">
-                    <small>
-                        <i class="bi bi-shield-check me-1"></i>
-                        Problemi ad alta priorità
-                    </small>
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-2">
+                    <i class="bi bi-exclamation-triangle text-danger fs-4"></i>
+                    <h5 class="fw-bold mb-0 mt-1">{{ $stats['critiche_risolte'] ?? 0 }}</h5>
+                    <small class="text-muted">Critiche Risolte</small>
                 </div>
             </div>
         </div>
-
-        {{-- Card: Posizione Ranking --}}
-        <div class="col-xl-3 col-lg-6">
-            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #ffc107 0%, #e83e8c 100%);">
-                <div class="card-body text-white">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i class="bi bi-trophy display-4 opacity-75"></i>
-                        </div>
-                        <div class="flex-grow-1 ms-3 text-end">
-                            {{-- Controllo condizionale per la posizione nel ranking --}}
-                            @if($stats['ranking_posizione'] ?? null)
-                                <h3 class="mb-0 fw-bold">#{{ $stats['ranking_posizione'] }}</h3>
-                                <small class="text-white-50">Posizione Ranking</small>
-                            @else
-                                <h3 class="mb-0 fw-bold">N/A</h3>
-                                <small class="text-white-50">Nessun Ranking</small>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer bg-transparent border-0 text-white-50">
-                    <small>
-                        <i class="bi bi-people me-1"></i>
-                        Su {{ $stats['totale_staff'] ?? 0 }} staff totali
-                    </small>
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-2">
+                    <i class="bi bi-trophy text-warning fs-4"></i>
+                    <h5 class="fw-bold mb-0 mt-1">
+                        @if($stats['ranking_posizione'] ?? null)
+                            #{{ $stats['ranking_posizione'] }}
+                        @else
+                            N/A
+                        @endif
+                    </h5>
+                    <small class="text-muted">Ranking</small>
                 </div>
             </div>
         </div>
     </div>
 
-    {{-- === ATTIVITÀ NEL PERIODO SELEZIONATO === --}}
-    <div class="row g-3 mb-4">
-        {{-- Card: Attività Recente --}}
-        <div class="col-lg-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-light border-0">
-                    <h5 class="mb-0">
-                        <i class="bi bi-calendar3 text-primary me-2"></i>
-                        Attività Recente ({{ $periodo }} giorni)
-                    </h5>
+    {{-- === LAYOUT LINEARE - GRAFICI AFFIANCATI === --}}
+    <div class="row g-3 mb-3">
+        {{-- Attività Periodo - Compatto --}}
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-success text-white py-2">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-calendar3 me-1"></i>
+                        Attività {{ $periodo }}g
+                    </h6>
                 </div>
-                <div class="card-body">
-                    {{-- Statistiche del periodo in formato griglia --}}
-                    <div class="row g-3 text-center">
+                <div class="card-body p-2">
+                    {{-- Statistiche del periodo in formato compatto --}}
+                    <div class="row g-2 text-center">
                         <div class="col-6">
-                            <div class="p-3 bg-success bg-opacity-10 rounded">
-                                <div class="display-6 text-success fw-bold">
+                            <div class="p-2 bg-success bg-opacity-10 rounded">
+                                <div class="h5 text-success fw-bold mb-0">
                                     {{ $stats['soluzioni_periodo'] ?? 0 }}
                                 </div>
-                                <small class="text-muted">Nuove Soluzioni</small>
+                                <small class="text-muted">Nuove</small>
                             </div>
                         </div>
                         <div class="col-6">
-                            <div class="p-3 bg-info bg-opacity-10 rounded">
-                                <div class="display-6 text-info fw-bold">
+                            <div class="p-2 bg-info bg-opacity-10 rounded">
+                                <div class="h5 text-info fw-bold mb-0">
                                     {{ $stats['modifiche_periodo'] ?? 0 }}
                                 </div>
-                                <small class="text-muted">Modifiche Apportate</small>
+                                <small class="text-muted">Modifiche</small>
                             </div>
                         </div>
                     </div>
                     
-                    {{-- Barra di progresso per obiettivi del periodo --}}
-                    <hr>
-                    <div class="mb-2">
+                    {{-- Barra progresso obiettivo --}}
+                    <hr class="my-2">
+                    @php
+                        $obiettivo = ceil($periodo / 7);
+                        $raggiunte = $stats['soluzioni_periodo'] ?? 0;
+                        $percentuale = $obiettivo > 0 ? min(100, ($raggiunte / $obiettivo) * 100) : 0;
+                    @endphp
+                    <div class="mb-1">
                         <div class="d-flex justify-content-between align-items-center mb-1">
-                            <small class="text-muted">Obiettivo periodo: {{ ceil($periodo / 7) }} soluzioni</small>
-                            {{-- Calcolo della percentuale di completamento dell'obiettivo --}}
-                            @php
-                                $obiettivo = ceil($periodo / 7);
-                                $raggiunte = $stats['soluzioni_periodo'] ?? 0;
-                                $percentuale = $obiettivo > 0 ? min(100, ($raggiunte / $obiettivo) * 100) : 0;
-                            @endphp
-                            <small class="text-muted">{{ number_format($percentuale, 1) }}%</small>
+                            <small class="text-muted">Obiettivo: {{ $obiettivo }}</small>
+                            <small class="text-muted">{{ number_format($percentuale, 0) }}%</small>
                         </div>
-                        {{-- Progress bar animata --}}
-                        <div class="progress" style="height: 8px;">
+                        <div class="progress" style="height: 6px;">
                             <div class="progress-bar bg-success" 
                                  style="width: {{ $percentuale }}%" 
-                                 role="progressbar" 
-                                 aria-valuenow="{{ $percentuale }}" 
-                                 aria-valuemin="0" 
-                                 aria-valuemax="100">
+                                 role="progressbar">
                             </div>
                         </div>
                     </div>
@@ -250,120 +149,133 @@
             </div>
         </div>
 
-        {{-- Card: Distribuzione per Gravità --}}
-        <div class="col-lg-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-light border-0">
-                    <h5 class="mb-0">
-                        <i class="bi bi-pie-chart text-warning me-2"></i>
-                        Distribuzione per Gravità
-                    </h5>
+        {{-- Distribuzione Gravità - Compatto --}}
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-warning text-dark py-2">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-pie-chart me-1"></i>
+                        Per Gravità
+                    </h6>
                 </div>
-                <div class="card-body">
-                    {{-- Griglia con i contatori per tipo di gravità --}}
-                    <div class="row g-2">
-                        {{-- Problemi critici --}}
+                <div class="card-body p-2">
+                    <div class="row g-1">
+                        {{-- Critiche --}}
                         <div class="col-6">
-                            <div class="d-flex align-items-center p-2 bg-danger bg-opacity-10 rounded">
-                                <div class="bg-danger rounded" style="width: 12px; height: 12px;"></div>
-                                <div class="ms-2 flex-grow-1">
+                            <div class="d-flex align-items-center p-1 bg-danger bg-opacity-10 rounded">
+                                <div class="bg-danger rounded" style="width: 8px; height: 8px;"></div>
+                                <div class="ms-1 flex-grow-1">
                                     <small class="text-muted">Critiche</small>
-                                    <div class="fw-bold">{{ $stats['critiche_risolte'] ?? 0 }}</div>
+                                    <div class="fw-bold small">{{ $stats['critiche_risolte'] ?? 0 }}</div>
                                 </div>
                             </div>
                         </div>
-                        {{-- Problemi alta priorità --}}
+                        {{-- Alte --}}
                         <div class="col-6">
-                            <div class="d-flex align-items-center p-2 bg-warning bg-opacity-10 rounded">
-                                <div class="bg-warning rounded" style="width: 12px; height: 12px;"></div>
-                                <div class="ms-2 flex-grow-1">
+                            <div class="d-flex align-items-center p-1 bg-warning bg-opacity-10 rounded">
+                                <div class="bg-warning rounded" style="width: 8px; height: 8px;"></div>
+                                <div class="ms-1 flex-grow-1">
                                     <small class="text-muted">Alte</small>
-                                    <div class="fw-bold">{{ $stats['alte_risolte'] ?? 0 }}</div>
+                                    <div class="fw-bold small">{{ $stats['alte_risolte'] ?? 0 }}</div>
                                 </div>
                             </div>
                         </div>
-                        {{-- Problemi medi --}}
+                        {{-- Medie --}}
                         <div class="col-6">
-                            <div class="d-flex align-items-center p-2 bg-info bg-opacity-10 rounded">
-                                <div class="bg-info rounded" style="width: 12px; height: 12px;"></div>
-                                <div class="ms-2 flex-grow-1">
+                            <div class="d-flex align-items-center p-1 bg-info bg-opacity-10 rounded">
+                                <div class="bg-info rounded" style="width: 8px; height: 8px;"></div>
+                                <div class="ms-1 flex-grow-1">
                                     <small class="text-muted">Medie</small>
-                                    <div class="fw-bold">{{ $stats['medie_risolte'] ?? 0 }}</div>
+                                    <div class="fw-bold small">{{ $stats['medie_risolte'] ?? 0 }}</div>
                                 </div>
                             </div>
                         </div>
-                        {{-- Problemi bassa priorità --}}
+                        {{-- Basse --}}
                         <div class="col-6">
-                            <div class="d-flex align-items-center p-2 bg-success bg-opacity-10 rounded">
-                                <div class="bg-success rounded" style="width: 12px; height: 12px;"></div>
-                                <div class="ms-2 flex-grow-1">
+                            <div class="d-flex align-items-center p-1 bg-success bg-opacity-10 rounded">
+                                <div class="bg-success rounded" style="width: 8px; height: 8px;"></div>
+                                <div class="ms-1 flex-grow-1">
                                     <small class="text-muted">Basse</small>
-                                    <div class="fw-bold">{{ $stats['basse_risolte'] ?? 0 }}</div>
+                                    <div class="fw-bold small">{{ $stats['basse_risolte'] ?? 0 }}</div>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    {{-- Tempo medio di risposta se disponibile --}}
+                    {{-- Tempo medio risposta --}}
                     @if($stats['tempo_medio_risposta'] ?? null)
-                        <hr>
+                        <hr class="my-2">
                         <div class="text-center">
-                            <div class="text-muted small mb-1">Tempo Medio Risposta</div>
-                            <div class="h5 text-primary mb-0">
-                                {{ $stats['tempo_medio_risposta'] }} ore
-                            </div>
+                            <small class="text-muted">Tempo Medio</small>
+                            <div class="fw-bold text-primary">{{ $stats['tempo_medio_risposta'] }}h</div>
                         </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+
+        {{-- Info Staff - Compatto --}}
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-info text-white py-2">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-person-gear me-1"></i>
+                        Profilo Staff
+                    </h6>
+                </div>
+                <div class="card-body p-3">
+                    <p class="small mb-1"><strong>Staff:</strong> {{ $user->nome_completo ?? $user->name ?? 'N/A' }}</p>
+                    <p class="small mb-1"><strong>Livello:</strong> Staff Tecnico (Livello 3)</p>
+                    <p class="small mb-1"><strong>Su totale:</strong> {{ $stats['totale_staff'] ?? 0 }} staff</p>
+                    @if($stats['ranking_posizione'] ?? null)
+                        <p class="small mb-0">
+                            <strong>Posizione:</strong> 
+                            <span class="badge bg-warning text-dark">#{{ $stats['ranking_posizione'] }}</span>
+                        </p>
                     @endif
                 </div>
             </div>
         </div>
     </div>
 
-    {{-- === ANDAMENTO MENSILE === --}}
+    {{-- === ANDAMENTO MENSILE COMPATTO === --}}
     @if($attivitaMensile && count($attivitaMensile) > 0)
-        <div class="row mb-4">
+        <div class="row mb-3">
             <div class="col-12">
                 <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-light border-0">
-                        <h5 class="mb-0">
-                            <i class="bi bi-graph-up text-success me-2"></i>
-                            Andamento Mensile (ultimi 6 mesi)
-                        </h5>
+                    <div class="card-header bg-primary text-white py-2">
+                        <h6 class="mb-0 fw-semibold">
+                            <i class="bi bi-graph-up me-1"></i>
+                            Andamento Mensile (6 mesi)
+                        </h6>
                     </div>
-                    <div class="card-body">
-                        {{-- Grafico a barre semplice realizzato con CSS --}}
-                        <div class="row g-2">
-                            {{-- Ciclo per ogni mese nell'andamento --}}
+                    <div class="card-body p-2">
+                        {{-- Grafico barre compatto --}}
+                        <div class="row g-1">
                             @foreach($attivitaMensile as $mese)
                                 <div class="col-2 text-center">
-                                    <div class="mb-2">
-                                        {{-- Calcolo delle altezze delle barre proporzionalmente --}}
+                                    <div class="mb-1">
                                         @php
                                             $maxValue = max(collect($attivitaMensile)->max('soluzioni_create'), 1);
-                                            $altezzaCreate = $mese['soluzioni_create'] > 0 ? (($mese['soluzioni_create'] / $maxValue) * 100) : 0;
-                                            $altezzaModificate = $mese['soluzioni_modificate'] > 0 ? (($mese['soluzioni_modificate'] / $maxValue) * 100) : 0;
+                                            $altezzaCreate = $mese['soluzioni_create'] > 0 ? (($mese['soluzioni_create'] / $maxValue) * 60) : 0;
+                                            $altezzaModificate = $mese['soluzioni_modificate'] > 0 ? (($mese['soluzioni_modificate'] / $maxValue) * 60) : 0;
                                         @endphp
-                                        {{-- Container per le barre del grafico --}}
-                                        <div style="height: 120px;" class="d-flex flex-column justify-content-end">
-                                            {{-- Barra per soluzioni create --}}
+                                        <div style="height: 60px;" class="d-flex flex-column justify-content-end">
                                             @if($mese['soluzioni_create'] > 0)
                                                 <div class="bg-success rounded-top mb-1 chart-bar" 
-                                                     style="height: {{ $altezzaCreate }}%; min-height: 4px;"
-                                                     title="Soluzioni create: {{ $mese['soluzioni_create'] }}">
+                                                     style="height: {{ $altezzaCreate }}%; min-height: 3px;"
+                                                     title="Soluzioni: {{ $mese['soluzioni_create'] }}">
                                                 </div>
                                             @endif
-                                            {{-- Barra per soluzioni modificate --}}
                                             @if($mese['soluzioni_modificate'] > 0)
                                                 <div class="bg-info rounded-bottom chart-bar" 
-                                                     style="height: {{ $altezzaModificate }}%; min-height: 4px;"
-                                                     title="Soluzioni modificate: {{ $mese['soluzioni_modificate'] }}">
+                                                     style="height: {{ $altezzaModificate }}%; min-height: 3px;"
+                                                     title="Modifiche: {{ $mese['soluzioni_modificate'] }}">
                                                 </div>
                                             @endif
                                         </div>
                                     </div>
-                                    {{-- Etichette del mese --}}
                                     <small class="text-muted">{{ $mese['mese'] }}</small>
-                                    {{-- Badge con i valori numerici --}}
                                     <div class="small">
                                         <span class="badge bg-success">{{ $mese['soluzioni_create'] }}</span>
                                         <span class="badge bg-info">{{ $mese['soluzioni_modificate'] }}</span>
@@ -371,19 +283,19 @@
                                 </div>
                             @endforeach
                         </div>
-                        {{-- Legenda del grafico --}}
-                        <hr>
-                        <div class="row text-center">
+                        {{-- Legenda compatta --}}
+                        <hr class="my-2">
+                        <div class="row text-center small">
                             <div class="col-6">
                                 <div class="d-flex align-items-center justify-content-center">
-                                    <div class="bg-success rounded me-2" style="width: 12px; height: 12px;"></div>
-                                    <small class="text-muted">Soluzioni Create</small>
+                                    <div class="bg-success rounded me-1" style="width: 8px; height: 8px;"></div>
+                                    <span class="text-muted">Create</span>
                                 </div>
                             </div>
                             <div class="col-6">
                                 <div class="d-flex align-items-center justify-content-center">
-                                    <div class="bg-info rounded me-2" style="width: 12px; height: 12px;"></div>
-                                    <small class="text-muted">Soluzioni Modificate</small>
+                                    <div class="bg-info rounded me-1" style="width: 8px; height: 8px;"></div>
+                                    <span class="text-muted">Modificate</span>
                                 </div>
                             </div>
                         </div>
@@ -393,27 +305,146 @@
         </div>
     @endif
 
-    {{-- === SOLUZIONI PER CATEGORIA === --}}
+    {{-- === SEZIONE DETTAGLI LINEARI === --}}
+    <div class="row g-3 mb-3">
+        {{-- Prodotti per cui hai creato più soluzioni --}}
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-danger text-white py-2">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-exclamation-diamond me-1"></i>
+                        Prodotti con Più Tue Soluzioni
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr class="small">
+                                    <th class="py-2">Prodotto</th>
+                                    <th class="py-2">Categoria</th>
+                                    <th class="py-2 text-center">Tue Soluzioni</th>
+                                    <th class="py-2 text-end">Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if($prodottiProblematici->count() > 0)
+                                    @foreach($prodottiProblematici->take(6) as $prodotto)
+                                        <tr class="small">
+                                            <td class="py-2">
+                                                <strong>{{ $prodotto->nome }}</strong>
+                                                @if($prodotto->modello)
+                                                    <br><small class="text-muted">{{ $prodotto->modello }}</small>
+                                                @endif
+                                            </td>
+                                            <td class="py-2">
+                                                <span class="badge bg-secondary">
+                                                    {{ ucfirst($prodotto->categoria ?? 'generale') }}
+                                                </span>
+                                            </td>
+                                            <td class="py-2 text-center">
+                                                <span class="badge bg-warning text-dark">
+                                                    {{ $prodotto->soluzioni_mie }}
+                                                </span>
+                                            </td>
+                                            <td class="py-2 text-end">
+                                                <a href="{{ route('prodotti.completo.show', $prodotto) }}" 
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                @else
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-3 small">
+                                            Nessun prodotto problematico
+                                        </td>
+                                    </tr>
+                                @endif
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Ultime Soluzioni --}}
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-success text-white py-2">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-clock-history me-1"></i>
+                        Ultime Soluzioni
+                    </h6>
+                </div>
+                <div class="card-body p-2">
+                    @if($ultimeSoluzioni->count() > 0)
+                        <div class="list-group list-group-flush">
+                            @foreach($ultimeSoluzioni->take(5) as $soluzione)
+                                <div class="list-group-item px-0 border-0 py-1">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1 me-1">
+                                            <h6 class="mb-1 fw-semibold small text-truncate">
+                                                {{ Str::limit($soluzione->titolo, 30) }}
+                                            </h6>
+                                            <p class="text-muted small mb-1">
+                                                <i class="bi bi-box me-1"></i>
+                                                {{ Str::limit($soluzione->prodotto->nome, 20) }}
+                                            </p>
+                                            <small class="text-muted">
+                                                {{ $soluzione->created_at->format('d/m H:i') }}
+                                            </small>
+                                        </div>
+                                        <div>
+                                            <span class="badge bg-{{ 
+                                                $soluzione->gravita == 'critica' ? 'danger' : 
+                                                ($soluzione->gravita == 'alta' ? 'warning' : 
+                                                ($soluzione->gravita == 'media' ? 'info' : 'success')) 
+                                            }}">
+                                                {{ substr(ucfirst($soluzione->gravita), 0, 1) }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                        
+                        <div class="text-center mt-2">
+                            <a href="{{ route('malfunzionamenti.ricerca') }}" 
+                               class="btn btn-sm btn-outline-success">
+                                <i class="bi bi-list me-1"></i>Vedi Tutte
+                            </a>
+                        </div>
+                    @else
+                        <div class="text-center py-3">
+                            <i class="bi bi-plus-circle display-6 text-muted opacity-50"></i>
+                            <p class="text-muted small mt-2 mb-0">Nessuna soluzione</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- === CATEGORIE COMPATTE === --}}
     @if($soluzioniPerCategoria && $soluzioniPerCategoria->count() > 0)
-        <div class="row mb-4">
+        <div class="row">
             <div class="col-12">
                 <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-light border-0">
-                        <h5 class="mb-0">
-                            <i class="bi bi-tags text-primary me-2"></i>
-                            Soluzioni per Categoria Prodotto
-                        </h5>
+                    <div class="card-header bg-secondary text-white py-2">
+                        <h6 class="mb-0 fw-semibold">
+                            <i class="bi bi-tags me-1"></i>
+                            Soluzioni per Categoria
+                        </h6>
                     </div>
-                    <div class="card-body">
-                        {{-- Griglia responsive per le categorie --}}
-                        <div class="row g-3">
-                            {{-- Mostra solo le prime 6 categorie --}}
+                    <div class="card-body p-2">
+                        <div class="row g-2">
                             @foreach($soluzioniPerCategoria->take(6) as $categoria)
-                                <div class="col-lg-2 col-md-3 col-sm-4 col-6">
-                                    <div class="text-center p-3 bg-light rounded">
-                                        <div class="h4 text-primary mb-1">{{ $categoria->count }}</div>
+                                <div class="col-lg-2 col-md-3 col-4">
+                                    <div class="text-center p-2 bg-light rounded">
+                                        <div class="h5 text-primary mb-1">{{ $categoria->count }}</div>
                                         <small class="text-muted">
-                                            {{-- Formatta il nome della categoria --}}
                                             {{ ucfirst(str_replace('_', ' ', $categoria->categoria ?? 'Generale')) }}
                                         </small>
                                     </div>
@@ -426,318 +457,42 @@
         </div>
     @endif
 
-    {{-- === DETTAGLI E ANALISI === --}}
-    <div class="row g-4 mb-4">
-        {{-- Prodotti più problematici --}}
-        <div class="col-lg-8">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-light border-0">
-                    <h5 class="mb-0">
-                        <i class="bi bi-exclamation-diamond text-danger me-2"></i>
-                        Prodotti per cui hai creato più soluzioni
-                    </h5>
-                </div>
-                <div class="card-body">
-                    {{-- Controlla se ci sono prodotti problematici --}}
-                    @if($prodottiProblematici->count() > 0)
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Prodotto</th>
-                                        <th>Categoria</th>
-                                        <th class="text-center">Tue Soluzioni</th>
-                                        <th class="text-end">Azioni</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {{-- Mostra fino a 8 prodotti --}}
-                                    @foreach($prodottiProblematici->take(8) as $prodotto)
-                                        <tr>
-                                            <td>
-                                                <strong>{{ $prodotto->nome }}</strong>
-                                                {{-- Mostra il modello se presente --}}
-                                                @if($prodotto->modello)
-                                                    <br><small class="text-muted">{{ $prodotto->modello }}</small>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-secondary">
-                                                    {{ ucfirst($prodotto->categoria ?? 'generale') }}
-                                                </span>
-                                            </td>
-                                            <td class="text-center">
-                                                <span class="badge bg-warning">
-                                                    {{ $prodotto->soluzioni_mie }}
-                                                </span>
-                                            </td>
-                                            <td class="text-end">
-                                                <a href="{{ route('prodotti.completo.show', $prodotto) }}" 
-                                                   class="btn btn-sm btn-outline-primary">
-                                                    <i class="bi bi-eye me-1"></i>Visualizza
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @else
-                        {{-- Messaggio quando non ci sono prodotti problematici --}}
-                        <div class="text-center py-4">
-                            <i class="bi bi-check-circle display-1 text-success"></i>
-                            <h5 class="text-success mt-2">Ottimo lavoro!</h5>
-                            <p class="text-muted">Non ci sono prodotti con problemi evidenti al momento</p>
-                        </div>
-                    @endif
-                </div>
-            </div>
-        </div>
-
-        {{-- Ultime soluzioni create --}}
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-light border-0">
-                    <h5 class="mb-0">
-                        <i class="bi bi-clock-history text-info me-2"></i>
-                        Ultime Soluzioni
-                    </h5>
-                </div>
-                <div class="card-body">
-                    {{-- Controlla se ci sono soluzioni recenti --}}
-                    @if($ultimeSoluzioni->count() > 0)
-                        <div class="list-group list-group-flush">
-                            {{-- Mostra le ultime 6 soluzioni --}}
-                            @foreach($ultimeSoluzioni->take(6) as $soluzione)
-                                <div class="list-group-item px-0 border-0">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div class="flex-grow-1 me-2">
-                                            {{-- Titolo della soluzione --}}
-                                            <h6 class="mb-1 fw-semibold text-truncate">
-                                                {{ Str::limit($soluzione->titolo, 40) }}
-                                            </h6>
-                                            {{-- Nome del prodotto --}}
-                                            <p class="text-muted small mb-1">
-                                                <i class="bi bi-box me-1"></i>
-                                                {{ Str::limit($soluzione->prodotto->nome, 25) }}
-                                            </p>
-                                            {{-- Data di creazione --}}
-                                            <small class="text-muted">
-                                                {{ $soluzione->created_at->format('d/m/Y H:i') }}
-                                            </small>
-                                        </div>
-                                        <div>
-                                            {{-- Badge colorato per la gravità --}}
-                                            <span class="badge bg-{{ 
-                                                $soluzione->gravita == 'critica' ? 'danger' : 
-                                                ($soluzione->gravita == 'alta' ? 'warning' : 
-                                                ($soluzione->gravita == 'media' ? 'info' : 'success')) 
-                                            }}">
-                                                {{ ucfirst($soluzione->gravita) }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                        
-                        {{-- Link per vedere tutte le soluzioni --}}
-                        <div class="text-center mt-3">
-                            <a href="{{ route('malfunzionamenti.ricerca') }}" 
-                               class="btn btn-sm btn-outline-info">
-                                <i class="bi bi-list me-1"></i>Vedi Tutte
-                            </a>
-                        </div>
-                    @else
-                        {{-- Messaggio quando non ci sono soluzioni --}}
-                        <div class="text-center py-3">
-                            <i class="bi bi-plus-circle display-4 text-muted opacity-50"></i>
-                            <p class="text-muted mt-2 mb-0">Nessuna soluzione ancora</p>
-                            <a href="{{ route('staff.create.nuova.soluzione') }}" 
-                               class="btn btn-success btn-sm mt-2">
-                                <i class="bi bi-plus me-1"></i>Crea Prima Soluzione
-                            </a>
-                        </div>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
-
-
 </div>
 @endsection
 
-{{-- === SEZIONE STILI CSS PERSONALIZZATI === --}}
-@push('styles')
-<style>
-/* === ANIMAZIONI E TRANSIZIONI === */
-
-/* Animazioni per tutte le cards statistiche */
-.card {
-    transition: all 0.3s ease; /* Transizione fluida per hover */
-    border-radius: 12px; /* Angoli arrotondati */
-}
-
-/* Effetto hover per le cards */
-.card:hover {
-    transform: translateY(-2px); /* Solleva leggermente la card */
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important; /* Ombra più pronunciata */
-}
-
-/* === GRADIENTI ANIMATI === */
-
-/* Gradienti animati per le cards con background speciale */
-.bg-gradient {
-    background-size: 200% 200%; /* Dimensione doppia per l'animazione */
-    animation: gradient-shift 8s ease infinite; /* Animazione continua */
-}
-
-/* Keyframe per l'animazione del gradiente */
-@keyframes gradient-shift {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
-
-/* === ELEMENTI DEL GRAFICO === */
-
-/* Stile per le barre del grafico mensile */
-.chart-bar {
-    transition: all 0.3s ease; /* Transizione per interazioni */
-}
-
-/* Effetto hover per le barre del grafico */
-.chart-bar:hover {
-    opacity: 0.8; /* Leggera trasparenza */
-    transform: scaleY(1.05); /* Ingrandimento verticale */
-}
-
-/* === RESPONSIVE DESIGN === */
-
-/* Stili per dispositivi mobili (tablet e smartphone) */
-@media (max-width: 768px) {
-    /* Ridimensiona i pulsanti grandi su mobile */
-    .btn-lg {
-        font-size: 0.9rem;
-        padding: 1rem 0.75rem;
-    }
-    
-    /* Ridimensiona le icone grandi su mobile */
-    .display-6 {
-        font-size: 1.5rem !important;
-    }
-    
-    /* Riduce il padding delle card su mobile */
-    .card-body {
-        padding: 1rem;
-    }
-}
-
-/* === ELEMENTI UI PERSONALIZZATI === */
-
-/* Stile per i badges (etichette colorate) */
-.badge {
-    font-size: 0.75rem;
-    font-weight: 500;
-}
-
-/* Barra di progresso personalizzata */
-.progress {
-    border-radius: 10px; /* Angoli arrotondati */
-    overflow: hidden; /* Nasconde gli angoli della barra interna */
-}
-
-/* Animazione fluida per la barra di progresso */
-.progress-bar {
-    transition: width 0.6s ease;
-}
-
-/* === EFFETTI SPECIALI === */
-
-/* Classe per elementi con ombra leggera */
-.shadow-sm-hover {
-    transition: box-shadow 0.3s ease;
-}
-
-.shadow-sm-hover:hover {
-    box-shadow: 0 .125rem .25rem rgba(0,0,0,.075) !important;
-}
-
-/* Animazione di pulsazione per elementi importanti */
-@keyframes pulse-soft {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.02); }
-}
-
-.pulse-soft {
-    animation: pulse-soft 2s ease-in-out infinite;
-}
-
-/* === TOOLTIP PERSONALIZZATI === */
-
-/* Stile per i tooltip (elementi con title) */
-[title] {
-    cursor: help; /* Cambia il cursore per indicare informazioni aggiuntive */
-}
-
-/* === COLORI PERSONALIZZATI === */
-
-/* Varianti di colore per i testi */
-.text-gradient {
-    background: linear-gradient(45deg, #007bff, #6610f2);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-</style>
-@endpush
-
-{{-- === SEZIONE JAVASCRIPT FUNZIONALE === --}}
 @push('scripts')
 <script>
+// === FUNZIONI UTILITY COMPATTE ===
+
+function aggiornaStatistiche() {
+    const btn = event.target;
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-arrow-repeat spinner-border spinner-border-sm"></i>';
+    btn.disabled = true;
+    
+    setTimeout(() => location.reload(), 1000);
+}
+
 $(document).ready(function() {
-    console.log('📊 Statistiche Staff inizializzate');
+    console.log('📊 Statistiche Staff Compatte inizializzate');
 
-    // === FUNZIONALITÀ REFRESH STATISTICHE ===
-    $('#refresh-stats').on('click', function(e) {
-        e.preventDefault(); // Previene il comportamento predefinito del link
-        
-        const btn = $(this);
-        const originalContent = btn.html(); // Salva il contenuto originale del pulsante
-        
-        // Mostra stato di caricamento
-        btn.prop('disabled', true) // Disabilita il pulsante
-           .html('<i class="bi bi-hourglass-split me-1"></i>Aggiornamento...'); // Cambia testo
-        
-        // Simula aggiornamento dati con ricarica pagina dopo 1 secondo
-        setTimeout(() => {
-            location.reload(); // Ricarica la pagina per aggiornare i dati
-        }, 1000);
-    });
-
-    // === ANIMAZIONI CONTATORI NUMERICI ===
+    // === ANIMAZIONI CONTATORI ===
     function animateCounters() {
-        // Seleziona tutti gli elementi con numeri da animare
-        $('.display-4, .display-6, .h4').each(function() {
+        $('.h5.fw-bold').each(function() {
             const $counter = $(this);
             const text = $counter.text().trim();
-            const target = parseInt(text.replace(/[^\d]/g, '')); // Estrae solo i numeri
+            const target = parseInt(text.replace(/[^\d]/g, ''));
             
-            // Anima solo se è un numero valido e ragionevole
-            if (!isNaN(target) && target > 0 && target < 1000) {
-                $counter.text('0'); // Inizia da 0
+            if (!isNaN(target) && target > 0 && target < 500) {
+                $counter.text('0');
                 
-                // Animazione jQuery per incrementare il numero
                 $({ counter: 0 }).animate({ counter: target }, {
-                    duration: 1500, // Durata animazione: 1.5 secondi
-                    easing: 'swing', // Tipo di easing per l'animazione
+                    duration: 1200,
+                    easing: 'swing',
                     step: function() {
-                        // Aggiorna il testo durante l'animazione
                         $counter.text(Math.ceil(this.counter));
                     },
                     complete: function() {
-                        // Assicura che il valore finale sia corretto
                         $counter.text(target);
                     }
                 });
@@ -745,55 +500,41 @@ $(document).ready(function() {
         });
     }
 
-    // Avvia l'animazione dei contatori dopo un breve ritardo
-    setTimeout(animateCounters, 500);
+    setTimeout(animateCounters, 300);
 
-    // === TOOLTIP INTERATTIVI ===
-    // Inizializza i tooltip di Bootstrap per elementi con attributo title
+    // === TOOLTIP COMPATTI ===
     $('[title]').tooltip({
-        trigger: 'hover', // Mostra solo al passaggio del mouse
-        placement: 'top', // Posizione sopra l'elemento
-        delay: { show: 500, hide: 100 } // Ritardi per mostrare/nascondere
+        trigger: 'hover',
+        placement: 'top',
+        delay: { show: 300, hide: 100 }
     });
 
-    // === EFFETTI HOVER PER GRAFICI ===
+    // === HOVER GRAFICI ===
     $('.chart-bar').hover(
         function() {
-            // Al passaggio del mouse: aggiungi ombra
             $(this).addClass('shadow-sm');
         },
         function() {
-            // Quando il mouse esce: rimuovi ombra
             $(this).removeClass('shadow-sm');
         }
     );
 
-    // === SISTEMA DI NOTIFICHE ===
-    
-    // Mostra notifica di successo se presente in sessione
+    // === NOTIFICHE ===
     @if(session('success'))
         showNotification('success', {!! json_encode(session('success')) !!});
     @endif
 
-    // Mostra notifica di errore se presente in sessione
     @if(session('error'))
         showNotification('error', {!! json_encode(session('error')) !!});
     @endif
 
-    /**
-     * Funzione per mostrare notifiche dinamiche
-     * @param {string} type - Tipo di notifica (success, error, info, warning)
-     * @param {string} message - Messaggio da mostrare
-     */
     function showNotification(type, message) {
-        // Determina la classe CSS e l'icona in base al tipo
         const alertClass = type === 'error' ? 'danger' : type;
         const icon = type === 'success' ? 'check-circle' : 'exclamation-triangle';
         
-        // Crea l'elemento HTML della notifica
         const notification = $(`
             <div class="alert alert-${alertClass} alert-dismissible fade show position-fixed" 
-                 style="top: 20px; right: 20px; z-index: 9999; max-width: 400px;" 
+                 style="top: 20px; right: 20px; z-index: 9999; max-width: 350px;" 
                  role="alert">
                 <i class="bi bi-${icon} me-2"></i>
                 ${message}
@@ -801,105 +542,280 @@ $(document).ready(function() {
             </div>
         `);
         
-        // Aggiunge la notifica alla pagina
         $('body').append(notification);
-        
-        // Rimuove automaticamente la notifica dopo 5 secondi
-        setTimeout(() => $('.alert').alert('close'), 5000);
+        setTimeout(() => $('.alert').alert('close'), 4000);
     }
 
-    // Rende la funzione disponibile globalmente per uso esterno
     window.showNotification = showNotification;
 
-    // === GESTIONE ERRORI AJAX (se presente) ===
-    $(document).ajaxError(function(event, xhr, settings, thrownError) {
-        console.error('Errore AJAX:', {
-            url: settings.url,
-            status: xhr.status,
-            error: thrownError
-        });
-        
-        // Mostra notifica di errore per problemi di connessione
-        showNotification('error', 'Errore di connessione. Riprova più tardi.');
-    });
-
-    // === OTTIMIZZAZIONI PERFORMANCE ===
-    
-    // Lazy loading per immagini se presenti
-    $('img[data-src]').each(function() {
-        const img = $(this);
-        img.attr('src', img.data('src')).removeAttr('data-src');
-    });
-
-    // Preload delle pagine più comuni per migliorare la navigazione
-    const importantLinks = [
-        "{{ route('staff.dashboard') }}",
-        "{{ route('malfunzionamenti.ricerca') }}",
-        "{{ route('prodotti.completo.index') }}"
-    ];
-
-    // Precarica i link importanti dopo il caricamento della pagina
-    setTimeout(() => {
-        importantLinks.forEach(url => {
-            $('<link>', {
-                rel: 'prefetch',
-                href: url
-            }).appendTo('head');
-        });
-    }, 2000);
-
-    // === LOG FINALE E CLEANUP ===
-    console.log('✅ Statistiche Staff completamente caricate e funzionali');
-    
-    // Event listener per cleanup quando si esce dalla pagina
-    $(window).on('beforeunload', function() {
-        console.log('🔄 Cleanup statistiche staff...');
-        // Qui si possono aggiungere operazioni di pulizia se necessarie
-    });
+    console.log('✅ Statistiche Staff Compatte caricate');
 });
 
-// === FUNZIONI GLOBALI UTILITY ===
+// Auto-refresh ogni 15 minuti
+setInterval(() => {
+    console.log('🔄 Auto-refresh statistiche staff');
+}, 900000);
+</script>
+@endpush
 
-/**
- * Formatta numeri per visualizzazione (es: 1000 -> 1K)
- * @param {number} num - Numero da formattare
- * @return {string} - Numero formattato
- */
-function formatNumber(num) {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toString();
+@push('styles')
+<style>
+/* === STILI COMPATTI PER STATISTICHE STAFF === */
+
+/* Card più compatte */
+.card {
+    border-radius: 8px;
+    border: none !important;
 }
 
-/**
- * Calcola la percentuale tra due numeri
- * @param {number} value - Valore corrente
- * @param {number} total - Valore totale
- * @return {number} - Percentuale calcolata
- */
-function calculatePercentage(value, total) {
-    if (total === 0) return 0;
-    return Math.round((value / total) * 100);
+.card-header {
+    border-radius: 8px 8px 0 0 !important;
+    font-size: 0.9rem;
 }
 
-/**
- * Aggiorna dinamicamente una statistica specifica
- * @param {string} selector - Selettore CSS dell'elemento
- * @param {number} newValue - Nuovo valore da mostrare
- */
-function updateStatistic(selector, newValue) {
-    const element = $(selector);
-    if (element.length) {
-        const currentValue = parseInt(element.text()) || 0;
-        
-        // Anima la transizione al nuovo valore
-        $({ value: currentValue }).animate({ value: newValue }, {
-            duration: 800,
-            step: function() {
-                element.text(Math.ceil(this.value));
-            }
-        });
+.card-body {
+    font-size: 0.9rem;
+}
+
+/* Tabelle più compatte */
+.table-sm td, .table-sm th {
+    padding: 0.4rem;
+    font-size: 0.85rem;
+}
+
+/* Grafici più piccoli e responsive */
+canvas {
+    max-height: 120px !important;
+}
+
+/* Badge più piccoli */
+.badge {
+    font-size: 0.7rem;
+}
+
+/* Bottoni più compatti */
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+}
+
+/* Charts compatti */
+.chart-bar {
+    transition: all 0.2s ease;
+}
+
+.chart-bar:hover {
+    opacity: 0.8;
+    transform: scaleY(1.02);
+}
+
+/* Progress bar compatta */
+.progress {
+    border-radius: 6px;
+}
+
+.progress-bar {
+    transition: width 0.4s ease;
+}
+
+/* Liste compatte */
+.list-group-item {
+    font-size: 0.85rem;
+}
+
+/* Responsive migliorato */
+@media (max-width: 768px) {
+    .card-body {
+        padding: 0.75rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.8rem;
+    }
+    
+    .col-lg-4, .col-lg-8 {
+        margin-bottom: 0.5rem;
+    }
+    
+    .btn-group-sm {
+        flex-wrap: wrap;
+    }
+    
+    .btn-group-sm .btn {
+        margin-bottom: 0.25rem;
+        border-radius: 0.375rem !important;
     }
 }
-</script>
+
+@media (max-width: 576px) {
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        align-items: start !important;
+    }
+    
+    .btn-group {
+        margin-top: 0.5rem;
+        width: 100%;
+    }
+    
+    .small {
+        font-size: 0.75rem !important;
+    }
+    
+    .h5 {
+        font-size: 1.1rem !important;
+    }
+    
+    .fs-4 {
+        font-size: 1.2rem !important;
+    }
+}
+
+/* Animazioni leggere */
+.card {
+    transition: transform 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-1px);
+}
+
+/* Loading spinner */
+.spinner-border-sm {
+    width: 0.8rem;
+    height: 0.8rem;
+}
+
+/* Colori personalizzati */
+.text-muted {
+    color: #6c757d !important;
+}
+
+.fw-semibold {
+    font-weight: 600;
+}
+
+/* Effetti speciali per le statistiche */
+.bg-opacity-10 {
+    background-color: rgba(var(--bs-success-rgb), 0.1) !important;
+}
+
+/* Stile per le icone nelle card */
+.fs-4 {
+    font-size: 1.25rem !important;
+}
+
+/* Hover per le righe della tabella */
+.table-hover tbody tr:hover {
+    --bs-table-accent-bg: rgba(0, 0, 0, 0.025);
+}
+
+/* Stile per i grafici a barre semplici */
+.chart-bar {
+    border-radius: 2px;
+}
+
+/* Alert personalizzati */
+.alert {
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+/* Breadcrumb se presente */
+.breadcrumb {
+    font-size: 0.85rem;
+    margin-bottom: 0;
+}
+
+/* Ottimizzazioni per stampa */
+@media print {
+    .btn, .btn-group {
+        display: none !important;
+    }
+    
+    .card {
+        border: 1px solid #dee2e6 !important;
+        break-inside: avoid;
+    }
+    
+    .chart-bar {
+        background-color: #6c757d !important;
+    }
+}
+
+/* Scrollbar personalizzata per le tabelle */
+.table-responsive::-webkit-scrollbar {
+    height: 6px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 6px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 6px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Effetto focus migliorato */
+.btn:focus {
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+/* Stile per elementi disabilitati */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Animazione per il refresh */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.spinner-border {
+    animation: spin 1s linear infinite;
+}
+
+/* Margini consistenti */
+.mb-3 {
+    margin-bottom: 1rem !important;
+}
+
+.mt-4 {
+    margin-top: 1.5rem !important;
+}
+
+/* Stile per link */
+a {
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Finali responsive per ultra-piccoli schermi */
+@media (max-width: 360px) {
+    .container {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+    
+    .card-body {
+        padding: 0.5rem;
+    }
+    
+    .btn-group-sm .btn {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+    }
+}
+</style>
 @endpush
