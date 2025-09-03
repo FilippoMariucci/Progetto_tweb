@@ -1,7 +1,8 @@
 {{-- 
-    VISTA CATALOGO PRODOTTI TECNICO COMPLETO
-    Stile identico al catalogo pubblico ma con funzionalità tecniche complete
-    Include: malfunzionamenti, filtri avanzati, azioni staff/admin
+    VISTA CATALOGO PRODOTTI TECNICO COMPLETO - LAYOUT COMPATTO
+    Sistema Assistenza Tecnica - Gruppo 51
+    
+    Vista ottimizzata con stile compatto, header leggibile e immagini corrette
 --}}
 
 @extends('layouts.app')
@@ -9,115 +10,119 @@
 @section('title', 'Catalogo Completo - Tecnici')
 
 @section('content')
-<div class="container-fluid px-3 px-lg-4">
+<div class="container mt-4">
     
-    {{-- Header principale --}}
-    <div class="row mb-3">
-        <div class="col-12">
-            <div class="card shadow-sm border-0 bg-gradient-primary text-white">
-                <div class="card-body py-3">
-                    <div class="row align-items-center">
-                        {{-- Titolo e descrizione --}}
-                        <div class="col-lg-8 col-md-7">
-                            <h2 class="mb-1 fw-bold">
-                                <i class="bi bi-tools me-2"></i>
-                                Catalogo Tecnico Completo
-                            </h2>
-                            <p class="mb-0 opacity-90">
-                                <span class="badge bg-warning text-dark me-2">Con Malfunzionamenti</span>
-                                Accesso completo per tecnici e staff
-                            </p>
-                    </div>
-            </div>
+    {{-- === HEADER COMPATTO E LEGGIBILE === --}}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2 class="mb-1">
+                <i class="bi bi-tools text-warning me-2"></i>
+                Catalogo Tecnico Completo
+            </h2>
+            <p class="text-muted small mb-0">
+                <span class="badge bg-warning text-dark me-2">Con Malfunzionamenti</span>
+                Accesso completo per tecnici e staff
+            </p>
+        </div>
+        <div class="btn-group btn-group-sm">
+            {{-- Pulsanti azione compatti --}}
+            @if(auth()->user()->isStaff())
+                <a href="{{ route('staff.create.nuova.soluzione') }}" class="btn btn-success">
+                    <i class="bi bi-plus-circle"></i> Nuova Soluzione
+                </a>
+            @endif
+            @if(auth()->user()->isAdmin())
+                <a href="{{ route('admin.prodotti.create') }}" class="btn btn-primary">
+                    <i class="bi bi-plus"></i> Nuovo Prodotto
+                </a>
+            @endif
+            <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Dashboard
+            </a>
         </div>
     </div>
 
-    {{-- Pulsanti azione flottanti ridimensionati --}}
-    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050;">
-        @if(auth()->user()->isStaff())
-            @if($prodotti->count() > 0)
-                <button class="btn btn-warning rounded-circle shadow me-2" 
-                        style="width: 50px; height: 50px;"
-                        data-bs-toggle="modal" data-bs-target="#quickSolutionModal"
-                        title="Aggiungi Soluzione Rapida">
-                    <i class="bi bi-plus-circle" style="font-size: 1.25rem;"></i>
-                </button>
-            @endif
-        @endif
-        
-        @if(auth()->user()->isAdmin())
-            <a href="{{ route('admin.prodotti.create') }}" 
-               class="btn btn-success rounded-circle shadow" 
-               style="width: 50px; height: 50px;"
-               data-bs-toggle="tooltip" 
-               title="Aggiungi Nuovo Prodotto">
-                <i class="bi bi-plus" style="font-size: 1.25rem;"></i>
-            </a>
-        @endif
-    </div>
-    {{-- Statistiche tecniche --}}
-                        <div class="col-lg-4 col-md-5 mt-2 mt-md-0">
-                            @if(isset($stats))
-                                <div class="row g-2">
-                                    <div class="col-6">
-                                        <div class="text-center bg-white bg-opacity-10 rounded p-2">
-                                            <div class="h5 fw-bold mb-0">{{ $stats['total_prodotti'] ?? 0 }}</div>
-                                            <small class="opacity-90">Prodotti</small>
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="text-center bg-white bg-opacity-10 rounded p-2">
-                                            <div class="h5 fw-bold mb-0">{{ $stats['malfunzionamenti_critici'] ?? 0 }}</div>
-                                            <small class="opacity-90">Critici</small>
-                                        </div>
-                                    </div>
-                                </div>
+
+    {{-- === STATISTICHE COMPATTE E LEGGIBILI === --}}
+    @if(isset($stats))
+        <div class="row g-2 mb-3">
+            <div class="col-lg-3 col-md-6">
+                <div class="card border-0 shadow-sm text-center">
+                    <div class="card-body py-2">
+                        <i class="bi bi-box text-primary fs-5"></i>
+                        <h6 class="fw-bold mb-0 mt-1">{{ $stats['total_prodotti'] ?? 0 }}</h6>
+                        <small class="text-muted">Prodotti Totali</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="card border-0 shadow-sm text-center">
+                    <div class="card-body py-2">
+                        <i class="bi bi-exclamation-triangle text-warning fs-5"></i>
+                        <h6 class="fw-bold mb-0 mt-1">{{ $stats['con_malfunzionamenti'] ?? 0 }}</h6>
+                        <small class="text-muted">Con Problemi</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="card border-0 shadow-sm text-center">
+                    <div class="card-body py-2">
+                        <i class="bi bi-exclamation-circle text-danger fs-5"></i>
+                        <h6 class="fw-bold mb-0 mt-1">{{ $stats['malfunzionamenti_critici'] ?? 0 }}</h6>
+                        <small class="text-muted">Critici</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="card border-0 shadow-sm text-center">
+                    <div class="card-body py-2">
+                        <i class="bi bi-person-check text-success fs-5"></i>
+                        <h6 class="fw-bold mb-0 mt-1">
+                            @if(auth()->user()->isStaff() && isset($stats['miei_prodotti']))
+                                {{ $stats['miei_prodotti'] }}
+                            @else
+                                0
                             @endif
-                        </div>
+                        </h6>
+                        <small class="text-muted">Miei Prodotti</small>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    @endif
 
-   
-
-    {{-- Form di ricerca compatto --}}
+    {{-- === FORM RICERCA COMPATTO === --}}
     <div class="row mb-3">
         <div class="col-12">
-            <div class="card shadow-sm border-0">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body py-3">
                     <form method="GET" action="{{ route('prodotti.completo.index') }}" class="row g-3">
-
-                        {{-- Campo di ricerca avanzata --}}
-                        <div class="col-lg-5 col-md-7">
-                            <label for="search" class="form-label fw-semibold text-primary">
-                                <i class="bi bi-search me-1"></i>Ricerca Avanzata Prodotti
+                        {{-- Campo ricerca --}}
+                        <div class="col-lg-4 col-md-6">
+                            <label for="search" class="form-label small fw-semibold">
+                                <i class="bi bi-search me-1"></i>Ricerca Prodotti
                             </label>
-                            <div class="input-group">
+                            <div class="input-group input-group-sm">
                                 <input type="text" 
                                        class="form-control" 
                                        id="search" 
                                        name="search" 
                                        value="{{ request('search') }}"
-                                       placeholder="es: lavatrice, modello, codice, lav* (ricerca parziale)"
+                                       placeholder="Nome, modello, descrizione..."
                                        autocomplete="off">
-                                <button class="btn btn-outline-secondary" type="button" id="clearSearch" title="Pulisci ricerca">
+                                <button class="btn btn-outline-secondary" type="button" id="clearSearch">
                                     <i class="bi bi-x-lg"></i>
                                 </button>
                             </div>
-                            <div class="form-text">
-                                <strong>Suggerimento:</strong> Cerca in nome, modello, descrizione. Usa <code>*</code> per ricerche parziali
-                            </div>
                         </div>
 
-                        {{-- Filtro categoria --}}
+                        {{-- Categoria --}}
                         <div class="col-lg-3 col-md-3">
-                            <label for="categoria" class="form-label fw-semibold text-primary">
+                            <label for="categoria" class="form-label small fw-semibold">
                                 <i class="bi bi-funnel me-1"></i>Categoria
                             </label>
-                            <select name="categoria" id="categoria" class="form-select">
-                                <option value="">Tutte le categorie</option>
+                            <select name="categoria" id="categoria" class="form-select form-select-sm">
+                                <option value="">Tutte</option>
                                 @foreach($categorie as $key => $label)
                                     <option value="{{ $key }}" {{ request('categoria') == $key ? 'selected' : '' }}>
                                         {{ $label }}
@@ -126,12 +131,12 @@
                             </select>
                         </div>
 
-                        {{-- Filtro tecnico --}}
-                        <div class="col-lg-2 col-md-2">
-                            <label for="filter" class="form-label fw-semibold text-primary">
+                        {{-- Filtro --}}
+                        <div class="col-lg-3 col-md-3">
+                            <label for="filter" class="form-label small fw-semibold">
                                 <i class="bi bi-filter me-1"></i>Filtro
                             </label>
-                            <select name="filter" id="filter" class="form-select">
+                            <select name="filter" id="filter" class="form-select form-select-sm">
                                 <option value="">Tutti</option>
                                 <option value="critici" {{ request('filter') === 'critici' ? 'selected' : '' }}>
                                     Critici
@@ -145,22 +150,21 @@
                             </select>
                         </div>
 
-                        {{-- Pulsanti azione --}}
+                        {{-- Pulsanti --}}
                         <div class="col-lg-2 col-md-12">
-                            <label class="form-label d-none d-lg-block">&nbsp;</label>
-                            <div class="d-flex gap-2">
-                                <button type="submit" class="btn btn-primary flex-fill">
+                            <label class="form-label small d-none d-lg-block">&nbsp;</label>
+                            <div class="d-flex gap-1">
+                                <button type="submit" class="btn btn-primary btn-sm flex-fill">
                                     <i class="bi bi-search me-1"></i>Cerca
                                 </button>
                                 <a href="{{ route('prodotti.completo.index') }}" 
-                                   class="btn btn-outline-secondary" 
-                                   title="Reset filtri">
+                                   class="btn btn-outline-secondary btn-sm">
                                     <i class="bi bi-arrow-clockwise"></i>
                                 </a>
                             </div>
                         </div>
                         
-                        {{-- Filtri nascosti per staff --}}
+                        {{-- Hidden filters --}}
                         @if(request('staff_filter'))
                             <input type="hidden" name="staff_filter" value="{{ request('staff_filter') }}">
                         @endif
@@ -170,27 +174,25 @@
         </div>
     </div>
 
-    {{-- Filtri rapidi staff --}}
+    {{-- === FILTRI STAFF COMPATTI === --}}
     @if(auth()->user()->isStaff())
         <div class="row mb-3">
             <div class="col-12">
                 <div class="d-flex flex-wrap gap-2 align-items-center">
-                    <span class="badge bg-secondary py-2 px-3">
-                        <i class="bi bi-funnel me-1"></i>Filtri Staff:
-                    </span>
+                    <small class="text-muted me-2">Filtri Staff:</small>
                     
                     <a href="{{ route('prodotti.completo.index') }}" 
-                       class="badge {{ !request('staff_filter') ? 'bg-primary' : 'bg-light text-dark border' }} py-2 px-3 text-decoration-none">
+                       class="badge {{ !request('staff_filter') ? 'bg-primary' : 'bg-light text-dark' }} text-decoration-none">
                         Tutti i Prodotti
                     </a>
                     
                     <a href="{{ route('prodotti.completo.index') }}?staff_filter=my_products" 
-                       class="badge {{ request('staff_filter') === 'my_products' ? 'bg-success' : 'bg-light text-dark border' }} py-2 px-3 text-decoration-none">
+                       class="badge {{ request('staff_filter') === 'my_products' ? 'bg-success' : 'bg-light text-dark' }} text-decoration-none">
                         I Miei Prodotti
                     </a>
                     
                     <a href="{{ route('prodotti.completo.index') }}?filter=critici" 
-                       class="badge {{ request('filter') === 'critici' ? 'bg-danger' : 'bg-light text-dark border' }} py-2 px-3 text-decoration-none">
+                       class="badge {{ request('filter') === 'critici' ? 'bg-danger' : 'bg-light text-dark' }} text-decoration-none">
                         Solo Critici
                     </a>
                 </div>
@@ -198,674 +200,716 @@
         </div>
     @endif
 
-    {{-- Statistiche rapide --}}
-    @if(isset($stats))
-        <div class="row mb-3">
-            <div class="col-12">
-                <div class="d-flex flex-wrap gap-2 align-items-center">
-                    <span class="badge bg-primary">{{ $stats['total_prodotti'] }} prodotti totali</span>
-                    <span class="badge bg-warning">{{ $stats['con_malfunzionamenti'] ?? 0 }} con problemi</span>
-                    <span class="badge bg-danger">{{ $stats['malfunzionamenti_critici'] ?? 0 }} critici</span>
-                    
-                    @if(auth()->user()->isStaff() && isset($stats['miei_prodotti']))
-                        <span class="badge bg-success">{{ $stats['miei_prodotti'] }} miei prodotti</span>
-                    @endif
-                    
-                    @if(request('categoria'))
-                        <span class="badge bg-secondary">Categoria: {{ ucfirst(str_replace('_', ' ', request('categoria'))) }}</span>
-                    @endif
-                    @if(request('search'))
-                        <span class="badge bg-info">Ricerca: "{{ request('search') }}"</span>
-                    @endif
-                    @if(request('staff_filter') === 'my_products')
-                        <span class="badge bg-success">Solo Prodotti Assegnati</span>
-                    @endif
-                </div>
-            </div>
-        </div>
-    @endif
-
-    {{-- Alert filtro staff --}}
-    @if(request('staff_filter') === 'my_products')
-        <div class="row mb-3">
-            <div class="col-12">
-                <div class="alert alert-success border-0 shadow-sm py-2">
-                    <i class="bi bi-person-check me-2"></i>
-                    Stai visualizzando solo i <strong>tuoi prodotti assegnati</strong>. 
-                    <a href="{{ route('prodotti.completo.index') }}" class="alert-link">Visualizza tutti i prodotti</a>
-                </div>
-            </div>
-        </div>
-    @endif
-
-    {{-- Messaggio risultati ricerca --}}
+    {{-- === RISULTATI RICERCA === --}}
     @if(request('search') || request('categoria') || request('filter'))
         <div class="row mb-3">
             <div class="col-12">
-                <div class="alert alert-info border-0 shadow-sm py-2">
-                    <div class="row align-items-center">
-                        <div class="col-lg-8">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-info-circle-fill me-2"></i>
-                                <div>
-                                    <strong>Risultati di ricerca:</strong>
-                                    Trovati <span class="badge bg-primary">{{ $prodotti->total() }}</span> prodotti
-                                    @if(request('search'))
-                                        per "<em class="text-primary">{{ request('search') }}</em>"
-                                    @endif
-                                    @if(request('categoria'))
-                                        nella categoria "<em class="text-primary">{{ request('categoria') }}</em>"
-                                    @endif
-                                    @if(request('filter'))
-                                        con filtro "<em class="text-primary">{{ request('filter') }}</em>"
-                                    @endif
-                                </div>
-                            </div>
+                <div class="alert alert-info py-2 mb-0">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="small">
+                            <i class="bi bi-info-circle me-1"></i>
+                            <strong>Risultati:</strong> {{ $prodotti->total() }} prodotti trovati
+                            @if(request('search'))
+                                per "<em>{{ request('search') }}</em>"
+                            @endif
                         </div>
-                        <div class="col-lg-4 text-end mt-2 mt-lg-0">
-                            <a href="{{ route('prodotti.completo.index') }}" class="btn btn-outline-info btn-sm">
-                                <i class="bi bi-x-circle me-1"></i>Rimuovi filtri
-                            </a>
-                        </div>
+                        <a href="{{ route('prodotti.completo.index') }}" class="btn btn-outline-info btn-sm">
+                            <i class="bi bi-x-circle me-1"></i>Reset
+                        </a>
                     </div>
                 </div>
             </div>
         </div>
     @endif
 
-    {{-- Griglia prodotti con stile pubblico --}}
+    {{-- === GRIGLIA PRODOTTI COMPATTA === --}}
     <div class="row g-3 mb-4" id="prodotti-grid">
-        {{-- Sezione della card prodotto con classi dinamiche per i bordi --}}
-@forelse($prodotti as $prodotto)
-    <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6">
-        {{-- 
-            Card prodotto con classi CSS dinamiche per i bordi
-            Le classi vengono applicate in base allo stato del prodotto:
-            - border-danger-subtle: prodotti con malfunzionamenti critici
-            - border-warning-subtle: prodotti con malfunzionamenti non critici
-            - border-success-subtle: prodotti senza malfunzionamenti
-            - border-info-subtle: prodotti assegnati allo staff corrente
-        --}}
-        <div class="card h-100 shadow-sm border-0 product-card 
-            {{-- Applica classe CSS in base al numero e gravità dei malfunzionamenti --}}
-            @if($prodotto->hasMalfunzionamentiCritici())
-                border-danger-subtle
-            @elseif($prodotto->malfunzionamenti_count > 0)
-                border-warning-subtle
-            @elseif(auth()->user()->isStaff() && $prodotto->staff_assegnato_id === auth()->id())
-                border-info-subtle
-            @else
-                border-success-subtle
-            @endif
-            {{-- Classe aggiuntiva per priorità alta se necessario --}}
-            @if(isset($prodotto->critici_count) && $prodotto->critici_count > 2)
-                priority-high
-            @endif
-        ">
-            
-            {{-- Resto del contenuto della card rimane invariato --}}
-            <div class="position-relative overflow-hidden">
-                @if($prodotto->foto)
-                    <img src="{{ asset('storage/' . $prodotto->foto) }}" 
-                         class="card-img-top product-image" 
-                         alt="{{ $prodotto->nome }}"
-                         style="height: 160px; object-fit: cover;">
-                @else
-                    <div class="card-img-top d-flex align-items-center justify-content-center bg-light" 
-                         style="height: 160px;">
-                        <i class="bi bi-box text-muted" style="font-size: 2.5rem;"></i>
-                    </div>
-                @endif
-                
-                {{-- Badge categoria --}}
-                <div class="position-absolute top-0 start-0 m-2">
-                    <span class="badge bg-secondary bg-opacity-90 px-2 py-1">
-                        <i class="bi bi-tag me-1"></i>{{ $prodotto->categoria_label ?? ucfirst($prodotto->categoria) }}
-                    </span>
-                </div>
-
-                {{-- Indicatori tecnici --}}
-                <div class="position-absolute top-0 end-0 m-2">
-                    @if($prodotto->malfunzionamenti_count > 0)
-                        <span class="badge bg-warning bg-opacity-90 px-2 py-1 mb-1 d-block" 
-                              data-bs-toggle="tooltip" 
-                              title="{{ $prodotto->malfunzionamenti_count }} malfunzionamenti totali">
-                            <i class="bi bi-exclamation-triangle me-1"></i>{{ $prodotto->malfunzionamenti_count }}
-                        </span>
-                    @endif
-                    
-                    @if(isset($prodotto->critici_count) && $prodotto->critici_count > 0)
-                        <span class="badge bg-danger bg-opacity-90 px-2 py-1 mb-1 d-block" 
-                              data-bs-toggle="tooltip" 
-                              title="{{ $prodotto->critici_count }} malfunzionamenti critici">
-                            <i class="bi bi-exclamation-circle me-1"></i>{{ $prodotto->critici_count }}
-                        </span>
-                    @endif
-                    
-                    @if(auth()->user()->isStaff() && $prodotto->staff_assegnato_id === auth()->id())
-                        <span class="badge bg-success bg-opacity-90 px-2 py-1 d-block" 
-                              data-bs-toggle="tooltip" 
-                              title="Prodotto assegnato a te">
-                            <i class="bi bi-person-check"></i>
-                        </span>
-                    @endif
-                </div>
-
-                {{-- Indicatore priorità critica con stile aggiornato --}}
-                @if($prodotto->hasMalfunzionamentiCritici())
-                    <div class="position-absolute bottom-0 start-0 end-0 bg-danger bg-opacity-75 text-white text-center py-1">
-                        <small><i class="bi bi-exclamation-triangle me-1"></i><strong>PRIORITÀ ALTA</strong></small>
-                    </div>
-                @endif
-            </div>
-
-            {{-- Corpo della card rimane invariato --}}
-            <div class="card-body d-flex flex-column p-3">
-                {{-- Titolo con colore dinamico basato sui bordi --}}
-                <h6 class="card-title mb-2 fw-bold
+        @forelse($prodotti as $prodotto)
+            <div class="col-xl-3 col-lg-4 col-md-6">
+                <div class="card h-100 shadow-sm border-0 product-card
+                    {{-- Bordi colorati per stato --}}
                     @if($prodotto->hasMalfunzionamentiCritici())
-                        text-danger
+                        border-start border-danger border-3
                     @elseif($prodotto->malfunzionamenti_count > 0)
-                        text-warning
+                        border-start border-warning border-3
                     @elseif(auth()->user()->isStaff() && $prodotto->staff_assegnato_id === auth()->id())
-                        text-info
+                        border-start border-info border-3
                     @else
-                        text-primary
+                        border-start border-success border-2
                     @endif
                 ">
-                    {{ $prodotto->nome }}
-                </h6>
-                
-                {{-- Resto del contenuto... --}}
-                @if($prodotto->modello)
-                    <p class="card-text small text-muted mb-2">
-                        <i class="bi bi-gear me-1"></i>Modello: <code>{{ $prodotto->modello }}</code>
-                    </p>
-                @endif
-
-                <p class="card-text flex-grow-1 text-muted small">
-                    {{ Str::limit($prodotto->descrizione, 80, '...') }}
-                </p>
-
-                {{-- Informazioni tecniche con indicatori colorati --}}
-                <div class="row g-1 mb-2 small">
-                    <div class="col-6">
-                        <div class="text-center p-2 bg-light rounded
-                            @if($prodotto->hasMalfunzionamentiCritici())
-                                border border-danger
-                            @elseif($prodotto->malfunzionamenti_count > 0)
-                                border border-warning
-                            @endif
-                        ">
-                            <strong class="text-{{ $prodotto->malfunzionamenti_count > 0 ? 'warning' : 'success' }}">
-                                {{ $prodotto->malfunzionamenti_count ?? 0 }}
-                            </strong>
-                            <br><small class="text-muted">Problemi</small>
+                    
+                    {{-- === IMMAGINE CORRETTA === --}}
+                    <div class="position-relative">
+                        @if($prodotto->foto)
+                            <img src="{{ asset('storage/' . $prodotto->foto) }}" 
+                                 class="card-img-top product-image" 
+                                 alt="{{ $prodotto->nome }}"
+                                 style="height: 140px; object-fit: contain; background-color: #f8f9fa;">
+                        @else
+                            <div class="card-img-top d-flex align-items-center justify-content-center bg-light" 
+                                 style="height: 140px;">
+                                <i class="bi bi-box text-muted" style="font-size: 2rem;"></i>
+                            </div>
+                        @endif
+                        
+                        {{-- Badge categoria --}}
+                        <div class="position-absolute top-0 start-0 m-2">
+                            <span class="badge bg-secondary small">
+                                {{ $prodotto->categoria_label ?? ucfirst($prodotto->categoria) }}
+                            </span>
                         </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="text-center p-2 bg-light rounded
+
+                        {{-- Indicatori stato --}}
+                        <div class="position-absolute top-0 end-0 m-2">
+                            @if($prodotto->malfunzionamenti_count > 0)
+                                <span class="badge bg-warning small mb-1 d-block">
+                                    {{ $prodotto->malfunzionamenti_count }} problemi
+                                </span>
+                            @endif
+                            
                             @if(isset($prodotto->critici_count) && $prodotto->critici_count > 0)
-                                border border-danger
+                                <span class="badge bg-danger small d-block">
+                                    {{ $prodotto->critici_count }} critici
+                                </span>
                             @endif
-                        ">
-                            <strong class="text-{{ isset($prodotto->critici_count) && $prodotto->critici_count > 0 ? 'danger' : 'success' }}">
-                                {{ $prodotto->critici_count ?? 0 }}
-                            </strong>
-                            <br><small class="text-muted">Critici</small>
+                            
+                            @if(auth()->user()->isStaff() && $prodotto->staff_assegnato_id === auth()->id())
+                                <span class="badge bg-success small d-block">
+                                    <i class="bi bi-person-check"></i> Mio
+                                </span>
+                            @endif
                         </div>
                     </div>
-                </div>
 
-                {{-- Staff assegnato --}}
-                @if($prodotto->staffAssegnato)
-                    <p class="text-muted small mb-2">
-                        <i class="bi bi-person-badge me-1"></i>
-                        Staff: {{ $prodotto->staffAssegnato->nome_completo }}
-                    </p>
-                @elseif(auth()->user()->isAdmin())
-                    <p class="text-warning small mb-2">
-                        <i class="bi bi-person-x me-1"></i>
-                        Nessun staff assegnato
-                    </p>
-                @endif
-
-                {{-- Alert problemi critici con stile abbinato --}}
-                @if($prodotto->hasMalfunzionamentiCritici())
-                    <div class="alert alert-danger py-1 mb-2 border-danger">
-                        <small>
-                            <i class="bi bi-exclamation-triangle me-1"></i>
-                            <strong>ATTENZIONE:</strong> Problemi critici
-                        </small>
-                    </div>
-                @endif
-
-                {{-- Pulsanti azione con stili abbinati ai bordi --}}
-                <div class="d-grid gap-1">
-                    {{-- Visualizza dettagli con colore dinamico --}}
-                    <a href="{{ route('prodotti.completo.show', $prodotto) }}" 
-                       class="btn btn-sm
+                    {{-- === CONTENUTO CARD === --}}
+                    <div class="card-body p-3">
+                        {{-- Titolo --}}
+                        <h6 class="card-title mb-2 fw-bold
                             @if($prodotto->hasMalfunzionamentiCritici())
-                                btn-outline-danger
+                                text-danger
                             @elseif($prodotto->malfunzionamenti_count > 0)
-                                btn-outline-warning
-                            @elseif(auth()->user()->isStaff() && $prodotto->staff_assegnato_id === auth()->id())
-                                btn-outline-info
+                                text-warning
                             @else
-                                btn-outline-primary
+                                text-primary
                             @endif
-                       ">
-                        <i class="bi bi-eye me-1"></i>Dettagli Completi
-                    </a>
-                    
-                    {{-- Altri pulsanti rimangono invariati --}}
-                    @if($prodotto->malfunzionamenti_count > 0)
-                        <a href="{{ route('malfunzionamenti.index', $prodotto) }}" 
-                           class="btn btn-{{ $prodotto->hasMalfunzionamentiCritici() ? 'danger' : 'warning' }} btn-sm">
-                            <i class="bi bi-tools me-1"></i>
-                            Malfunzionamenti ({{ $prodotto->malfunzionamenti_count }})
-                        </a>
-                    @endif
-                    
-                    {{-- Resto dei pulsanti... --}}
+                        ">
+                            {{ $prodotto->nome }}
+                        </h6>
+                        
+                        {{-- Modello --}}
+                        @if($prodotto->modello)
+                            <p class="card-text small text-muted mb-2">
+                                <i class="bi bi-gear me-1"></i>{{ $prodotto->modello }}
+                            </p>
+                        @endif
+
+                        {{-- Descrizione breve --}}
+                        <p class="card-text small text-muted mb-3">
+                            {{ Str::limit($prodotto->descrizione, 60, '...') }}
+                        </p>
+
+                        {{-- Statistiche compatte --}}
+                        <div class="row g-1 mb-3">
+                            <div class="col-6">
+                                <div class="text-center p-2 
+                                    @if($prodotto->malfunzionamenti_count > 0) 
+                                        bg-warning bg-opacity-10 
+                                    @else 
+                                        bg-success bg-opacity-10 
+                                    @endif 
+                                    rounded">
+                                    <div class="fw-bold small text-{{ $prodotto->malfunzionamenti_count > 0 ? 'warning' : 'success' }}">
+                                        {{ $prodotto->malfunzionamenti_count ?? 0 }}
+                                    </div>
+                                    <small class="text-muted">Problemi</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center p-2 
+                                    @if(isset($prodotto->critici_count) && $prodotto->critici_count > 0) 
+                                        bg-danger bg-opacity-10 
+                                    @else 
+                                        bg-success bg-opacity-10 
+                                    @endif 
+                                    rounded">
+                                    <div class="fw-bold small text-{{ isset($prodotto->critici_count) && $prodotto->critici_count > 0 ? 'danger' : 'success' }}">
+                                        {{ $prodotto->critici_count ?? 0 }}
+                                    </div>
+                                    <small class="text-muted">Critici</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Staff assegnato --}}
+                        @if($prodotto->staffAssegnato)
+                            <p class="text-muted small mb-3">
+                                <i class="bi bi-person-badge me-1"></i>
+                                Staff: {{ $prodotto->staffAssegnato->nome_completo }}
+                            </p>
+                        @endif
+
+                        {{-- Alert critici --}}
+                        @if($prodotto->hasMalfunzionamentiCritici())
+                            <div class="alert alert-danger py-1 mb-3">
+                                <small>
+                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                    <strong>ATTENZIONE:</strong> Problemi critici
+                                </small>
+                            </div>
+                        @endif
+
+                        {{-- Pulsanti azione --}}
+                        <div class="d-grid gap-1">
+                            {{-- Visualizza dettagli --}}
+                            <a href="{{ route('prodotti.completo.show', $prodotto) }}" 
+                               class="btn btn-sm
+                                    @if($prodotto->hasMalfunzionamentiCritici())
+                                        btn-outline-danger
+                                    @elseif($prodotto->malfunzionamenti_count > 0)
+                                        btn-outline-warning
+                                    @else
+                                        btn-outline-primary
+                                    @endif
+                               ">
+                                <i class="bi bi-eye me-1"></i>Dettagli Completi
+                            </a>
+                            
+                            {{-- Malfunzionamenti --}}
+                            @if($prodotto->malfunzionamenti_count > 0)
+                                <a href="{{ route('malfunzionamenti.index', $prodotto) }}" 
+                                   class="btn btn-{{ $prodotto->hasMalfunzionamentiCritici() ? 'danger' : 'warning' }} btn-sm">
+                                    <i class="bi bi-tools me-1"></i>
+                                    Malfunzionamenti ({{ $prodotto->malfunzionamenti_count }})
+                                </a>
+                            @else
+                                <div class="text-center py-1">
+                                    <small class="text-success">
+                                        <i class="bi bi-check-circle me-1"></i>
+                                        Nessun problema segnalato
+                                    </small>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
-@empty
-    {{-- Stato vuoto rimane invariato --}}
-@endforelse
+        @empty
+            {{-- Stato vuoto --}}
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center py-5">
+                        @if(request('search') || request('categoria') || request('filter'))
+                            <i class="bi bi-search display-1 text-muted opacity-50"></i>
+                            <h5 class="text-muted mt-3">Nessun prodotto trovato</h5>
+                            <p class="text-muted">
+                                Prova a modificare i criteri di ricerca o 
+                                <a href="{{ route('prodotti.completo.index') }}">visualizza tutti i prodotti</a>
+                            </p>
+                        @else
+                            <i class="bi bi-box display-1 text-muted opacity-50"></i>
+                            <h5 class="text-muted mt-3">Nessun prodotto disponibile</h5>
+                            <p class="text-muted">Il catalogo è vuoto al momento</p>
+                            @if(auth()->user()->isAdmin())
+                                <a href="{{ route('admin.prodotti.create') }}" class="btn btn-primary">
+                                    <i class="bi bi-plus me-1"></i>Aggiungi Primo Prodotto
+                                </a>
+                            @endif
+                        @endif
+                    </div>
+                </div>
+            </div>
+        @endforelse
     </div>
 
-    {{-- Paginazione centrata come richiesto --}}
+    {{-- === PAGINAZIONE COMPATTA === --}}
     @if($prodotti->hasPages())
-        <div class="row mt-4">
+        <div class="row">
             <div class="col-12">
-                {{-- Info paginazione centrata sopra --}}
                 <div class="text-center mb-2">
                     <small class="text-muted">
                         Visualizzati {{ $prodotti->firstItem() }}-{{ $prodotti->lastItem() }} 
                         di {{ $prodotti->total() }} prodotti
-                        @if(request('staff_filter') === 'my_products')
-                            assegnati
-                        @endif
                     </small>
                 </div>
                 
-                {{-- Controlli paginazione centrati --}}
                 <div class="d-flex justify-content-center">
-                    <nav aria-label="Paginazione prodotti">
-                        <ul class="pagination pagination-sm mb-0">
-                            {{-- Previous --}}
-                            @if ($prodotti->onFirstPage())
-                                <li class="page-item disabled">
-                                    <span class="page-link">‹</span>
-                                </li>
-                            @else
-                                <li class="page-item">
-                                    <a class="page-link" href="{{ $prodotti->appends(request()->query())->previousPageUrl() }}">‹</a>
-                                </li>
-                            @endif
-
-                            {{-- Numeri pagina --}}
-                            @foreach ($prodotti->getUrlRange(1, $prodotti->lastPage()) as $page => $url)
-                                @if ($page == $prodotti->currentPage())
-                                    <li class="page-item active">
-                                        <span class="page-link">{{ $page }}</span>
-                                    </li>
-                                @else
-                                    <li class="page-item">
-                                        <a class="page-link" href="{{ $prodotti->appends(request()->query())->url($page) }}">{{ $page }}</a>
-                                    </li>
-                                @endif
-                            @endforeach
-
-                            {{-- Next --}}
-                            @if ($prodotti->hasMorePages())
-                                <li class="page-item">
-                                    <a class="page-link" href="{{ $prodotti->appends(request()->query())->nextPageUrl() }}">›</a>
-                                </li>
-                            @else
-                                <li class="page-item disabled">
-                                    <span class="page-link">›</span>
-                                </li>
-                            @endif
-                        </ul>
-                    </nav>
+                    {{ $prodotti->appends(request()->query())->links('pagination::bootstrap-4') }}
                 </div>
             </div>
         </div>
     @endif
 
-    {{-- Sezione informazioni compatta --}}
-    <div class="row">
-        <div class="col-12">
-            <div class="card bg-gradient-light border-0 shadow-sm">
-                <div class="card-body text-center py-4">
-                    <div class="row justify-content-center">
-                        <div class="col-lg-8">
-                            <h5 class="text-primary mb-2">
-                                <i class="bi bi-info-circle me-2"></i>
-                                Accesso Tecnico Completo
-                            </h5>
-                            <p class="mb-3 text-muted">
-                                Stai visualizzando il catalogo con informazioni complete su malfunzionamenti e soluzioni tecniche.
-                            </p>
-                            
-                            {{-- Pulsanti azione --}}
-                            <div class="d-flex gap-2 justify-content-center flex-wrap">
-                                <a href="{{ route('dashboard') }}" class="btn btn-primary">
-                                    <i class="bi bi-speedometer2 me-1"></i>
-                                    Dashboard
-                                </a>
-                                
-                                @if(auth()->user()->isStaff())
-                                    <a href="{{ route('staff.create.nuova.soluzione') }}" class="btn btn-success">
-                                        <i class="bi bi-plus-circle me-1"></i>
-                                        Nuova Soluzione
-                                    </a>
-                                @endif
-                                
-                                <a href="{{ route('prodotti.pubblico.index') }}" class="btn btn-outline-info">
-                                    <i class="bi bi-eye me-1"></i>
-                                    Vista Pubblica
-                                </a>
-                                
-                                <a href="{{ route('centri.index') }}" class="btn btn-outline-secondary">
-                                    <i class="bi bi-geo-alt me-1"></i>
-                                    Centri Assistenza
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-
 </div>
 @endsection
 
-{{-- CSS personalizzato per layout identico al pubblico --}}
 @push('styles')
 <style>
-/* === STILI CARD PRODOTTO CON BORDI === */
+/* === STILI COMPATTI CATALOGO TECNICO === */
 
-/* Card prodotto base con bordo elegante */
+/* Card prodotto base */
 .product-card {
     transition: all 0.2s ease;
     border-radius: 0.5rem;
     overflow: hidden;
-    /* NUOVO: Bordo sottile per tutte le card */
-    border: 1px solid #e9ecef !important;
 }
 
 .product-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 0.75rem 2rem rgba(0,0,0,0.15) !important;
-    /* NUOVO: Bordo blu al hover */
-    border-color: #007bff !important;
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.15) !important;
 }
 
-/* Card con problemi critici - bordo rosso */
-.product-card.border-danger-subtle {
-    border-left: 4px solid #dc3545 !important;
-    border-top: 1px solid #fecaca !important;
-    border-right: 1px solid #fecaca !important;
-    border-bottom: 1px solid #fecaca !important;
-    background-color: #fef7f7;
+/* Immagini prodotto CORRETTE */
+.product-image {
+    transition: transform 0.3s ease;
+    padding: 0.5rem; /* Aggiunge padding per evitare zoom eccessivo */
 }
 
-.product-card.border-danger-subtle:hover {
-    border-color: #dc3545 !important;
-    box-shadow: 0 0.75rem 2rem rgba(220, 53, 69, 0.2) !important;
+.product-image:hover {
+    transform: scale(1.05);
 }
 
-/* Card con problemi non critici - bordo arancione */
-.product-card.border-warning-subtle {
-    border-left: 4px solid #ffc107 !important;
-    border-top: 1px solid #fff3cd !important;
-    border-right: 1px solid #fff3cd !important;
-    border-bottom: 1px solid #fff3cd !important;
-    background-color: #fffbf0;
+/* Badge più compatti */
+.badge {
+    font-size: 0.7rem;
 }
 
-.product-card.border-warning-subtle:hover {
-    border-color: #ffc107 !important;
-    box-shadow: 0 0.75rem 2rem rgba(255, 193, 7, 0.2) !important;
+/* Form controls più piccoli */
+.form-select-sm,
+.form-control-sm {
+    font-size: 0.875rem;
 }
 
-/* Card senza problemi - bordo verde sottile */
-.product-card.border-success-subtle {
-    border-left: 3px solid #28a745 !important;
-    border-top: 1px solid #d4edda !important;
-    border-right: 1px solid #d4edda !important;
-    border-bottom: 1px solid #d4edda !important;
+/* Statistiche compatte */
+.card-body.py-2 {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
 }
 
-.product-card.border-success-subtle:hover {
-    border-color: #28a745 !important;
-    box-shadow: 0 0.75rem 2rem rgba(40, 167, 69, 0.15) !important;
+/* Bordi colorati per stato prodotto */
+.border-start.border-3 {
+    border-left-width: 3px !important;
 }
 
-/* Card assegnata allo staff - bordo viola */
-.product-card.border-info-subtle {
-    border-left: 3px solid #17a2b8 !important;
-    border-top: 1px solid #bee5eb !important;
-    border-right: 1px solid #bee5eb !important;
-    border-bottom: 1px solid #bee5eb !important;
+.border-start.border-2 {
+    border-left-width: 2px !important;
 }
 
-.product-card.border-info-subtle:hover {
-    border-color: #17a2b8 !important;
-    box-shadow: 0 0.75rem 2rem rgba(23, 162, 184, 0.15) !important;
+/* Alert compatti */
+.alert.py-1 {
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
 }
 
-/* Varianti alternative per diversi stati */
-
-/* Stile 1: Bordo completo colorato */
-.product-card.full-border-critical {
-    border: 2px solid #dc3545 !important;
-    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.1);
-}
-
-.product-card.full-border-warning {
-    border: 2px solid #ffc107 !important;
-    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.1);
-}
-
-.product-card.full-border-success {
-    border: 2px solid #28a745 !important;
-    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.1);
-}
-
-/* Stile 2: Bordo superiore colorato */
-.product-card.top-border-critical {
-    border-top: 4px solid #dc3545 !important;
-    border-left: 1px solid #e9ecef !important;
-    border-right: 1px solid #e9ecef !important;
-    border-bottom: 1px solid #e9ecef !important;
-}
-
-.product-card.top-border-warning {
-    border-top: 4px solid #ffc107 !important;
-    border-left: 1px solid #e9ecef !important;
-    border-right: 1px solid #e9ecef !important;
-    border-bottom: 1px solid #e9ecef !important;
-}
-
-.product-card.top-border-success {
-    border-top: 4px solid #28a745 !important;
-    border-left: 1px solid #e9ecef !important;
-    border-right: 1px solid #e9ecef !important;
-    border-bottom: 1px solid #e9ecef !important;
-}
-
-/* Stile 3: Bordo con gradiente */
-.product-card.gradient-border-critical {
-    border: 2px solid transparent !important;
-    background: 
-        linear-gradient(white, white) padding-box,
-        linear-gradient(135deg, #dc3545, #ff6b6b) border-box;
-}
-
-.product-card.gradient-border-warning {
-    border: 2px solid transparent !important;
-    background: 
-        linear-gradient(white, white) padding-box,
-        linear-gradient(135deg, #ffc107, #ffeb3b) border-box;
-}
-
-/* Effetti speciali per card priorità alta */
-.product-card.priority-high {
-    border: 2px solid #dc3545 !important;
-    position: relative;
-}
-
-.product-card.priority-high::before {
-    content: '';
-    position: absolute;
-    top: -2px;
-    left: -2px;
-    right: -2px;
-    bottom: -2px;
-    background: linear-gradient(45deg, #dc3545, #ff6b6b, #dc3545);
-    border-radius: 0.5rem;
-    z-index: -1;
-    animation: priorityPulse 2s ease-in-out infinite;
-}
-
-@keyframes priorityPulse {
-    0%, 100% { opacity: 0.7; }
-    50% { opacity: 1; }
-}
-
-/* Responsive - bordi più sottili su mobile */
+/* Responsive migliorato */
 @media (max-width: 768px) {
-    .product-card {
-        border-width: 1px !important;
+    .card-body {
+        padding: 0.75rem;
     }
     
-    .product-card.border-danger-subtle,
-    .product-card.border-warning-subtle,
-    .product-card.border-success-subtle,
-    .product-card.border-info-subtle {
-        border-left-width: 3px !important;
+    .product-image {
+        height: 120px !important;
     }
     
-    .product-card.full-border-critical,
-    .product-card.full-border-warning,
-    .product-card.full-border-success {
-        border-width: 1px !important;
-    }
-    
-    .product-card.top-border-critical,
-    .product-card.top-border-warning,
-    .product-card.top-border-success {
-        border-top-width: 3px !important;
+    .btn-group-sm .btn {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
     }
 }
 
-/* Stili per card normali senza classificazione speciale */
-.product-card:not(.border-danger-subtle):not(.border-warning-subtle):not(.border-success-subtle):not(.border-info-subtle) {
-    border: 1px solid #dee2e6 !important;
+@media (max-width: 576px) {
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        align-items: start !important;
+    }
+    
+    .btn-group {
+        margin-top: 0.5rem;
+        width: 100%;
+    }
+    
+    .h2 {
+        font-size: 1.3rem !important;
+    }
+    
+    .product-image {
+        height: 100px !important;
+    }
 }
 
-.product-card:not(.border-danger-subtle):not(.border-warning-subtle):not(.border-success-subtle):not(.border-info-subtle):hover {
-    border-color: #007bff !important;
+/* Loading states */
+.btn:disabled {
+    opacity: 0.6;
 }
 
-/* Classe utile per evidenziare card selezionate */
-.product-card.selected {
-    border: 2px solid #007bff !important;
-    background-color: #f8f9ff;
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1) !important;
+/* Scrollbar personalizzata */
+.overflow-auto::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.overflow-auto::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 6px;
+}
+
+.overflow-auto::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 6px;
+}
+
+.overflow-auto::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Evidenziazione ricerca */
+mark {
+    background-color: #fff3cd;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+}
+
+/* Animazioni leggere */
+.card, .btn, .badge {
+    transition: all 0.2s ease-in-out;
+}
+
+/* Stati hover migliorati */
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.badge:hover {
+    transform: scale(1.05);
 }
 </style>
 @endpush
 
-{{-- JavaScript identico al pubblico con aggiunte tecniche --}}
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // Inizializzazione
-    console.log('Catalogo tecnico caricato - Prodotti:', {{ $prodotti->total() }});
+    console.log('📦 Catalogo Tecnico Compatto caricato');
+    console.log('📊 Prodotti visualizzati:', {{ $prodotti->count() }});
     
-    // Gestione form identica al pubblico
+    // === GESTIONE FORM ===
     $('#clearSearch').on('click', function() {
         $('#search').val('').focus();
     });
     
-    // Submit automatico categoria
     $('#categoria, #filter').on('change', function() {
         $(this).closest('form').submit();
     });
     
-    // Shortcut tastiera
+    // === SHORTCUT TASTIERA ===
     $(document).on('keydown', function(e) {
         if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
             e.preventDefault();
             $('#search').focus();
         }
+        if (e.key === 'Escape') {
+            $('#search').blur();
+        }
     });
     
-    // Gestione errori immagini
+    // === GESTIONE ERRORI IMMAGINI ===
     $('.product-image').on('error', function() {
-        $(this).replaceWith(`
+        const $this = $(this);
+        const productName = $this.attr('alt') || 'Prodotto';
+        
+        $this.replaceWith(`
             <div class="card-img-top d-flex align-items-center justify-content-center bg-light" 
-                 style="height: 160px;">
-                <i class="bi bi-image text-muted" style="font-size: 2.5rem;"></i>
+                 style="height: 140px;">
+                <div class="text-center">
+                    <i class="bi bi-image text-muted" style="font-size: 2rem;"></i>
+                    <div class="small text-muted mt-1">${productName}</div>
+                </div>
             </div>
         `);
     });
     
-    // Loading per form submit
-    $('form').on('submit', function() {
-        const $submitBtn = $(this).find('button[type="submit"]');
-        const originalText = $submitBtn.html();
+    // === LAZY LOADING IMMAGINI ===
+    if ('IntersectionObserver' in window) {
+        const imageObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    if (img.dataset.src) {
+                        img.src = img.dataset.src;
+                        img.classList.remove('lazy');
+                        imageObserver.unobserve(img);
+                    }
+                }
+            });
+        });
         
-        $submitBtn.html('<i class="bi bi-hourglass-split me-1"></i>Cercando...')
-                  .prop('disabled', true);
-        
-        setTimeout(function() {
-            $submitBtn.html(originalText).prop('disabled', false);
-        }, 3000);
-    });
+        document.querySelectorAll('img[data-src]').forEach(img => {
+            imageObserver.observe(img);
+        });
+    }
     
-    // === FUNZIONALITÀ TECNICHE AGGIUNTIVE ===
-    
-    // Tooltip per indicatori tecnici
-    $('[data-bs-toggle="tooltip"]').tooltip();
-    
-    // Conferme eliminazione
-    $('[data-confirm-delete]').on('click', function(e) {
-        e.preventDefault();
-        const message = $(this).data('confirm-delete');
-        const form = $(this).closest('form');
-        
-        if (confirm(message)) {
-            form.submit();
-        }
-    });
-    
-    // Evidenziazione ricerca
+    // === EVIDENZIAZIONE RICERCA ===
     const searchTerm = '{{ request("search") }}';
-    if (searchTerm && !searchTerm.includes('*')) {
+    if (searchTerm && searchTerm.length > 2 && !searchTerm.includes('*')) {
         $('.card-title, .card-text').each(function() {
             const text = $(this).html();
-            const regex = new RegExp(`(${searchTerm})`, 'gi');
+            const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
             const highlighted = text.replace(regex, '<mark>$1</mark>');
             $(this).html(highlighted);
         });
     }
     
-    // Analytics tecnico
-    @if(request('search'))
-        console.log('Ricerca tecnica:', {
+    // === TOOLTIP ===
+    $('[data-bs-toggle="tooltip"]').tooltip({
+        trigger: 'hover',
+        placement: 'top'
+    });
+    
+    // === LOADING FORM ===
+    $('form').on('submit', function() {
+        const $submitBtn = $(this).find('button[type="submit"]');
+        if ($submitBtn.length) {
+            const originalText = $submitBtn.html();
+            $submitBtn.html('<i class="bi bi-hourglass-split me-1"></i>Cercando...')
+                      .prop('disabled', true);
+            
+            setTimeout(() => {
+                $submitBtn.html(originalText).prop('disabled', false);
+            }, 3000);
+        }
+    });
+    
+    // === ANALYTICS RICERCA ===
+    @if(request('search') || request('categoria') || request('filter'))
+        console.log('🔍 Ricerca tecnica effettuata:', {
             termine: '{{ request("search") }}',
             categoria: '{{ request("categoria") }}',
-            filter: '{{ request("filter") }}',
-            risultati: {{ $prodotti->total() }}
+            filtro: '{{ request("filter") }}',
+            risultati: {{ $prodotti->total() }},
+            staff_filter: '{{ request("staff_filter") }}',
+            timestamp: new Date().toISOString()
         });
     @endif
+    
+    // === AUTO-REFRESH OPZIONALE ===
+    @if(request('filter') === 'critici')
+        // Aggiorna ogni 5 minuti per problemi critici
+        setInterval(() => {
+            console.log('🔄 Auto-refresh per problemi critici');
+            // location.reload(); // Decommentare se necessario
+        }, 300000);
+    @endif
+    
+    // === ANIMAZIONI CONTATORI ===
+    setTimeout(() => {
+        $('.fw-bold').each(function() {
+            const $counter = $(this);
+            const text = $counter.text().trim();
+            const target = parseInt(text);
+            
+            if (!isNaN(target) && target > 0 && target < 100) {
+                $counter.text('0');
+                
+                $({ counter: 0 }).animate({ counter: target }, {
+                    duration: 1000,
+                    easing: 'swing',
+                    step: function() {
+                        $counter.text(Math.ceil(this.counter));
+                    },
+                    complete: function() {
+                        $counter.text(target);
+                    }
+                });
+            }
+        });
+    }, 300);
+    
+    // === GESTIONE STATI HOVER ===
+    $('.product-card').hover(
+        function() {
+            $(this).addClass('shadow-lg');
+        },
+        function() {
+            $(this).removeClass('shadow-lg');
+        }
+    );
+    
+    // === CONFERME AZIONI ===
+    $('[data-confirm]').on('click', function(e) {
+        const message = $(this).data('confirm') || 'Sei sicuro di voler procedere?';
+        if (!confirm(message)) {
+            e.preventDefault();
+            return false;
+        }
+    });
+    
+    // === NOTIFICHE SESSIONE ===
+    @if(session('success'))
+        showNotification('{{ session('success') }}', 'success');
+    @endif
+    
+    @if(session('error'))
+        showNotification('{{ session('error') }}', 'error');
+    @endif
+    
+    @if(session('warning'))
+        showNotification('{{ session('warning') }}', 'warning');
+    @endif
+    
+    function showNotification(message, type = 'info') {
+        const alertClass = {
+            'success': 'alert-success',
+            'error': 'alert-danger',
+            'warning': 'alert-warning',
+            'info': 'alert-info'
+        }[type] || 'alert-info';
+        
+        const icon = {
+            'success': 'check-circle',
+            'error': 'exclamation-triangle',
+            'warning': 'exclamation-triangle',
+            'info': 'info-circle'
+        }[type] || 'info-circle';
+        
+        const notification = $(`
+            <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
+                 style="top: 20px; right: 20px; z-index: 9999; max-width: 350px;" 
+                 role="alert">
+                <i class="bi bi-${icon} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `);
+        
+        $('body').append(notification);
+        
+        // Auto-rimuovi dopo 4 secondi
+        setTimeout(() => {
+            notification.alert('close');
+        }, 4000);
+    }
+    
+    // Rende la funzione disponibile globalmente
+    window.showNotification = showNotification;
+    
+    // === PERFORMANCE MONITORING ===
+    const performanceData = {
+        loadTime: Date.now(),
+        totalProducts: {{ $prodotti->total() }},
+        displayedProducts: {{ $prodotti->count() }},
+        searchActive: {{ request('search') ? 'true' : 'false' }},
+        filtersActive: {{ (request('categoria') || request('filter')) ? 'true' : 'false' }}
+    };
+    
+    console.log('📊 Performance Data:', performanceData);
+    
+    // === CLEANUP ===
+    $(window).on('beforeunload', function() {
+        // Cleanup tooltip
+        $('[data-bs-toggle="tooltip"]').tooltip('dispose');
+        console.log('🧹 Cleanup completato');
+    });
+    
+    console.log('✅ Catalogo Tecnico Compatto completamente caricato');
+});
+
+// === FUNZIONI GLOBALI UTILITY ===
+
+/**
+ * Filtra prodotti per categoria via JavaScript (opzionale)
+ */
+function filterByCategory(categoria) {
+    if (categoria) {
+        window.location.href = `{{ route('prodotti.completo.index') }}?categoria=${categoria}`;
+    } else {
+        window.location.href = `{{ route('prodotti.completo.index') }}`;
+    }
+}
+
+/**
+ * Ricerca rapida senza submit
+ */
+function quickSearch(term) {
+    if (term.length > 2) {
+        $('#search').val(term);
+        $('form').submit();
+    }
+}
+
+/**
+ * Toggle filtro staff
+ */
+function toggleStaffFilter(filter) {
+    const currentUrl = new URL(window.location.href);
+    
+    if (filter === 'my_products') {
+        currentUrl.searchParams.set('staff_filter', 'my_products');
+    } else {
+        currentUrl.searchParams.delete('staff_filter');
+    }
+    
+    window.location.href = currentUrl.toString();
+}
+
+/**
+ * Reset completo filtri
+ */
+function resetAllFilters() {
+    window.location.href = `{{ route('prodotti.completo.index') }}`;
+}
+
+/**
+ * Funzione per evidenziare un prodotto specifico
+ */
+function highlightProduct(productId) {
+    const $card = $(`.product-card[data-product-id="${productId}"]`);
+    if ($card.length) {
+        $card.addClass('border-primary border-3 shadow-lg');
+        $card[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        setTimeout(() => {
+            $card.removeClass('border-primary border-3');
+        }, 3000);
+    }
+}
+
+/**
+ * Statistiche di utilizzo (opzionale per analytics)
+ */
+function trackUsage(action, details = {}) {
+    if (typeof gtag !== 'undefined') {
+        gtag('event', action, {
+            ...details,
+            page_title: 'Catalogo Tecnico Completo',
+            page_location: window.location.href
+        });
+    }
+    
+    console.log('📈 Azione tracciata:', action, details);
+}
+
+// === EVENT LISTENERS GLOBALI ===
+
+// Track click sui prodotti
+$(document).on('click', '.product-card a', function() {
+    const productName = $(this).closest('.product-card').find('.card-title').text();
+    trackUsage('product_view', {
+        product_name: productName,
+        view_type: 'tecnico_completo'
+    });
+});
+
+// Track ricerche
+$(document).on('submit', 'form', function() {
+    const searchTerm = $('#search').val();
+    const categoria = $('#categoria').val();
+    
+    if (searchTerm || categoria) {
+        trackUsage('search_performed', {
+            search_term: searchTerm,
+            category: categoria,
+            results_count: {{ $prodotti->total() }}
+        });
+    }
 });
 </script>
 @endpush
-                        
-                        
