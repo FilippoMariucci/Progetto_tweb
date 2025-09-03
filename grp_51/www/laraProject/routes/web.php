@@ -424,24 +424,23 @@ Route::get('/storico-interventi', [AuthController::class, 'storicoInterventi'])
             // === GESTIONE CENTRI ASSISTENZA (Funzionalità Opzionale) ===
             Route::prefix('centri')->name('centri.')->group(function () {
                 
-                // Lista centri per amministrazione
-                Route::get('/', [CentroAssistenzaController::class, 'adminIndex'])->name('index');
-                
-                // Creazione nuovo centro
-                Route::get('/create', [CentroAssistenzaController::class, 'create'])->name('create');
-                Route::post('/', [CentroAssistenzaController::class, 'store'])->name('store');
-                
-                // Visualizzazione centro (vista admin)
-                Route::get('/{centro}', [CentroAssistenzaController::class, 'show'])->name('show');
-                // Visualizzazione centro (vista admin)
-                Route::get('/{centro}', [CentroAssistenzaController::class, 'adminShow'])->name('admin.show');
-
-                // Modifica centro esistente
-                Route::get('/{centro}/edit', [CentroAssistenzaController::class, 'edit'])->name('edit');
-                Route::put('/{centro}', [CentroAssistenzaController::class, 'update'])->name('update');
-                
-                // Eliminazione centro
-                Route::delete('/{centro}', [CentroAssistenzaController::class, 'destroy'])->name('destroy');
+                 // Lista centri per amministrazione
+    Route::get('/', [CentroAssistenzaController::class, 'adminIndex'])->name('index');
+    
+    // Creazione nuovo centro
+    Route::get('/create', [CentroAssistenzaController::class, 'create'])->name('create');
+    Route::post('/', [CentroAssistenzaController::class, 'store'])->name('store');
+    
+    // RIMUOVI LA DUPLICAZIONE - USA SOLO UNA ROUTE
+    Route::get('/{centro}', [CentroAssistenzaController::class, 'adminShow'])->name('show');
+    
+    // Modifica centro esistente
+    Route::get('/{centro}/edit', [CentroAssistenzaController::class, 'edit'])->name('edit');
+    Route::put('/{centro}', [CentroAssistenzaController::class, 'update'])->name('update');
+    
+    // Eliminazione centro
+    Route::delete('/{centro}', [CentroAssistenzaController::class, 'destroy'])->name('destroy');
+    
                 
                 // === GESTIONE TECNICI NEI CENTRI ===
                 

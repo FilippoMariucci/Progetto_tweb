@@ -1017,7 +1017,7 @@ public function rimuoviTecnico(Request $request, CentroAssistenza $centro)
             'request_data' => $request->all()
         ]);
 
-        
+        $errorMessage = 'Errore nella rimozione del tecnico dal centro';
 
         if ($request->expectsJson()) {
             return response()->json([
