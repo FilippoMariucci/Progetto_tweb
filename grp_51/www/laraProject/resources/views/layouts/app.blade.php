@@ -247,110 +247,163 @@
                         @endif
                     </li>
 
-                    {{-- MENU SPECIALIZZATO PER TECNICI E SUPERIORI --}}
-                    @if($livello == 2 || $livello == 3)
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                                <i class="bi bi-exclamation-triangle me-1"></i>Malfunzionamenti
-                            </a>
-                            <ul class="dropdown-menu">
-                                @if($livello == 2)
-                                    {{-- TECNICO: Solo visualizzazione --}}
-                                    <li><a class="dropdown-item" href="{{ route('prodotti.completo.index') }}">
-                                        <i class="bi bi-search me-1"></i>Catalogo Completo
-                                    </a></li>
-                                    <li><a class="dropdown-item" href="{{ route('malfunzionamenti.ricerca') }}">
-                                        <i class="bi bi-list-ul me-1"></i>Ricerca Soluzioni
-                                    </a></li>
-                                @else
-                                    
-                                    <li><a class="dropdown-item" href="{{ route('malfunzionamenti.ricerca') }}">
-                                        <i class="bi bi-search me-1"></i>Ricerca Soluzioni
-                                    </a></li>
-                                    @if($livello == 3)
-                                    
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li><a class="dropdown-item" href="{{ route('staff.create.nuova.soluzione') }}">
-                                            <i class="bi bi-plus-circle me-1"></i>Nuova Soluzione
-                                        </a></li>
-                                    @endif
-                                @endif
-                            </ul>
-                        </li>
-                    @endif
-
-                    {{-- MENU AMMINISTRATIVO PER STAFF E ADMIN --}}
-                    @if($livello >= 2)
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                                <i class="bi bi-tools me-1"></i>
-                                @if($livello == 4)
-                                    Amministrazione
-                                @else
-                                    Gestione
-                                @endif
-                            </a>
-                            
-                            <ul class="dropdown-menu">
-                                @if($livello == 4)
-                                    {{-- ADMIN: Gestione completa sistema --}}
-                                    <li><h6 class="dropdown-header">Gestione Utenti</h6></li>
-                                    <li><a class="dropdown-item" href="{{ route('admin.users.index') }}">
-                                        <i class="bi bi-people me-1"></i>Tutti gli Utenti
-                                    </a></li>
-                                    <li><a class="dropdown-item" href="{{ route('admin.users.create') }}">
-                                        <i class="bi bi-person-plus me-1"></i>Nuovo Utente
-                                    </a></li>
-                                    
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><h6 class="dropdown-header">Gestione Prodotti</h6></li>
-                                    <li><a class="dropdown-item" href="{{ route('admin.prodotti.index') }}">
-                                        <i class="bi bi-box me-1"></i>Gestisci Prodotti
-                                    </a></li>
-                                    <li><a class="dropdown-item" href="{{ route('admin.prodotti.create') }}">
-                                        <i class="bi bi-plus-square me-1"></i>Nuovo Prodotto
-                                    </a></li>
-                                    
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><h6 class="dropdown-header">Centri Assistenza</h6></li>
-                                    {{-- 
-                                        IMPORTANTE: QUI L'ADMIN ACCEDE ALLA GESTIONE AMMINISTRATIVA
-                                        Questa è DIVERSA dal link pubblico sopra!
-                                        Route admin: route('admin.centri.index') -> /admin/centri
-                                    --}}
-                                    <li><a class="dropdown-item" href="{{ route('admin.centri.index') }}">
-                                        <i class="bi bi-building me-1"></i>Gestisci Centri
-                                    </a></li>
-                                    <li><a class="dropdown-item" href="{{ route('admin.centri.create') }}">
-                                        <i class="bi bi-plus-circle me-1"></i>Nuovo Centro
-                                    </a></li>
-                                    
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><h6 class="dropdown-header">Sistema</h6></li>
-                                    <li><a class="dropdown-item" href="{{ route('admin.statistiche.index') }}">
-                                        <i class="bi bi-graph-up me-1"></i>Statistiche Sistema
-                                    </a></li>
-                                    <li><a class="dropdown-item" href="{{ route('admin.manutenzione.index') }}">
-                                        <i class="bi bi-gear me-1"></i>Manutenzione
-                                    </a></li>
-                                @else
-                                
-                                    {{-- STAFF: Solo gestione soluzioni --}}
-                                    {{-- STAFF: Gestione completa --}}
-                                    <li><a class="dropdown-item" href="{{ route('prodotti.completo.index') }}">
-                                        <i class="bi bi-box-seam me-1"></i>Catalogo Completo
-                                    </a></li>
-                                     <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="{{ route('staff.statistiche') }}">
-                                        <i class="bi bi-graph-up me-1"></i>Mie Statistiche
-                                    </a></li>
-                                    <li><a class="dropdown-item" href="{{ route('staff.create.nuova.soluzione') }}">
-                                        <i class="bi bi-plus-circle me-1"></i>Crea Soluzione
-                                    </a></li>
-                                @endif
-                            </ul>
-                        </li>
-                    @endif
+                    {{-- MENU AMMINISTRATIVO PER TECNICI, STAFF E ADMIN - VERSIONE AGGIORNATA --}}
+@if($livello >= 2)
+    <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+            <i class="bi bi-tools me-1"></i>
+            @if($livello == 4)
+                Amministrazione
+            @elseif($livello == 3)
+                Gestione Staff
+            @else
+                {{-- TECNICO (livello 2) - NUOVO MENU GESTIONE --}}
+                Gestione Tecnico
+            @endif
+        </a>
+        
+        <ul class="dropdown-menu">
+            @if($livello == 4)
+                {{-- ADMIN: Gestione completa sistema --}}
+                <li><h6 class="dropdown-header">Gestione Utenti</h6></li>
+                <li><a class="dropdown-item" href="{{ route('admin.users.index') }}">
+                    <i class="bi bi-people me-1"></i>Tutti gli Utenti
+                </a></li>
+                <li><a class="dropdown-item" href="{{ route('admin.users.create') }}">
+                    <i class="bi bi-person-plus me-1"></i>Nuovo Utente
+                </a></li>
+                
+                <li><hr class="dropdown-divider"></li>
+                <li><h6 class="dropdown-header">Gestione Prodotti</h6></li>
+                <li><a class="dropdown-item" href="{{ route('admin.prodotti.index') }}">
+                    <i class="bi bi-box me-1"></i>Gestisci Prodotti
+                </a></li>
+                <li><a class="dropdown-item" href="{{ route('admin.prodotti.create') }}">
+                    <i class="bi bi-plus-square me-1"></i>Nuovo Prodotto
+                </a></li>
+                
+                <li><hr class="dropdown-divider"></li>
+                <li><h6 class="dropdown-header">Centri Assistenza</h6></li>
+                <li><a class="dropdown-item" href="{{ route('admin.centri.index') }}">
+                    <i class="bi bi-building me-1"></i>Gestisci Centri
+                </a></li>
+                <li><a class="dropdown-item" href="{{ route('admin.centri.create') }}">
+                    <i class="bi bi-plus-circle me-1"></i>Nuovo Centro
+                </a></li>
+                
+                <li><hr class="dropdown-divider"></li>
+                <li><h6 class="dropdown-header">Sistema</h6></li>
+                <li><a class="dropdown-item" href="{{ route('admin.statistiche.index') }}">
+                    <i class="bi bi-graph-up me-1"></i>Statistiche Sistema
+                </a></li>
+                <li><a class="dropdown-item" href="{{ route('admin.manutenzione.index') }}">
+                    <i class="bi bi-gear me-1"></i>Manutenzione
+                </a></li>
+                
+            @elseif($livello == 3)
+                {{-- STAFF: Gestione completa --}}
+                <li><h6 class="dropdown-header">Catalogo e Prodotti</h6></li>
+                <li><a class="dropdown-item" href="{{ route('prodotti.completo.index') }}">
+                    <i class="bi bi-box-seam me-1"></i>Catalogo Completo
+                </a></li>
+                
+                <li><hr class="dropdown-divider"></li>
+                <li><h6 class="dropdown-header">Malfunzionamenti</h6></li>
+                <li><a class="dropdown-item" href="{{ route('malfunzionamenti.ricerca') }}">
+                    <i class="bi bi-search me-1"></i>Ricerca Soluzioni
+                </a></li>
+                <li><a class="dropdown-item" href="{{ route('staff.create.nuova.soluzione') }}">
+                    <i class="bi bi-plus-circle me-1"></i>Crea Soluzione
+                </a></li>
+                
+                <li><hr class="dropdown-divider"></li>
+                <li><h6 class="dropdown-header">Statistiche</h6></li>
+                <li><a class="dropdown-item" href="{{ route('staff.statistiche') }}">
+                    <i class="bi bi-graph-up me-1"></i>Mie Statistiche
+                </a></li>
+                
+            @else
+                {{-- TECNICO (livello 2) - NUOVO MENU COMPLETO --}}
+                <li><h6 class="dropdown-header">
+                    <i class="bi bi-wrench-adjustable me-1"></i>Strumenti Tecnici
+                </h6></li>
+                
+                {{-- Catalogo completo con malfunzionamenti --}}
+                <li><a class="dropdown-item" href="{{ route('prodotti.completo.index') }}">
+                    <i class="bi bi-collection me-2"></i>Catalogo Completo
+                </a></li>
+                
+                {{-- Ricerca malfunzionamenti e soluzioni --}}
+                <li><a class="dropdown-item" href="{{ route('malfunzionamenti.ricerca') }}">
+                    <i class="bi bi-search me-2"></i>Ricerca Soluzioni
+                </a></li>
+                
+                {{-- Prodotti con priorità critica --}}
+                <li><a class="dropdown-item" href="{{ route('prodotti.completo.index') }}?filter=critici">
+                    <i class="bi bi-exclamation-triangle text-danger me-2"></i>Priorità Critica
+                </a></li>
+                
+                <li><hr class="dropdown-divider"></li>
+                <li><h6 class="dropdown-header">
+                    <i class="bi bi-person-gear me-1"></i>Area Personale
+                </h6></li>
+                
+                {{-- Storico interventi del tecnico --}}
+                <li><a class="dropdown-item" href="{{ route('tecnico.interventi') }}">
+                    <i class="bi bi-clock-history me-2"></i>Miei Interventi
+                </a></li>
+                
+                {{-- Statistiche personali --}}
+                <li><a class="dropdown-item" href="{{ route('tecnico.statistiche.view') }}">
+                    <i class="bi bi-graph-up me-2"></i>Le Mie Statistiche
+                </a></li>
+                
+                
+                <li><hr class="dropdown-divider"></li>
+                <li><h6 class="dropdown-header">
+                    <i class="bi bi-geo-alt me-1"></i>Assistenza
+                </h6></li>
+                
+                {{-- Centro assistenza del tecnico (se assegnato) --}}
+                @if(Auth::user()->centroAssistenza)
+                    <li><a class="dropdown-item" href="{{ route('centri.show', Auth::user()->centroAssistenza) }}">
+                        <i class="bi bi-building me-2"></i>Il Mio Centro
+                    </a></li>
+                @endif
+                
+                {{-- Tutti i centri assistenza --}}
+                <li><a class="dropdown-item" href="{{ route('centri.index') }}">
+                    <i class="bi bi-geo-alt-fill me-2"></i>Tutti i Centri
+                </a></li>
+                
+               
+                
+                <li><hr class="dropdown-divider"></li>
+                <li><h6 class="dropdown-header">
+                    <i class="bi bi-tools me-1"></i>Azioni Rapide
+                </h6></li>
+                
+                {{-- Ricerca rapida prodotti --}}
+                <li><a class="dropdown-item" href="{{ route('prodotti.completo.ricerca') }}?search=lav*">
+                    <i class="bi bi-search me-2"></i>Cerca "lav*"
+                </a></li>
+                
+                {{-- Malfunzionamenti più comuni --}}
+                <li><a class="dropdown-item" href="{{ route('malfunzionamenti.ricerca') }}?q=non+si+accende">
+                    <i class="bi bi-lightning me-2"></i>Non si accende
+                </a></li>
+                
+                <li><a class="dropdown-item" href="{{ route('malfunzionamenti.ricerca') }}?q=perdita">
+                    <i class="bi bi-droplet me-2"></i>Perdite
+                </a></li>
+                
+                <li><hr class="dropdown-divider"></li>
+                
+                
+            @endif
+        </ul>
+    </li>
+@endif
                 @endauth
             </ul>
 
