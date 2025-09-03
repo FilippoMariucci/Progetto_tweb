@@ -701,6 +701,14 @@ nav[aria-label="Paginazione prodotti"] .pagination .page-link:focus,
 @push('scripts')
 <script>
 $(document).ready(function() {
+    // Imposta token CSRF per tutte le richieste AJAX
+    $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        }
+    });
+    
+    console.log('✅ Admin prodotti inizializzato con azioni bulk corrette');
     
     // === GESTIONE SELEZIONE MULTIPLA ===
     
@@ -708,14 +716,16 @@ $(document).ready(function() {
      * Seleziona/deseleziona tutti i checkbox quando si clicca sul checkbox principale
      */
     $('#selectAllCheckbox').on('change', function() {
-        $('.product-checkbox').prop('checked', $(this).is(':checked'));
-        updateBulkActions();
+        const isChecked = $(this).is(':checked');
+        $('.product-checkbox').prop('checked', isChecked);
+        updateBulkActionsUI();
+        console.log(`🔄 Selezionati tutti: ${isChecked}`);
     });
     
     /**
      * Aggiorna stato del checkbox principale quando cambiano quelli individuali
      */
-    $('.product-checkbox').on('change', function() {
+    $(document).on('change', '.product-checkbox', function() {
         const total = $('.product-checkbox').length;
         const checked = $('.product-checkbox:checked').length;
         
@@ -723,15 +733,28 @@ $(document).ready(function() {
         $('#selectAllCheckbox').prop('indeterminate', checked > 0 && checked < total);
         $('#selectAllCheckbox').prop('checked', checked === total);
         
-        updateBulkActions();
+        updateBulkActionsUI();
+        console.log(`🔄 Selezionati: ${checked}/${total}`);
     });
     
     /**
      * Aggiorna la disponibilità delle azioni bulk in base ai prodotti selezionati
      */
-    function updateBulkActions() {
-        const selected = $('.product-checkbox:checked').length;
-        $('#bulkActions').prop('disabled', selected === 0);
+    function updateBulkActionsUI() {
+        const selectedCount = $('.product-checkbox:checked').length;
+        const hasSelection = selectedCount > 0;
+        
+        // Abilita/disabilita pulsante azioni
+        $('#bulkActions').prop('disabled', !hasSelection);
+        
+        // Mostra conteggio nella dropdown se ci sono selezioni
+        if (hasSelection) {
+            $('#bulkActions').html(`<i class="bi bi-three-dots-vertical me-1"></i>Azioni (${selectedCount})`);
+        } else {
+            $('#bulkActions').html('<i class="bi bi-three-dots-vertical me-1"></i>Azioni');
+        }
+        
+        console.log(`🎯 Azioni bulk ${hasSelection ? 'abilitate' : 'disabilitate'}: ${selectedCount} prodotti`);
     }
     
     // === FILTRI E RICERCA ===
@@ -752,14 +775,17 @@ $(document).ready(function() {
     });
     
     /**
-     * Ricerca in tempo reale con debounce per evitare troppe richieste
+     * Ricerca con debounce per evitare troppe richieste
      */
     let searchTimeout;
     $('#search').on('input', function() {
         clearTimeout(searchTimeout);
+        const searchTerm = $(this).val().trim();
+        
         searchTimeout = setTimeout(() => {
-            if ($(this).val().length >= 3 || $(this).val().length === 0) {
-                // Auto-submit per ricerche di 3+ caratteri o quando svuotato
+            if (searchTerm.length >= 3 || searchTerm.length === 0) {
+                console.log(`🔍 Auto-ricerca: "${searchTerm}"`);
+                // Decommentare se si vuole ricerca automatica:
                 // $('#filterForm').submit();
             }
         }, 500);
@@ -772,10 +798,16 @@ $(document).ready(function() {
      */
     window.confirmToggleStatus = function(currentStatus) {
         const action = currentStatus ? 'disattivare' : 'attivare';
-        return confirm(`Sei sicuro di voler ${action} questo prodotto?`);
+        const confirmed = confirm(`Sei sicuro di voler ${action} questo prodotto?`);
+        
+        if (confirmed) {
+            console.log(`🔄 Toggle status prodotto: ${currentStatus ? 'disattiva' : 'attiva'}`);
+        }
+        
+        return confirmed;
     };
     
-    // === AZIONI BULK ===
+    // === AZIONI BULK CORRETTE ===
     
     /**
      * Seleziona tutti i prodotti visibili nella pagina
@@ -783,7 +815,8 @@ $(document).ready(function() {
     window.selectAll = function() {
         $('.product-checkbox').prop('checked', true);
         $('#selectAllCheckbox').prop('checked', true);
-        updateBulkActions();
+        updateBulkActionsUI();
+        console.log('✅ Tutti i prodotti selezionati');
     };
     
     /**
@@ -792,51 +825,71 @@ $(document).ready(function() {
     window.deselectAll = function() {
         $('.product-checkbox').prop('checked', false);
         $('#selectAllCheckbox').prop('checked', false);
-        updateBulkActions();
+        $('#selectAllCheckbox').prop('indeterminate', false);
+        updateBulkActionsUI();
+        console.log('❌ Tutti i prodotti deselezionati');
     };
     
     /**
-     * Attiva tutti i prodotti selezionati tramite chiamata AJAX
+     * Attiva tutti i prodotti selezionati
      */
     window.bulkActivate = function() {
         const selected = getSelectedProducts();
+        
         if (selected.length === 0) {
-            alert('Seleziona almeno un prodotto');
+            alert('⚠️ Seleziona almeno un prodotto per attivarlo');
             return;
         }
         
-        if (confirm(`Attivare ${selected.length} prodotti selezionati?`)) {
-            bulkAction('activate', selected);
+        const message = selected.length === 1 ? 
+            'Attivare il prodotto selezionato?' : 
+            `Attivare ${selected.length} prodotti selezionati?`;
+            
+        if (confirm(message)) {
+            console.log(`🟢 Avvio attivazione bulk: ${selected.length} prodotti`);
+            executeBulkAction('activate', selected);
         }
     };
     
     /**
-     * Disattiva tutti i prodotti selezionati tramite chiamata AJAX
+     * Disattiva tutti i prodotti selezionati
      */
     window.bulkDeactivate = function() {
         const selected = getSelectedProducts();
+        
         if (selected.length === 0) {
-            alert('Seleziona almeno un prodotto');
+            alert('⚠️ Seleziona almeno un prodotto per disattivarlo');
             return;
         }
         
-        if (confirm(`Disattivare ${selected.length} prodotti selezionati?`)) {
-            bulkAction('deactivate', selected);
+        const message = selected.length === 1 ? 
+            'Disattivare il prodotto selezionato?' : 
+            `Disattivare ${selected.length} prodotti selezionati?`;
+            
+        if (confirm(message)) {
+            console.log(`🟡 Avvio disattivazione bulk: ${selected.length} prodotti`);
+            executeBulkAction('deactivate', selected);
         }
     };
     
     /**
-     * Elimina tutti i prodotti selezionati tramite chiamata AJAX
+     * Elimina tutti i prodotti selezionati
      */
     window.bulkDelete = function() {
         const selected = getSelectedProducts();
+        
         if (selected.length === 0) {
-            alert('Seleziona almeno un prodotto');
+            alert('⚠️ Seleziona almeno un prodotto per eliminarlo');
             return;
         }
         
-        if (confirm(`ATTENZIONE: Eliminare definitivamente ${selected.length} prodotti selezionati?\n\nQuesta azione non può essere annullata.`)) {
-            bulkAction('delete', selected);
+        const message = selected.length === 1 ? 
+            '🗑️ ATTENZIONE: Eliminare definitivamente il prodotto selezionato?\n\nQuesta azione non può essere annullata.' :
+            `🗑️ ATTENZIONE: Eliminare definitivamente ${selected.length} prodotti selezionati?\n\nQuesta azione non può essere annullata.`;
+            
+        if (confirm(message)) {
+            console.log(`🔴 Avvio eliminazione bulk: ${selected.length} prodotti`);
+            executeBulkAction('delete', selected);
         }
     };
     
@@ -844,109 +897,197 @@ $(document).ready(function() {
      * Ottiene gli ID dei prodotti attualmente selezionati
      */
     function getSelectedProducts() {
-        return $('.product-checkbox:checked').map(function() {
-            return $(this).val();
+        const selected = $('.product-checkbox:checked').map(function() {
+            return parseInt($(this).val());
         }).get();
+        
+        console.log(`📋 Prodotti selezionati:`, selected);
+        return selected;
     }
     
     /**
-     * Esegue un'azione bulk sui prodotti selezionati
+     * FUNZIONE CRITICA: Esegue l'azione bulk sui prodotti selezionati
      */
-    function bulkAction(action, productIds) {
-        // Mostra indicatore di caricamento
-        showLoading();
+    function executeBulkAction(action, productIds) {
+        if (!productIds || productIds.length === 0) {
+            console.error('❌ Nessun prodotto da processare');
+            showToast('Errore: nessun prodotto selezionato', 'error');
+            return;
+        }
         
-        $.post('/admin/prodotti/bulk-action', {
-            _token: $('meta[name="csrf-token"]').attr('content'),
+        console.log(`🚀 Esecuzione azione bulk:`, {
             action: action,
-            products: productIds
-        })
-        .done(function(response) {
-            hideLoading();
-            if (response.success) {
-                showToast(response.message || 'Operazione completata con successo');
-                location.reload();
-            } else {
-                alert('Errore: ' + response.message);
+            productIds: productIds,
+            count: productIds.length
+        });
+        
+        // Mostra indicatore di caricamento
+        showLoadingOverlay(`Esecuzione ${action} su ${productIds.length} prodotti...`);
+        
+        // Disabilita pulsanti per evitare click multipli
+        $('#bulkActions').prop('disabled', true);
+        
+        // Esegui chiamata AJAX
+        $.ajax({
+            url: '{{ route("admin.prodotti.bulk-action") }}',
+            type: 'POST',
+            data: {
+                _token: $('meta[name="csrf-token"]').attr('content'),
+                action: action,
+                products: productIds
+            },
+            timeout: 30000, // 30 secondi timeout
+            success: function(response) {
+                console.log('✅ Risposta bulk action:', response);
+                
+                hideLoadingOverlay();
+                
+                if (response.success) {
+                    const message = response.message || `Azione ${action} completata con successo`;
+                    showToast(message, 'success');
+                    
+                    // Aggiorna la pagina dopo un breve delay per mostrare il messaggio
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                    
+                } else {
+                    console.error('❌ Errore nella risposta:', response.message);
+                    showToast('Errore: ' + (response.message || 'Operazione fallita'), 'error');
+                    $('#bulkActions').prop('disabled', false);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('❌ Errore AJAX bulk action:', {
+                    status: status,
+                    error: error,
+                    response: xhr.responseText,
+                    xhr: xhr
+                });
+                
+                hideLoadingOverlay();
+                $('#bulkActions').prop('disabled', false);
+                
+                let errorMessage = 'Errore di comunicazione con il server';
+                
+                if (xhr.status === 422) {
+                    // Errore di validazione
+                    try {
+                        const errorResponse = JSON.parse(xhr.responseText);
+                        errorMessage = 'Dati non validi: ' + (errorResponse.message || 'Controlla i dati inseriti');
+                    } catch (e) {
+                        errorMessage = 'Errore di validazione dei dati';
+                    }
+                } else if (xhr.status === 403) {
+                    errorMessage = 'Non hai i permessi per eseguire questa operazione';
+                } else if (xhr.status === 500) {
+                    errorMessage = 'Errore interno del server. Riprova più tardi.';
+                } else if (status === 'timeout') {
+                    errorMessage = 'Operazione scaduta. Il server potrebbe essere sovraccarico.';
+                } else if (status === 'abort') {
+                    errorMessage = 'Operazione annullata';
+                } else if (xhr.status === 0) {
+                    errorMessage = 'Errore di connessione. Controlla la tua connessione internet.';
+                }
+                
+                showToast(errorMessage, 'error');
             }
-        })
-        .fail(function() {
-            hideLoading();
-            alert('Errore nella comunicazione con il server');
         });
     }
     
-    // === MIGLIORAMENTI UX ===
+    // === UTILITY FUNCTIONS ===
     
     /**
-     * Tooltip per elementi con data-bs-toggle
+     * Mostra overlay di caricamento
      */
-    $('[data-bs-toggle="tooltip"]').tooltip();
-    
-    /**
-     * Auto-refresh ogni 5 minuti per mantenere i dati aggiornati
-     */
-    let autoRefreshInterval;
-    
-    function startAutoRefresh() {
-        autoRefreshInterval = setInterval(() => {
-            // Solo se non ci sono checkbox selezionati per non interferire
-            if ($('.product-checkbox:checked').length === 0) {
-                // Refresh silenzioso delle statistiche
-                updateStats();
-            }
-        }, 300000); // 5 minuti
-    }
-    
-    /**
-     * Aggiorna le statistiche via AJAX senza ricaricare la pagina
-     */
-    function updateStats() {
-        $.get('/api/admin/stats')
-            .done(function(response) {
-                if (response.success) {
-                    // Aggiorna i contatori nelle card statistiche
-                    $('.card-stats').each(function(index) {
-                        const statTypes = ['total_prodotti', 'attivi', 'inattivi', 'con_malfunzionamenti'];
-                        if (statTypes[index] && response.stats[statTypes[index]]) {
-                            $(this).find('h3').text(response.stats[statTypes[index]]);
-                        }
-                    });
-                }
-            })
-            .fail(function() {
-                console.log('Errore nell\'aggiornamento statistiche');
-            });
-    }
-    
-    /**
-     * Mostra overlay di caricamento durante operazioni lunghe
-     */
-    function showLoading() {
-        $('body').append(`
-            <div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style="background: rgba(0,0,0,0.5); z-index: 9999;">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Caricamento...</span>
+    function showLoadingOverlay(message = 'Caricamento...') {
+        // Rimuovi overlay esistenti
+        $('#loadingOverlay').remove();
+        
+        const overlay = $(`
+            <div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style="background: rgba(0,0,0,0.7); z-index: 9999;">
+                <div class="card text-center p-4">
+                    <div class="card-body">
+                        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <h5 class="card-title">${message}</h5>
+                        <p class="card-text text-muted">Attendere, operazione in corso...</p>
+                    </div>
                 </div>
             </div>
         `);
+        
+        $('body').append(overlay);
+        console.log(`⏳ Loading overlay mostrato: ${message}`);
     }
     
     /**
      * Nasconde overlay di caricamento
      */
-    function hideLoading() {
-        $('#loadingOverlay').remove();
+    function hideLoadingOverlay() {
+        $('#loadingOverlay').fadeOut(300, function() {
+            $(this).remove();
+        });
+        console.log('✅ Loading overlay nascosto');
     }
     
     /**
-     * Gestione responsive della tabella per dispositivi mobili
+     * Mostra notifica toast migliorata
+     */
+    function showToast(message, type = 'success') {
+        // Rimuovi toast precedenti
+        $('.toast-notification').remove();
+        
+        const alertClass = {
+            'success': 'alert-success',
+            'error': 'alert-danger', 
+            'warning': 'alert-warning',
+            'info': 'alert-info'
+        }[type] || 'alert-info';
+        
+        const icon = {
+            'success': 'check-circle-fill',
+            'error': 'exclamation-triangle-fill',
+            'warning': 'exclamation-triangle-fill', 
+            'info': 'info-circle-fill'
+        }[type] || 'info-circle-fill';
+        
+        const toast = $(`
+            <div class="toast-notification alert ${alertClass} alert-dismissible fade show position-fixed shadow-lg" 
+                 style="top: 20px; right: 20px; z-index: 10000; max-width: 400px; min-width: 300px;">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-${icon} me-2 fs-5"></i>
+                    <div class="flex-grow-1">
+                        <strong>${type.charAt(0).toUpperCase() + type.slice(1)}</strong><br>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            </div>
+        `);
+        
+        $('body').append(toast);
+        
+        console.log(`📢 Toast mostrato (${type}): ${message}`);
+        
+        // Auto-rimuovi dopo 5 secondi per successo, 10 per errori
+        const autoHideDelay = type === 'error' ? 10000 : 5000;
+        setTimeout(() => {
+            toast.fadeOut(500, () => toast.remove());
+        }, autoHideDelay);
+    }
+    
+    /**
+     * Gestione responsive della tabella
      */
     function handleResponsiveTable() {
-        if ($(window).width() < 768) {
+        const isSmallScreen = $(window).width() < 768;
+        
+        if (isSmallScreen) {
             // Su mobile, nascondi alcune colonne meno importanti
             $('.table th:nth-child(4), .table td:nth-child(4)').hide(); // Modello
-            $('.table th:nth-child(6), .table td:nth-child(6)').hide(); // Prezzo
+            $('.table th:nth-child(6), .table td:nth-child(6)').hide(); // Prezzo  
             $('.table th:nth-child(10), .table td:nth-child(10)').hide(); // Data creazione
         } else {
             // Su desktop, mostra tutte le colonne
@@ -954,61 +1095,88 @@ $(document).ready(function() {
         }
     }
     
-    // Esegui al caricamento e quando si ridimensiona la finestra
+    // Esegui responsive check al caricamento e resize
     handleResponsiveTable();
-    $(window).resize(handleResponsiveTable);
+    $(window).on('resize', handleResponsiveTable);
     
-    // Avvia auto-refresh delle statistiche
-    startAutoRefresh();
+    // === AUTO-REFRESH STATISTICHE ===
     
-    // Inizializza stato delle azioni bulk
-    updateBulkActions();
+    /**
+     * Aggiorna le statistiche via AJAX ogni 5 minuti
+     */
+    function updateStatsCards() {
+        if ($('.product-checkbox:checked').length > 0) {
+            // Non aggiornare se ci sono selezioni attive
+            return;
+        }
+        
+        $.get('{{ route("api.admin.stats-update") }}')
+            .done(function(response) {
+                if (response.success && response.stats) {
+                    // Aggiorna i contatori nelle card statistiche
+                    const stats = response.stats;
+                    const statElements = [
+                        { key: 'total_prodotti', selector: '.card-stats:eq(0) h3' },
+                        { key: 'attivi', selector: '.card-stats:eq(1) h3' },
+                        { key: 'inattivi', selector: '.card-stats:eq(2) h3' },
+                        { key: 'con_malfunzionamenti', selector: '.card-stats:eq(3) h3' }
+                    ];
+                    
+                    statElements.forEach(({ key, selector }) => {
+                        if (stats[key] !== undefined) {
+                            $(selector).text(stats[key]);
+                        }
+                    });
+                    
+                    console.log('📊 Statistiche aggiornate automaticamente');
+                }
+            })
+            .fail(function() {
+                console.log('⚠️ Errore aggiornamento statistiche automatico (normale se route non esiste)');
+            });
+    }
     
-    console.log('✅ Dashboard admin prodotti inizializzata con eliminazione corretta');
+    // Avvia auto-refresh statistiche ogni 5 minuti
+    setInterval(updateStatsCards, 300000);
+    
+    // === TOOLTIP E ACCESSIBILITÀ ===
+    
+    // Inizializza tooltip se Bootstrap li supporta
+    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        $('[data-bs-toggle="tooltip"]').each(function() {
+            new bootstrap.Tooltip(this);
+        });
+    }
+    
+    // Inizializza stato UI
+    updateBulkActionsUI();
+    
+    console.log('🎉 Sistema admin prodotti completamente inizializzato');
 });
 
-// === FUNZIONI GLOBALI UTILITY ===
-
 /**
- * Formatta numeri per visualizzazione italiana
+ * Funzioni globali di utilità per debugging
  */
-function formatNumber(num) {
-    return new Intl.NumberFormat('it-IT').format(num);
-}
-
-/**
- * Formatta valute in formato italiano
- */
-function formatCurrency(amount) {
-    return new Intl.NumberFormat('it-IT', {
-        style: 'currency',
-        currency: 'EUR'
-    }).format(amount);
-}
-
-/**
- * Mostra notifica toast temporanea
- */
-function showToast(message, type = 'success') {
-    const toast = $(`
-        <div class="toast align-items-center text-white bg-${type} border-0 position-fixed top-0 end-0 m-3" role="alert" style="z-index: 9999;">
-            <div class="d-flex">
-                <div class="toast-body">
-                    ${message}
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        </div>
-    `);
+window.debugBulkActions = function() {
+    const selected = $('.product-checkbox:checked').length;
+    const total = $('.product-checkbox').length;
     
-    $('body').append(toast);
-    const bsToast = new bootstrap.Toast(toast[0]);
-    bsToast.show();
-    
-    // Rimuovi automaticamente dopo 5 secondi
-    setTimeout(() => {
-        toast.remove();
-    }, 5000);
-}
+    console.log('🔍 Debug Bulk Actions:', {
+        prodotti_totali: total,
+        prodotti_selezionati: selected,
+        pulsante_abilitato: !$('#bulkActions').prop('disabled'),
+        csrf_token: $('meta[name="csrf-token"]').attr('content'),
+        route_bulk_action: '{{ route("admin.prodotti.bulk-action") }}'
+    });
+};
+
+// Debugging automatico ogni 30 secondi in ambiente di sviluppo
+@if(app()->environment('local'))
+setInterval(() => {
+    if ($('.product-checkbox:checked').length > 0) {
+        window.debugBulkActions();
+    }
+}, 30000);
+@endif
 </script>
 @endpush

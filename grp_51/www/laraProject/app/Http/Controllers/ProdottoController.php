@@ -1020,74 +1020,125 @@ public function forceDelete(Prodotto $prodotto)
     }
 
     /**
-     * Azioni bulk sui prodotti
-     */
-    public function bulkAction(Request $request)
-    {
-        if (!Auth::check() || !Auth::user()->canManageProdotti()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Non autorizzato'
-            ], 403);
-        }
+ * METODO CORRETTO: Azioni bulk sui prodotti
+ * Gestisce attivazione, disattivazione ed eliminazione multipla
+ */
+public function bulkAction(Request $request)
+{
+    // Verifica autorizzazioni admin
+    if (!Auth::check() || !Auth::user()->canManageProdotti()) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Non autorizzato ad eseguire questa azione'
+        ], 403);
+    }
 
-        $request->validate([
-            'action' => 'required|in:activate,deactivate,delete',
-            'products' => 'required|array|min:1',
-            'products.*' => 'exists:prodotti,id'
+    // Validazione input
+    $validated = $request->validate([
+        'action' => 'required|in:activate,deactivate,delete',
+        'products' => 'required|array|min:1|max:50', // Limite per sicurezza
+        'products.*' => 'required|integer|exists:prodotti,id'
+    ], [
+        'action.required' => 'Azione non specificata',
+        'action.in' => 'Azione non valida',
+        'products.required' => 'Nessun prodotto selezionato',
+        'products.min' => 'Seleziona almeno un prodotto',
+        'products.max' => 'Troppi prodotti selezionati (max 50)',
+        'products.*.exists' => 'Uno o più prodotti non esistono'
+    ]);
+
+    try {
+        $productIds = $validated['products'];
+        $action = $validated['action'];
+        $count = 0;
+        $message = '';
+
+        // Log inizio operazione
+        Log::info('Inizio azione bulk sui prodotti', [
+            'action' => $action,
+            'product_ids' => $productIds,
+            'admin_id' => Auth::id(),
+            'admin_username' => Auth::user()->username
         ]);
 
-        try {
-            $productIds = $request->input('products');
-            $action = $request->input('action');
-            $count = 0;
+        switch ($action) {
+            case 'activate':
+                $count = Prodotto::whereIn('id', $productIds)
+                    ->where('attivo', false) // Solo quelli disattivati
+                    ->update(['attivo' => true]);
+                $message = "Attivati {$count} prodotti con successo";
+                break;
 
-            switch ($action) {
-                case 'activate':
-                    $count = Prodotto::whereIn('id', $productIds)
-                        ->update(['attivo' => true]);
-                    $message = "Attivati {$count} prodotti";
-                    break;
+            case 'deactivate':
+                $count = Prodotto::whereIn('id', $productIds)
+                    ->where('attivo', true) // Solo quelli attivi
+                    ->update(['attivo' => false]);
+                $message = "Disattivati {$count} prodotti con successo";
+                break;
 
-                case 'deactivate':
-                    $count = Prodotto::whereIn('id', $productIds)
-                        ->update(['attivo' => false]);
-                    $message = "Disattivati {$count} prodotti";
-                    break;
-
-                case 'delete':
-                    $count = Prodotto::whereIn('id', $productIds)
-                        ->update(['attivo' => false]);
-                    $message = "Eliminati {$count} prodotti";
-                    break;
-            }
-
-            Log::info("Azione bulk sui prodotti", [
-                'action' => $action,
-                'products_count' => $count,
-                'product_ids' => $productIds,
-                'admin_id' => Auth::id()
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => $message,
-                'affected_count' => $count
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Errore azione bulk prodotti', [
-                'action' => $request->input('action'),
-                'error' => $e->getMessage(),
-                'admin_id' => Auth::id()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Errore nell\'esecuzione dell\'azione.'
-            ], 500);
+            case 'delete':
+                // Per eliminazione: prima disattiva, poi elimina
+                $prodottiDaEliminare = Prodotto::whereIn('id', $productIds)->get();
+                
+                foreach ($prodottiDaEliminare as $prodotto) {
+                    // Elimina eventuali file immagine
+                    if ($prodotto->foto && Storage::disk('public')->exists($prodotto->foto)) {
+                        Storage::disk('public')->delete($prodotto->foto);
+                    }
+                    
+                    // Elimina malfunzionamenti associati
+                    $prodotto->malfunzionamenti()->delete();
+                    
+                    // Elimina il prodotto
+                    $prodotto->delete();
+                    $count++;
+                }
+                
+                $message = "Eliminati {$count} prodotti definitivamente";
+                break;
         }
+
+        // Log successo operazione
+        Log::warning('Azione bulk completata', [
+            'action' => $action,
+            'products_affected' => $count,
+            'total_requested' => count($productIds),
+            'admin_id' => Auth::id(),
+            'timestamp' => now()
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'affected_count' => $count,
+            'action' => $action,
+            'timestamp' => now()->toISOString()
+        ]);
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Dati non validi',
+            'errors' => $e->errors()
+        ], 422);
+
+    } catch (\Exception $e) {
+        Log::error('Errore in azione bulk prodotti', [
+            'action' => $request->input('action'),
+            'product_ids' => $request->input('products', []),
+            'error_message' => $e->getMessage(),
+            'error_file' => $e->getFile(),
+            'error_line' => $e->getLine(),
+            'admin_id' => Auth::id()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Errore durante l\'esecuzione dell\'operazione. Riprova.',
+            'error_details' => app()->environment('local') ? $e->getMessage() : null
+        ], 500);
     }
+}
 
     // ================================================
     // API ENDPOINTS - SISTEMA CATEGORIE UNIFICATO
