@@ -248,7 +248,7 @@
                     </li>
 
                     {{-- MENU SPECIALIZZATO PER TECNICI E SUPERIORI --}}
-                    @if($livello >= 2)
+                    @if($livello == 2 || $livello == 3)
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
                                 <i class="bi bi-exclamation-triangle me-1"></i>Malfunzionamenti
@@ -263,14 +263,12 @@
                                         <i class="bi bi-list-ul me-1"></i>Ricerca Soluzioni
                                     </a></li>
                                 @else
-                                    {{-- STAFF: Gestione completa --}}
-                                    <li><a class="dropdown-item" href="{{ route('prodotti.completo.index') }}">
-                                        <i class="bi bi-box-seam me-1"></i>Catalogo Completo
-                                    </a></li>
+                                    
                                     <li><a class="dropdown-item" href="{{ route('malfunzionamenti.ricerca') }}">
                                         <i class="bi bi-search me-1"></i>Ricerca Soluzioni
                                     </a></li>
-                                    @if($livello >= 3)
+                                    @if($livello == 3)
+                                    
                                         <li><hr class="dropdown-divider"></li>
                                         <li><a class="dropdown-item" href="{{ route('staff.create.nuova.soluzione') }}">
                                             <i class="bi bi-plus-circle me-1"></i>Nuova Soluzione
@@ -282,7 +280,7 @@
                     @endif
 
                     {{-- MENU AMMINISTRATIVO PER STAFF E ADMIN --}}
-                    @if($livello >= 3)
+                    @if($livello >= 2)
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
                                 <i class="bi bi-tools me-1"></i>
@@ -292,6 +290,7 @@
                                     Gestione
                                 @endif
                             </a>
+                            
                             <ul class="dropdown-menu">
                                 @if($livello == 4)
                                     {{-- ADMIN: Gestione completa sistema --}}
@@ -335,7 +334,13 @@
                                         <i class="bi bi-gear me-1"></i>Manutenzione
                                     </a></li>
                                 @else
+                                
                                     {{-- STAFF: Solo gestione soluzioni --}}
+                                    {{-- STAFF: Gestione completa --}}
+                                    <li><a class="dropdown-item" href="{{ route('prodotti.completo.index') }}">
+                                        <i class="bi bi-box-seam me-1"></i>Catalogo Completo
+                                    </a></li>
+                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item" href="{{ route('staff.statistiche') }}">
                                         <i class="bi bi-graph-up me-1"></i>Mie Statistiche
                                     </a></li>
