@@ -28,59 +28,86 @@ class ProdottoController extends Controller
      * Accessibile a tutti senza autenticazione
      */
     public function indexPubblico(Request $request)
-    {
-        // Query base per prodotti attivi
-        $query = Prodotto::where('attivo', true);
+{
+    // Query base per prodotti attivi
+    $query = Prodotto::where('attivo', true);
 
-        // === RICERCA TESTUALE CON WILDCARD ===
-        if ($request->filled('search')) {
-            $searchTerm = $request->input('search');
-            
-            // Supporto wildcard * alla fine del termine
-            if (str_ends_with($searchTerm, '*')) {
-                $searchTerm = rtrim($searchTerm, '*');
-                $query->where(function($q) use ($searchTerm) {
-                    $q->where('descrizione', 'LIKE', $searchTerm . '%')
-                      ->orWhere('nome', 'LIKE', $searchTerm . '%')
-                      ->orWhere('modello', 'LIKE', $searchTerm . '%');
-                });
-            } else {
-                $query->where(function($q) use ($searchTerm) {
-                    $q->where('descrizione', 'LIKE', '%' . $searchTerm . '%')
-                      ->orWhere('nome', 'LIKE', '%' . $searchTerm . '%')
-                      ->orWhere('modello', 'LIKE', '%' . $searchTerm . '%');
-                });
-            }
+    // === RICERCA TESTUALE CON WILDCARD ===
+    if ($request->filled('search')) {
+        $searchTerm = $request->input('search');
+        
+        // Supporto wildcard * alla fine del termine
+        if (str_ends_with($searchTerm, '*')) {
+            $searchTerm = rtrim($searchTerm, '*');
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('descrizione', 'LIKE', $searchTerm . '%')
+                  ->orWhere('nome', 'LIKE', $searchTerm . '%')
+                  ->orWhere('modello', 'LIKE', $searchTerm . '%');
+            });
+        } else {
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('descrizione', 'LIKE', '%' . $searchTerm . '%')
+                  ->orWhere('nome', 'LIKE', '%' . $searchTerm . '%')
+                  ->orWhere('modello', 'LIKE', '%' . $searchTerm . '%');
+            });
         }
-
-        // === FILTRO PER CATEGORIA ===
-        if ($request->filled('categoria')) {
-            $query->where('categoria', $request->input('categoria'));
-        }
-
-        // Esecuzione query con paginazione - SOLO campi pubblici
-        $prodotti = $query->select([
-                'id', 'nome', 'modello', 'descrizione', 
-                'categoria', 'prezzo', 'foto'
-            ])
-            ->orderBy('nome')
-            ->paginate(12);
-
-        // CORREZIONE: Usa sistema unificato per categorie
-        $categorie = $this->getCategorie();
-
-        // Statistiche pubbliche (SENZA malfunzionamenti)
-        $stats = [
-            'total_prodotti' => Prodotto::where('attivo', true)->count(),
-            'categorie_count' => count($categorie),
-            'per_categoria' => $this->getStatsPerCategoria(),
-            'version' => 'pubblico'
-        ];
-
-        return view('prodotti.pubblico.index', compact('prodotti', 'categorie', 'stats'))
-            ->with('isPublicView', true)
-            ->with('showMalfunzionamenti', false);
     }
+
+    // === FILTRO PER CATEGORIA - CORREZIONE ===
+    if ($request->filled('categoria')) {
+        $query->where('categoria', $request->input('categoria'));
+    }
+
+    // Esecuzione query con paginazione - SOLO campi pubblici
+    $prodotti = $query->select([
+            'id', 'nome', 'modello', 'descrizione', 
+            'categoria', 'prezzo', 'foto'
+        ])
+        ->orderBy('nome')
+        ->paginate(12);
+
+    // === CORREZIONE CATEGORIE ===
+    // Ottieni elenco categorie dalla query diretta sui prodotti ATTIVI
+    $categorieFromDB = Prodotto::where('attivo', true)
+        ->distinct()
+        ->whereNotNull('categoria')
+        ->orderBy('categoria')
+        ->pluck('categoria')
+        ->toArray();
+
+    // Crea array finale delle categorie per la vista
+    $categorie = $categorieFromDB;
+
+    // === CORREZIONE STATISTICHE PER CATEGORIA ===
+    // Calcola conteggi per ogni categoria
+    $perCategoriaStats = Prodotto::where('attivo', true)
+        ->groupBy('categoria')
+        ->selectRaw('categoria, COUNT(*) as count')
+        ->pluck('count', 'categoria')
+        ->toArray();
+
+    // Statistiche pubbliche (SENZA malfunzionamenti)
+    $stats = [
+        'total_prodotti' => Prodotto::where('attivo', true)->count(),
+        'categorie_count' => count($categorie),
+        'per_categoria' => $perCategoriaStats, // AGGIUNTO per i badge
+        'version' => 'pubblico'
+    ];
+
+    // Log per debugging
+    Log::info('Catalogo pubblico caricato', [
+        'search_term' => $request->input('search'),
+        'categoria_filtro' => $request->input('categoria'),
+        'prodotti_totali' => $prodotti->total(),
+        'categorie_trovate' => count($categorie),
+        'categorie_list' => $categorie,
+        'stats_per_categoria' => $perCategoriaStats
+    ]);
+
+    return view('prodotti.pubblico.index', compact('prodotti', 'categorie', 'stats'))
+        ->with('isPublicView', true)
+        ->with('showMalfunzionamenti', false);
+}
 
     /**
      * Scheda prodotto pubblica - NO malfunzionamenti

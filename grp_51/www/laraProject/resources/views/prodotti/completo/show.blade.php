@@ -1,6 +1,6 @@
 {{--
     Vista completa per prodotto con malfunzionamenti (per tecnici)
-    LAYOUT ORIZZONTALE identico alla vista pubblica
+    LAYOUT ORIZZONTALE con immagini corrette
     Percorso: resources/views/prodotti/completo/show.blade.php
     Accessibile solo a utenti con livello_accesso >= 2
 --}}
@@ -12,42 +12,75 @@
 @section('content')
 <div class="container-fluid px-4 py-3">
     
-    
+    {{-- === HEADER COMPATTO === --}}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2 class="mb-1">{{ $prodotto->nome }}</h2>
+            <p class="text-muted small mb-0">Dettagli tecnici completi</p>
+        </div>
+        <div class="btn-group btn-group-sm">
+            <a href="{{ route('prodotti.completo.index') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Catalogo
+            </a>
+            @if(auth()->user()->isAdmin())
+                <a href="{{ route('admin.prodotti.edit', $prodotto) }}" class="btn btn-outline-primary">
+                    <i class="bi bi-pencil"></i> Modifica
+                </a>
+            @endif
+        </div>
+    </div>
+
+    {{-- Breadcrumb compatto --}}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="{{ route('home') }}">Home</a></li>
+            @if(auth()->user()->isStaff())
+                <li class="breadcrumb-item"><a href="{{ route('staff.dashboard') }}">Dashboard Staff</a></li>
+            @elseif(auth()->user()->isTecnico())
+                <li class="breadcrumb-item"><a href="{{ route('tecnico.dashboard') }}">Dashboard Tecnico</a></li>
+            @endif
+            <li class="breadcrumb-item"><a href="{{ route('prodotti.completo.index') }}">Catalogo Completo</a></li>
+            <li class="breadcrumb-item active">{{ Str::limit($prodotto->nome, 30) }}</li>
+        </ol>
+    </nav>
 
     {{-- === ALERT PROBLEMI CRITICI === --}}
     @if(isset($statistiche) && $statistiche['malfunzionamenti_critici'] > 0)
-        <div class="alert alert-danger d-flex align-items-center mb-3">
-            <i class="bi bi-exclamation-triangle-fill me-2 fs-4"></i>
-            <div class="flex-grow-1">
-                <strong>ATTENZIONE: Problemi Critici</strong> - 
-                Questo prodotto ha <span class="badge bg-white text-danger">{{ $statistiche['malfunzionamenti_critici'] }}</span> 
-                problema/i critico/i che richiedono intervento immediato.
+        <div class="alert alert-danger border-0 shadow-sm mb-3">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+                <div class="flex-grow-1">
+                    <strong>ATTENZIONE: Problemi Critici</strong> - 
+                    Questo prodotto ha <span class="badge bg-white text-danger">{{ $statistiche['malfunzionamenti_critici'] }}</span> 
+                    problema/i critico/i che richiedono intervento immediato.
+                </div>
+                <a href="#malfunzionamenti-section" class="btn btn-light btn-sm">
+                    <i class="bi bi-arrow-down me-1"></i>Vai ai Problemi
+                </a>
             </div>
-            <a href="#malfunzionamenti-section" class="btn btn-light btn-sm">
-                <i class="bi bi-arrow-down me-1"></i>Vai ai Problemi
-            </a>
         </div>
     @endif
 
     {{-- === LAYOUT ORIZZONTALE PRINCIPALE === --}}
     <div class="row g-4">
         
-        {{-- === COLONNA IMMAGINE (come pubblico) === --}}
-        <div class="col-md-4">
-            <div class="card">
+        {{-- === COLONNA IMMAGINE CORRETTA === --}}
+        <div class="col-lg-4 col-md-5">
+            <div class="card border-0 shadow-sm">
                 <div class="position-relative">
                     @if($prodotto->foto)
+                        {{-- IMMAGINE CORRETTA CON OBJECT-FIT CONTAIN --}}
                         <img src="{{ asset('storage/' . $prodotto->foto) }}" 
-                             class="card-img-top" 
+                             class="card-img-top product-image" 
                              alt="{{ $prodotto->nome }}"
-                             style="height: 300px; object-fit: cover; cursor: pointer;"
+                             style="height: 280px; object-fit: contain; background-color: #f8f9fa; cursor: pointer; padding: 1rem;"
                              onclick="openImageModal('{{ asset('storage/' . $prodotto->foto) }}', '{{ $prodotto->nome }}')">
                     @else
                         <div class="card-img-top d-flex align-items-center justify-content-center bg-light" 
-                             style="height: 300px;">
+                             style="height: 280px;">
                             <div class="text-center">
                                 <i class="bi bi-image text-muted mb-2" style="font-size: 3rem;"></i>
-                                <p class="text-muted mb-0">Immagine non disponibile</p>
+                                <p class="text-muted mb-0 small">Immagine non disponibile</p>
                             </div>
                         </div>
                     @endif
@@ -70,16 +103,16 @@
 
                     {{-- Indicatore problemi critici --}}
                     @if(isset($statistiche) && $statistiche['malfunzionamenti_critici'] > 0)
-                        <div class="position-absolute bottom-0 start-0 end-0 bg-danger bg-opacity-75 text-white text-center py-1">
+                        <div class="position-absolute bottom-0 start-0 end-0 bg-danger text-white text-center py-1">
                             <small><i class="bi bi-exclamation-triangle me-1"></i><strong>PRIORITÀ ALTA</strong></small>
                         </div>
                     @endif
                 </div>
                 
-                {{-- Azioni immagine --}}
+                {{-- Azioni immagine compatte --}}
                 @if($prodotto->foto)
-                    <div class="card-body p-2">
-                        <div class="d-flex gap-2">
+                    <div class="card-body py-2">
+                        <div class="d-flex gap-1">
                             <button type="button" class="btn btn-primary btn-sm flex-fill" 
                                     onclick="openImageModal('{{ asset('storage/' . $prodotto->foto) }}', '{{ $prodotto->nome }}')">
                                 <i class="bi bi-zoom-in me-1"></i>Ingrandisci
@@ -94,80 +127,95 @@
                 @endif
             </div>
             
-            {{-- Info box tecnico --}}
-            <div class="card mt-3">
-                <div class="card-header bg-warning text-dark">
-                    <h6 class="mb-0">
-                        <i class="bi bi-tools me-1"></i>
-                        Info Tecniche
+            {{-- === INFO TECNICHE COMPATTE === --}}
+            <div class="card border-0 shadow-sm mt-3">
+                <div class="card-header bg-warning text-dark py-2">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-tools me-1"></i>Info Tecniche
                     </h6>
                 </div>
-                <div class="card-body p-3">
-                    <div class="row g-3 text-center">
+                <div class="card-body py-3">
+                    <div class="row g-2 text-center">
                         @if($prodotto->created_at)
                             <div class="col-6">
-                                <small class="text-muted d-block">Catalogato</small>
-                                <strong>{{ $prodotto->created_at->format('d/m/Y') }}</strong>
+                                <div class="p-2 bg-light rounded">
+                                    <small class="text-muted d-block">Catalogato</small>
+                                    <strong class="small">{{ $prodotto->created_at->format('d/m/Y') }}</strong>
+                                </div>
                             </div>
                         @endif
                         <div class="col-6">
-                            <small class="text-muted d-block">Categoria</small>
-                            <strong>{{ ucfirst(str_replace('_', ' ', $prodotto->categoria)) }}</strong>
+                            <div class="p-2 bg-light rounded">
+                                <small class="text-muted d-block">Categoria</small>
+                                <strong class="small">{{ ucfirst(str_replace('_', ' ', $prodotto->categoria)) }}</strong>
+                            </div>
                         </div>
                         @if($prodotto->modello)
                             <div class="col-12">
-                                <small class="text-muted d-block">Modello</small>
-                                <code>{{ $prodotto->modello }}</code>
+                                <div class="p-2 bg-light rounded">
+                                    <small class="text-muted d-block">Modello</small>
+                                    <code class="small">{{ $prodotto->modello }}</code>
+                                </div>
                             </div>
                         @endif
                         
                         {{-- Staff assegnato --}}
                         @if($prodotto->staffAssegnato)
                             <div class="col-12">
-                                <small class="text-muted d-block">Staff Assegnato</small>
-                                <span class="badge bg-info">
-                                    <i class="bi bi-person-badge me-1"></i>
-                                    {{ $prodotto->staffAssegnato->nome_completo }}
-                                </span>
+                                <div class="p-2 bg-info bg-opacity-10 rounded">
+                                    <small class="text-muted d-block">Staff Assegnato</small>
+                                    <span class="badge bg-info small">
+                                        <i class="bi bi-person-badge me-1"></i>
+                                        {{ $prodotto->staffAssegnato->nome_completo }}
+                                    </span>
+                                </div>
+                            </div>
+                        @elseif(auth()->user()->isAdmin())
+                            <div class="col-12">
+                                <div class="p-2 bg-warning bg-opacity-10 rounded">
+                                    <small class="text-warning">
+                                        <i class="bi bi-person-x me-1"></i>
+                                        Nessun staff assegnato
+                                    </small>
+                                </div>
                             </div>
                         @endif
                     </div>
                 </div>
             </div>
 
-            {{-- Statistiche malfunzionamenti compatte --}}
+            {{-- === STATISTICHE PROBLEMI COMPATTE === --}}
             @if(isset($statistiche) && ($showMalfunzionamenti ?? false))
-                <div class="card mt-3">
-                    <div class="card-header bg-danger text-white">
-                        <h6 class="mb-0">
-                            <i class="bi bi-graph-up me-1"></i>
-                            Statistiche Problemi
+                <div class="card border-0 shadow-sm mt-3">
+                    <div class="card-header bg-danger text-white py-2">
+                        <h6 class="mb-0 fw-semibold">
+                            <i class="bi bi-graph-up me-1"></i>Statistiche Problemi
                         </h6>
                     </div>
-                    <div class="card-body p-3">
-                        <div class="row g-3 text-center">
+                    <div class="card-body py-3">
+                        <div class="row g-2">
                             <div class="col-6">
-                                <div class="p-2 bg-primary bg-opacity-10 rounded">
-                                    <strong class="text-primary d-block">{{ $statistiche['totale_malfunzionamenti'] ?? 0 }}</strong>
+                                <div class="text-center p-2 bg-primary bg-opacity-10 rounded">
+                                    <div class="fw-bold text-primary">{{ $statistiche['totale_malfunzionamenti'] ?? 0 }}</div>
                                     <small class="text-muted">Totali</small>
                                 </div>
                             </div>
                             <div class="col-6">
-                                <div class="p-2 bg-danger bg-opacity-10 rounded">
-                                    <strong class="text-danger d-block">{{ $statistiche['malfunzionamenti_critici'] ?? 0 }}</strong>
+                                <div class="text-center p-2 bg-danger bg-opacity-10 rounded">
+                                    <div class="fw-bold text-danger">{{ $statistiche['malfunzionamenti_critici'] ?? 0 }}</div>
                                     <small class="text-muted">Critici</small>
                                 </div>
                             </div>
                             <div class="col-6">
-                                <div class="p-2 bg-warning bg-opacity-10 rounded">
-                                    <strong class="text-warning d-block">{{ $statistiche['malfunzionamenti_alti'] ?? 0 }}</strong>
+                                <div class="text-center p-2 bg-warning bg-opacity-10 rounded">
+                                    <div class="fw-bold text-warning">{{ $statistiche['malfunzionamenti_alti'] ?? 0 }}</div>
                                     <small class="text-muted">Alta</small>
                                 </div>
                             </div>
                             <div class="col-6">
-                                <div class="p-2 bg-info bg-opacity-10 rounded">
-                                    <strong class="text-info d-block">{{ $statistiche['totale_segnalazioni'] ?? 0 }}</strong>
-                                    <small class="text-muted">Segnalaz.</small>
+                                <div class="text-center p-2 bg-info bg-opacity-10 rounded">
+                                    <div class="fw-bold text-info">{{ $statistiche['totale_segnalazioni'] ?? 0 }}</div>
+                                    <small class="text-muted">Segnalazioni</small>
                                 </div>
                             </div>
                         </div>
@@ -177,39 +225,39 @@
         </div>
         
         {{-- === COLONNA INFORMAZIONI PRINCIPALE === --}}
-        <div class="col-md-8">
+        <div class="col-lg-8 col-md-7">
             
-            {{-- Header prodotto in linea --}}
-            <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
-                <div>
-                    <h1 class="h2 mb-1">{{ $prodotto->nome }}</h1>
-                    <div class="d-flex flex-wrap gap-2">
+            {{-- Header prodotto compatto --}}
+            <div class="d-flex flex-wrap align-items-start justify-content-between mb-3">
+                <div class="flex-grow-1">
+                    <h1 class="h3 mb-2">{{ $prodotto->nome }}</h1>
+                    <div class="d-flex flex-wrap gap-1 mb-2">
                         @if($prodotto->modello)
-                            <span class="badge bg-secondary">{{ $prodotto->modello }}</span>
+                            <span class="badge bg-secondary small">{{ $prodotto->modello }}</span>
                         @endif
                         
                         {{-- Badge staff assegnato --}}
                         @if($prodotto->staffAssegnato)
-                            <span class="badge bg-info">
+                            <span class="badge bg-info small">
                                 <i class="bi bi-person-badge me-1"></i>
-                                Staff: {{ $prodotto->staffAssegnato->nome_completo }}
+                                Staff: {{ Str::limit($prodotto->staffAssegnato->nome_completo, 20) }}
                             </span>
                         @endif
                         
                         {{-- Badge stato problemi --}}
                         @if(isset($statistiche))
                             @if($statistiche['malfunzionamenti_critici'] > 0)
-                                <span class="badge bg-danger">
+                                <span class="badge bg-danger small">
                                     <i class="bi bi-exclamation-triangle me-1"></i>
                                     {{ $statistiche['malfunzionamenti_critici'] }} Critici
                                 </span>
                             @elseif($statistiche['totale_malfunzionamenti'] > 0)
-                                <span class="badge bg-warning">
+                                <span class="badge bg-warning small">
                                     <i class="bi bi-exclamation-circle me-1"></i>
                                     {{ $statistiche['totale_malfunzionamenti'] }} Problemi
                                 </span>
                             @else
-                                <span class="badge bg-success">
+                                <span class="badge bg-success small">
                                     <i class="bi bi-check-circle me-1"></i>
                                     Nessun Problema
                                 </span>
@@ -219,37 +267,40 @@
                 </div>
                 @if($prodotto->prezzo)
                     <div class="text-end">
-                        <h3 class="text-success mb-0">€{{ number_format($prodotto->prezzo, 2, ',', '.') }}</h3>
+                        <h4 class="text-success mb-0">€{{ number_format($prodotto->prezzo, 2, ',', '.') }}</h4>
                     </div>
                 @endif
             </div>
             
             {{-- Descrizione --}}
             @if($prodotto->descrizione)
-                <p class="text-muted mb-3">{{ $prodotto->descrizione }}</p>
+                <div class="mb-3">
+                    <p class="text-muted">{{ $prodotto->descrizione }}</p>
+                </div>
             @endif
             
-            {{-- Scheda tecnica orizzontale --}}
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="bi bi-file-earmark-text me-2"></i>
-                        Scheda Tecnica Completa
-                    </h5>
+            {{-- === SCHEDA TECNICA COMPATTA === --}}
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-primary text-white py-2">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-file-earmark-text me-1"></i>Scheda Tecnica Completa
+                    </h6>
                 </div>
-                <div class="card-body">
+                <div class="card-body py-3">
                     
-                    {{-- Layout a colonne per scheda tecnica --}}
-                    <div class="row g-4">
+                    {{-- Layout compatto per scheda tecnica --}}
+                    <div class="row g-3">
                         
                         {{-- Note tecniche --}}
                         @if($prodotto->note_tecniche)
                             <div class="col-lg-4">
-                                <h6 class="text-primary">
+                                <h6 class="text-primary small fw-semibold">
                                     <i class="bi bi-gear me-1"></i>Specifiche Tecniche
                                 </h6>
                                 <div class="bg-light p-3 rounded border-start border-primary border-3">
-                                    {!! nl2br(e($prodotto->note_tecniche)) !!}
+                                    <div class="small">
+                                        {!! nl2br(e($prodotto->note_tecniche)) !!}
+                                    </div>
                                 </div>
                             </div>
                         @endif
@@ -257,11 +308,13 @@
                         {{-- Installazione --}}
                         @if($prodotto->modalita_installazione)
                             <div class="col-lg-4">
-                                <h6 class="text-success">
+                                <h6 class="text-success small fw-semibold">
                                     <i class="bi bi-tools me-1"></i>Modalità Installazione
                                 </h6>
                                 <div class="bg-light p-3 rounded border-start border-success border-3">
-                                    {!! nl2br(e($prodotto->modalita_installazione)) !!}
+                                    <div class="small">
+                                        {!! nl2br(e($prodotto->modalita_installazione)) !!}
+                                    </div>
                                 </div>
                             </div>
                         @endif
@@ -269,23 +322,27 @@
                         {{-- Modalità d'uso --}}
                         @if($prodotto->modalita_uso)
                             <div class="col-lg-4">
-                                <h6 class="text-info">
+                                <h6 class="text-info small fw-semibold">
                                     <i class="bi bi-book me-1"></i>Modalità d'Uso
                                 </h6>
                                 <div class="bg-light p-3 rounded border-start border-info border-3">
-                                    {!! nl2br(e($prodotto->modalita_uso)) !!}
+                                    <div class="small">
+                                        {!! nl2br(e($prodotto->modalita_uso)) !!}
+                                    </div>
                                 </div>
                             </div>
                         @endif
                         
-                        {{-- Se mancano informazioni --}}
+                        {{-- Messaggio informazioni mancanti --}}
                         @if(!$prodotto->note_tecniche && !$prodotto->modalita_installazione && !$prodotto->modalita_uso)
-                            <div class="col-12 text-center py-4">
+                            <div class="col-12 text-center py-3">
                                 <i class="bi bi-info-circle text-muted mb-2" style="font-size: 2rem;"></i>
                                 <p class="text-muted mb-0">
                                     Scheda tecnica in aggiornamento.
                                     @if(auth()->user()->isAdmin())
-                                        <br><a href="{{ route('admin.prodotti.edit', $prodotto) }}">Completa le informazioni</a>
+                                        <br><a href="{{ route('admin.prodotti.edit', $prodotto) }}" class="btn btn-outline-primary btn-sm mt-2">
+                                            <i class="bi bi-pencil me-1"></i>Completa le informazioni
+                                        </a>
                                     @endif
                                 </p>
                             </div>
@@ -294,25 +351,25 @@
                 </div>
             </div>
             
-            {{-- === SEZIONE MALFUNZIONAMENTI ORIZZONTALE === --}}
+            {{-- === SEZIONE MALFUNZIONAMENTI COMPATTA === --}}
             @if(($showMalfunzionamenti ?? false))
-                <div class="card bg-warning-subtle mt-3" id="malfunzionamenti-section">
-                    <div class="card-header bg-warning text-dark">
+                <div class="card border-0 shadow-sm" id="malfunzionamenti-section">
+                    <div class="card-header bg-warning text-dark py-2">
                         <div class="d-flex justify-content-between align-items-center flex-wrap">
-                            <h5 class="mb-0">
-                                <i class="bi bi-exclamation-triangle me-2"></i>
+                            <h6 class="mb-0 fw-semibold">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
                                 Malfunzionamenti e Soluzioni Tecniche
                                 @if(isset($statistiche))
-                                    <span class="badge bg-dark ms-2">{{ $statistiche['totale_malfunzionamenti'] ?? 0 }}</span>
+                                    <span class="badge bg-dark ms-1">{{ $statistiche['totale_malfunzionamenti'] ?? 0 }}</span>
                                 @endif
-                            </h5>
+                            </h6>
                             
-                            {{-- Azioni staff --}}
-                            <div class="d-flex gap-2 mt-2 mt-md-0">
+                            {{-- Azioni staff compatte --}}
+                            <div class="d-flex gap-1 mt-2 mt-md-0">
                                 @if(auth()->user()->isStaff() && $prodotto->staff_assegnato_id === auth()->id())
                                     <a href="{{ route('staff.malfunzionamenti.create', $prodotto) }}" 
                                        class="btn btn-dark btn-sm">
-                                        <i class="bi bi-plus-circle me-1"></i>Aggiungi Nuovo
+                                        <i class="bi bi-plus-circle me-1"></i>Aggiungi
                                     </a>
                                 @endif
                                 
@@ -323,7 +380,7 @@
                                     </a>
                                 @endif
                                 
-                                {{-- Filtri rapidi --}}
+                                {{-- Filtri rapidi compatti --}}
                                 <div class="btn-group btn-group-sm" id="malfunzionamentoFilter">
                                     <button type="button" class="btn btn-outline-dark active" data-filter="all">Tutti</button>
                                     <button type="button" class="btn btn-outline-dark" data-filter="critica">Critici</button>
@@ -332,12 +389,12 @@
                             </div>
                         </div>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body py-3">
                         
-                        {{-- Griglia malfunzionamenti orizzontale --}}
+                        {{-- Griglia malfunzionamenti compatta --}}
                         <div class="row g-3" id="malfunzionamentiList">
                             @forelse($prodotto->malfunzionamenti ?? [] as $malfunzionamento)
-                                <div class="col-md-6 malfunzionamento-item" 
+                                <div class="col-lg-6 malfunzionamento-item" 
                                      data-gravita="{{ $malfunzionamento->gravita }}" 
                                      data-created="{{ $malfunzionamento->created_at->format('Y-m-d') }}">
                                     
@@ -364,43 +421,35 @@
                                             
                                             {{-- Header malfunzionamento --}}
                                             <div class="d-flex justify-content-between align-items-start mb-2">
-                                                <h6 class="card-title mb-0 fw-bold">{{ $malfunzionamento->titolo }}</h6>
+                                                <h6 class="card-title mb-0 fw-bold small">{{ $malfunzionamento->titolo }}</h6>
                                                 <div class="text-end">
-                                                    <span class="badge bg-{{ $badgeColor }}">
+                                                    <span class="badge bg-{{ $badgeColor }} small">
                                                         {{ ucfirst($malfunzionamento->gravita) }}
-                                                    </span>
-                                                    <span class="badge bg-{{ $diffColors[$malfunzionamento->difficolta] ?? 'secondary' }} ms-1">
-                                                        {{ ucfirst($malfunzionamento->difficolta) }}
                                                     </span>
                                                 </div>
                                             </div>
                                             
                                             {{-- Descrizione --}}
                                             <p class="text-muted small mb-2">
-                                                {{ Str::limit($malfunzionamento->descrizione, 100) }}
+                                                {{ Str::limit($malfunzionamento->descrizione, 80) }}
                                             </p>
                                             
-                                            {{-- Statistiche --}}
-                                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                                <div class="text-muted small">
-                                                    @if($malfunzionamento->numero_segnalazioni)
-                                                        <span class="badge bg-primary me-1" id="badge-{{ $malfunzionamento->id }}">
-                                                            <i class="bi bi-flag me-1"></i>{{ $malfunzionamento->numero_segnalazioni }} segnalazioni
-                                                        </span>
-                                                    @endif
-                                                    
-                                                    @if($malfunzionamento->tempo_stimato)
-                                                        <span class="badge bg-info me-1">
-                                                            <i class="bi bi-clock me-1"></i>{{ $malfunzionamento->tempo_stimato }} min
-                                                        </span>
-                                                    @endif
-                                                </div>
+                                            {{-- Badge difficoltà e tempo --}}
+                                            <div class="d-flex flex-wrap gap-1 mb-2">
+                                                <span class="badge bg-{{ $diffColors[$malfunzionamento->difficolta] ?? 'secondary' }} small">
+                                                    {{ ucfirst($malfunzionamento->difficolta) }}
+                                                </span>
                                                 
-                                                {{-- Data ultima segnalazione --}}
-                                                @if($malfunzionamento->ultima_segnalazione)
-                                                    <small class="text-muted">
-                                                        Ultima: {{ \Carbon\Carbon::parse($malfunzionamento->ultima_segnalazione)->format('d/m/Y') }}
-                                                    </small>
+                                                @if($malfunzionamento->numero_segnalazioni)
+                                                    <span class="badge bg-primary small" id="badge-{{ $malfunzionamento->id }}">
+                                                        <i class="bi bi-flag me-1"></i>{{ $malfunzionamento->numero_segnalazioni }}
+                                                    </span>
+                                                @endif
+                                                
+                                                @if($malfunzionamento->tempo_stimato)
+                                                    <span class="badge bg-info small">
+                                                        <i class="bi bi-clock me-1"></i>{{ $malfunzionamento->tempo_stimato }}min
+                                                    </span>
                                                 @endif
                                             </div>
                                             
@@ -413,45 +462,32 @@
                                                 </a>
                                                 
                                                 {{-- Azioni secondarie --}}
-                                                <div class="btn-group btn-group-sm w-100">
+                                                <div class="d-flex gap-1">
                                                     {{-- Segnala problema --}}
                                                     <button type="button" 
-                                                            class="btn btn-outline-warning segnala-btn flex-fill"
+                                                            class="btn btn-outline-warning btn-sm segnala-btn flex-fill"
                                                             onclick="segnalaMalfunzionamento({{ $malfunzionamento->id }})"
-                                                            title="Segnala di aver riscontrato questo problema">
+                                                            title="Segnala problema">
                                                         <i class="bi bi-exclamation-circle me-1"></i>Segnala
                                                     </button>
                                                     
-                                                    {{-- Solo per staff: modifica/elimina --}}
+                                                    {{-- Solo per staff: modifica --}}
                                                     @if(auth()->user()->canManageMalfunzionamenti())
                                                         <a href="{{ route('staff.malfunzionamenti.edit', $malfunzionamento) }}" 
-                                                           class="btn btn-outline-secondary"
-                                                           title="Modifica malfunzionamento">
+                                                           class="btn btn-outline-secondary btn-sm"
+                                                           title="Modifica">
                                                             <i class="bi bi-pencil"></i>
                                                         </a>
-                                                        
-                                                        <form method="POST" 
-                                                              action="{{ route('staff.malfunzionamenti.destroy', [$prodotto, $malfunzionamento]) }}" 
-                                                              class="d-inline"
-                                                              onsubmit="return confirm('Confermi l\'eliminazione di questo malfunzionamento?')">
-                                                            @csrf
-                                                            @method('DELETE')
-                                                            <button type="submit" 
-                                                                    class="btn btn-outline-danger"
-                                                                    title="Elimina malfunzionamento">
-                                                                <i class="bi bi-trash"></i>
-                                                            </button>
-                                                        </form>
                                                     @endif
                                                 </div>
                                             </div>
                                             
-                                            {{-- Info creatore (per staff) --}}
+                                            {{-- Info creatore per staff --}}
                                             @if($malfunzionamento->creatoBy && auth()->user()->isStaff())
                                                 <div class="mt-2 pt-2 border-top">
                                                     <small class="text-muted">
                                                         <i class="bi bi-person me-1"></i>
-                                                        Creato da: {{ $malfunzionamento->creatoBy->nome_completo ?? 'N/A' }}
+                                                        {{ $malfunzionamento->creatoBy->nome_completo ?? 'N/A' }}
                                                     </small>
                                                 </div>
                                             @endif
@@ -463,21 +499,19 @@
                                 {{-- Nessun malfunzionamento --}}
                                 <div class="col-12">
                                     <div class="text-center py-4">
-                                        <i class="bi bi-check-circle-fill text-success display-4"></i>
-                                        <h4 class="text-success mt-3">Ottima notizia!</h4>
+                                        <i class="bi bi-check-circle-fill text-success" style="font-size: 2.5rem;"></i>
+                                        <h5 class="text-success mt-2">Ottima notizia!</h5>
                                         <p class="text-muted">
                                             Non ci sono malfunzionamenti noti per questo prodotto.
                                         </p>
                                         
                                         {{-- Solo per staff: aggiungi primo malfunzionamento --}}
                                         @if(auth()->user()->isStaff() && $prodotto->staff_assegnato_id === auth()->id())
-                                            <div class="mt-3">
-                                                <a href="{{ route('staff.malfunzionamenti.create', $prodotto) }}" 
-                                                   class="btn btn-outline-warning">
-                                                    <i class="bi bi-plus-circle me-1"></i>
-                                                    Aggiungi Primo Malfunzionamento
-                                                </a>
-                                            </div>
+                                            <a href="{{ route('staff.malfunzionamenti.create', $prodotto) }}" 
+                                               class="btn btn-outline-warning btn-sm mt-2">
+                                                <i class="bi bi-plus-circle me-1"></i>
+                                                Aggiungi Primo Malfunzionamento
+                                            </a>
                                         @endif
                                     </div>
                                 </div>
@@ -485,57 +519,56 @@
                         </div>
                         
                         {{-- Link per vedere tutti --}}
-                        @if($prodotto->malfunzionamenti && $prodotto->malfunzionamenti->count() > 6)
-                            <div class="text-center mt-4">
+                        @if($prodotto->malfunzionamenti && $prodotto->malfunzionamenti->count() > 4)
+                            <div class="text-center mt-3">
                                 <a href="{{ route('malfunzionamenti.index', $prodotto) }}" 
-                                   class="btn btn-warning">
+                                   class="btn btn-warning btn-sm">
                                     <i class="bi bi-list me-1"></i>
-                                    Visualizza Tutti i Malfunzionamenti ({{ $prodotto->malfunzionamenti->count() }})
+                                    Visualizza Tutti ({{ $prodotto->malfunzionamenti->count() }})
                                 </a>
                             </div>
                         @endif
                     </div>
                 </div>
             @endif
-            
-
         </div>
     </div>
 
-    {{-- === PRODOTTI CORRELATI === --}}
+    {{-- === PRODOTTI CORRELATI COMPATTI === --}}
     @if(isset($prodottiCorrelati) && $prodottiCorrelati->count() > 0)
         <div class="row mt-4">
             <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="bi bi-collection text-info me-2"></i>
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-light py-2">
+                        <h6 class="mb-0 fw-semibold">
+                            <i class="bi bi-collection text-info me-1"></i>
                             Prodotti Correlati nella Stessa Categoria
-                        </h5>
+                        </h6>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body py-3">
                         <div class="row g-3">
-                            @foreach($prodottiCorrelati as $correlato)
-                                <div class="col-md-3">
+                            @foreach($prodottiCorrelati->take(4) as $correlato)
+                                <div class="col-lg-3 col-md-6">
                                     <div class="card h-100 border-0 shadow-sm">
                                         <div class="card-body p-3">
                                             <div class="d-flex align-items-start">
                                                 @if($correlato->foto)
+                                                    {{-- IMMAGINE CORRELATA CORRETTA --}}
                                                     <img src="{{ asset('storage/' . $correlato->foto) }}" 
                                                          class="rounded me-3" 
-                                                         style="width: 60px; height: 60px; object-fit: cover;">
+                                                         style="width: 50px; height: 50px; object-fit: contain; background-color: #f8f9fa;">
                                                 @else
                                                     <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" 
-                                                         style="width: 60px; height: 60px;">
+                                                         style="width: 50px; height: 50px;">
                                                         <i class="bi bi-box text-muted"></i>
                                                     </div>
                                                 @endif
                                                 
                                                 <div class="flex-grow-1">
-                                                    <h6 class="mb-1">
+                                                    <h6 class="mb-1 small">
                                                         <a href="{{ route('prodotti.completo.show', $correlato) }}" 
                                                            class="text-decoration-none">
-                                                            {{ $correlato->nome }}
+                                                            {{ Str::limit($correlato->nome, 25) }}
                                                         </a>
                                                     </h6>
                                                     <small class="text-muted d-block mb-1">
@@ -543,11 +576,11 @@
                                                     </small>
                                                     <div class="d-flex gap-1">
                                                         @if($correlato->malfunzionamenti_count > 0)
-                                                            <span class="badge bg-warning text-dark">
+                                                            <span class="badge bg-warning text-dark small">
                                                                 {{ $correlato->malfunzionamenti_count }} problemi
                                                             </span>
                                                         @else
-                                                            <span class="badge bg-success">OK</span>
+                                                            <span class="badge bg-success small">OK</span>
                                                         @endif
                                                     </div>
                                                 </div>
@@ -564,7 +597,7 @@
     @endif
 </div>
 
-{{-- Modal per immagine (identico al pubblico) --}}
+{{-- === MODAL IMMAGINE === --}}
 <div class="modal fade" id="imageModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content bg-dark">
@@ -573,62 +606,61 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-0">
-                <img id="imageModalImg" src="" alt="" class="img-fluid w-100">
+                <img id="imageModalImg" src="" alt="" class="img-fluid w-100" style="object-fit: contain;">
             </div>
         </div>
     </div>
 </div>
 @endsection
 
-{{-- CSS identico al pubblico con aggiunte tecniche --}}
 @push('styles')
 <style>
-/* === LAYOUT ORIZZONTALE COMPATTO (come pubblico) === */
-.card-img-top {
-    transition: transform 0.2s ease;
-    border-radius: 0.375rem;
-}
+/* === STILI COMPATTI PER PRODOTTO COMPLETO === */
 
-.card-img-top:hover {
-    transform: scale(1.02);
-}
-
+/* Card base */
 .card {
-    border-radius: 0.375rem;
-    border: none;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    transition: box-shadow 0.15s ease-in-out;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
 }
 
 .card:hover {
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.15) !important;
 }
 
-.badge {
-    font-size: 0.75rem;
+/* === IMMAGINE PRODOTTO CORRETTA === */
+.product-image {
+    transition: transform 0.3s ease;
+    border-radius: 0.375rem;
 }
 
-/* === COLORI BOOTSTRAP ORIGINALI === */
-.bg-primary { background-color: #0d6efd !important; }
-.bg-success { background-color: #198754 !important; }
-.bg-info { background-color: #0dcaf0 !important; }
-.bg-secondary { background-color: #6c757d !important; }
-.bg-warning { background-color: #ffc107 !important; }
-.bg-danger { background-color: #dc3545 !important; }
+.product-image:hover {
+    transform: scale(1.02);
+}
 
-.text-primary { color: #0d6efd !important; }
-.text-success { color: #198754 !important; }
-.text-info { color: #0dcaf0 !important; }
-.text-warning { color: #ffc107 !important; }
-.text-danger { color: #dc3545 !important; }
+/* Badge più compatti */
+.badge.small {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+}
 
-.border-primary { border-color: #0d6efd !important; }
-.border-success { border-color: #198754 !important; }
-.border-info { border-color: #0dcaf0 !important; }
-.border-warning { border-color: #ffc107 !important; }
-.border-danger { border-color: #dc3545 !important; }
+/* Card body compatti */
+.card-body.py-2 {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+}
 
-/* === STILI SPECIFICI TECNICI === */
+.card-body.py-3 {
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+}
+
+/* Card header compatti */
+.card-header.py-2 {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+}
+
+/* Malfunzionamenti compatti */
 .malfunzionamento-item {
     transition: all 0.3s ease;
 }
@@ -641,7 +673,7 @@
     border-width: 3px !important;
 }
 
-/* Card con bordo colorato in base alla gravità */
+/* Colori per gravità */
 .card.border-start.border-danger {
     box-shadow: 0 0.125rem 0.25rem rgba(220, 53, 69, 0.15);
 }
@@ -654,11 +686,7 @@
     box-shadow: 0 0.125rem 0.25rem rgba(13, 202, 240, 0.15);
 }
 
-.card.border-start.border-secondary {
-    box-shadow: 0 0.125rem 0.25rem rgba(108, 117, 125, 0.15);
-}
-
-/* Statistiche con background opacity */
+/* Background opacity personalizzati */
 .bg-primary.bg-opacity-10 {
     background-color: rgba(13, 110, 253, 0.1) !important;
 }
@@ -675,28 +703,107 @@
     background-color: rgba(13, 202, 240, 0.1) !important;
 }
 
-/* Spinner per loading */
-.spinner-border-sm {
-    width: 1rem;
-    height: 1rem;
+.bg-success.bg-opacity-10 {
+    background-color: rgba(25, 135, 84, 0.1) !important;
 }
 
 /* Alert personalizzati */
-.custom-alert {
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-    border: none;
+.alert {
     border-radius: 0.5rem;
 }
 
-/* Hover effects identici al pubblico */
-.btn:hover {
-    transform: translateY(-1px);
-    transition: transform 0.2s ease-in-out;
+.custom-alert {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
 }
 
-/* Card background special per malfunzionamenti */
-.bg-warning-subtle {
-    background-color: rgba(255, 193, 7, 0.1) !important;
+/* Responsive design */
+@media (max-width: 768px) {
+    .container-fluid {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    
+    .product-image {
+        height: 200px !important;
+    }
+    
+    .h3 {
+        font-size: 1.3rem;
+    }
+    
+    .col-lg-4.col-md-5 {
+        margin-bottom: 1rem;
+    }
+    
+    .d-flex.gap-1 {
+        flex-direction: column;
+        gap: 0.25rem !important;
+    }
+    
+    .d-flex.gap-1 .btn {
+        width: 100%;
+    }
+    
+    .btn-group-sm .btn {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.375rem !important;
+        margin-bottom: 0.25rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .card-body {
+        padding: 0.75rem !important;
+    }
+    
+    .product-image {
+        height: 180px !important;
+        padding: 0.5rem;
+    }
+    
+    .row.g-3 {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+    }
+    
+    .row.g-3 > * {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+    
+    .h2 {
+        font-size: 1.2rem;
+    }
+    
+    .d-flex.flex-wrap.gap-1 {
+        gap: 0.25rem !important;
+    }
+}
+
+/* Loading states */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.spinner-border-sm {
+    width: 0.8rem;
+    height: 0.8rem;
+}
+
+/* Animazioni */
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.badge:hover {
+    transform: scale(1.05);
+}
+
+/* Focus migliorato */
+.btn:focus {
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
 }
 
 /* Breadcrumb personalizzato */
@@ -705,157 +812,41 @@
     color: #6c757d;
 }
 
-/* === RESPONSIVE DESIGN === */
-@media (max-width: 768px) {
-    .container-fluid {
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-    }
-    
-    .h2 {
-        font-size: 1.5rem;
-    }
-    
-    .card-img-top {
-        height: 250px !important;
-    }
-    
-    /* Stack verticale su mobile */
-    .col-md-8 .row.align-items-center {
-        text-align: center;
-    }
-    
-    .col-md-8 .row .col-md-4 {
-        margin-top: 1rem;
-    }
-    
-    /* Malfunzionamenti responsive */
-    .malfunzionamento-item .btn-group {
-        flex-direction: column;
-    }
-    
-    .malfunzionamento-item .btn {
-        margin-bottom: 0.25rem;
-        border-radius: 0.375rem !important;
-    }
-    
-    .custom-alert {
-        position: fixed !important;
-        top: 10px !important;
-        left: 10px !important;
-        right: 10px !important;
-        min-width: auto !important;
-    }
-    
-    .d-flex.gap-2 {
-        flex-direction: column;
-        gap: 0.5rem !important;
-    }
-    
-    .d-flex.gap-2 .btn {
-        width: 100%;
-    }
-    
-    /* Filtri malfunzionamenti su mobile */
-    .btn-group-sm .btn {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-    }
+/* Modal immagine */
+#imageModal .modal-body img {
+    max-height: 80vh;
 }
 
-@media (max-width: 576px) {
-    /* Full mobile layout */
-    .col-md-4, .col-md-8 {
-        flex: 0 0 100%;
-        max-width: 100%;
-    }
-    
-    .card-body {
-        padding: 1rem !important;
-    }
-    
-    .display-4 {
-        font-size: 2rem !important;
-    }
+/* Scrollbar personalizzata */
+.overflow-auto::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
 }
 
-/* === ANIMAZIONI === */
-@keyframes pulse-danger {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
+.overflow-auto::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 6px;
 }
 
-.border-danger.card {
-    animation: pulse-danger 2s infinite;
+.overflow-auto::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 6px;
 }
 
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.malfunzionamento-item {
-    animation: fadeInUp 0.4s ease forwards;
-}
-
-/* === MIGLIORAMENTI ACCESSIBILITÀ === */
-.btn:focus {
-    outline: 2px solid #0d6efd;
-    outline-offset: 2px;
-}
-
-/* === STILI PER IMMAGINE PRODOTTO === */
-.img-fluid.rounded.shadow-sm {
-    transition: transform 0.3s ease;
-}
-
-.img-fluid.rounded.shadow-sm:hover {
-    transform: scale(1.05);
-}
-
-/* === HIGHLIGHTS PER RICERCA === */
-mark {
-    background-color: #fff3cd;
-    padding: 0 2px;
-    border-radius: 2px;
-}
-
-/* === TOOLTIP STYLING === */
-.tooltip .tooltip-inner {
-    font-size: 0.75rem;
-    padding: 0.25rem 0.5rem;
-}
-
-/* === PRODOTTI CORRELATI === */
-.card h-100 {
-    height: 100% !important;
+.overflow-auto::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
 }
 </style>
 @endpush
 
-{{-- JavaScript identico al pubblico con funzionalità tecniche --}}
 @push('scripts')
 <script>
 $(document).ready(function() {
+    console.log('🔧 Vista prodotto tecnico completo con immagini corrette caricata');
     
-    // === INIZIALIZZAZIONE ===
-    console.log('Vista prodotto tecnico completo inizializzata');
-    console.log('Prodotto ID:', {{ $prodotto->id }});
-    console.log('Malfunzionamenti:', {{ ($prodotto->malfunzionamenti ?? collect())->count() }});
-    @if(isset($statistiche))
-        console.log('Critici:', {{ $statistiche['malfunzionamenti_critici'] ?? 0 }});
-    @endif
-    
-    // === MODAL IMMAGINE (identico al pubblico) ===
+    // === MODAL IMMAGINE ===
     window.openImageModal = function(imageSrc, imageTitle) {
-        $('#imageModalImg').attr('src', imageSrc);
+        $('#imageModalImg').attr('src', imageSrc).attr('alt', imageTitle);
         $('#imageModalTitle').text(imageTitle);
         $('#imageModal').modal('show');
     };
@@ -863,26 +854,19 @@ $(document).ready(function() {
     // === FILTRI MALFUNZIONAMENTI ===
     $('#malfunzionamentoFilter button').on('click', function() {
         const filter = $(this).data('filter');
-        
-        // Aggiorna stato attivo pulsanti
         $('#malfunzionamentoFilter button').removeClass('active');
         $(this).addClass('active');
-        
-        // Applica filtro
         filterMalfunzionamenti(filter);
     });
     
     function filterMalfunzionamenti(filter) {
         const items = $('.malfunzionamento-item');
-        console.log(`Applicando filtro: ${filter}, Elementi totali: ${items.length}`);
         
         if (filter === 'all') {
             items.removeClass('d-none').show();
         } else if (filter === 'critica') {
-            // Filtro per gravità critica
             items.each(function() {
                 const gravita = $(this).data('gravita');
-                console.log(`Elemento gravita: ${gravita}`);
                 if (gravita === 'critica') {
                     $(this).removeClass('d-none').show();
                 } else {
@@ -890,15 +874,12 @@ $(document).ready(function() {
                 }
             });
         } else if (filter === 'recent') {
-            // Filtro per elementi recenti (ultimi 30 giorni)
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-            console.log(`Data limite per recenti: ${thirtyDaysAgo.toISOString()}`);
             
             items.each(function() {
                 const createdDateStr = $(this).data('created');
                 const createdDate = new Date(createdDateStr);
-                console.log(`Elemento data: ${createdDateStr}, Parsed: ${createdDate.toISOString()}`);
                 
                 if (createdDate >= thirtyDaysAgo) {
                     $(this).removeClass('d-none').show();
@@ -908,43 +889,38 @@ $(document).ready(function() {
             });
         }
         
-        // Aggiorna contatori visibili
+        // Mostra messaggio se nessun risultato
         const visibleCount = items.filter(':not(.d-none)').length;
-        console.log(`Filtro applicato: ${filter}, Elementi visibili: ${visibleCount}`);
-        
-        // Mostra messaggio se nessun elemento visibile
         if (visibleCount === 0) {
-            const noResultsMsg = `
-                <div class="col-12 text-center py-4" id="no-results-message">
-                    <i class="bi bi-search text-muted mb-2" style="font-size: 2rem;"></i>
-                    <h5 class="text-muted">Nessun risultato per "${filter}"</h5>
+            $('#no-results-message').remove();
+            $('#malfunzionamentiList').append(`
+                <div class="col-12 text-center py-3" id="no-results-message">
+                    <i class="bi bi-search text-muted mb-2" style="font-size: 1.5rem;"></i>
+                    <h6 class="text-muted">Nessun risultato per "${filter}"</h6>
                     <button class="btn btn-outline-primary btn-sm" onclick="resetFilters()">
                         <i class="bi bi-arrow-clockwise me-1"></i>Mostra Tutti
                     </button>
                 </div>
-            `;
-            $('#no-results-message').remove();
-            $('#malfunzionamentiList').append(noResultsMsg);
+            `);
         } else {
             $('#no-results-message').remove();
         }
     }
     
-    // Funzione per resettare i filtri
     window.resetFilters = function() {
         $('#malfunzionamentoFilter button[data-filter="all"]').click();
     };
     
-    // === FUNZIONE SEGNALA MALFUNZIONAMENTO ===
+    // === SEGNALA MALFUNZIONAMENTO ===
     window.segnalaMalfunzionamento = function(malfunzionamentoId) {
-        if (!confirm('Confermi di aver riscontrato questo problema? Incrementerà il contatore delle segnalazioni.')) {
+        if (!confirm('Confermi di aver riscontrato questo problema?')) {
             return;
         }
         
-        // Mostra loading sul pulsante
         const button = $(`button[onclick="segnalaMalfunzionamento(${malfunzionamentoId})"]`);
         const originalText = button.html();
-        button.html('<span class="spinner-border spinner-border-sm me-1"></span>Segnalando...').prop('disabled', true);
+        button.html('<span class="spinner-border spinner-border-sm me-1"></span>Segnalando...')
+              .prop('disabled', true);
         
         $.ajax({
             url: `{{ url('/api/malfunzionamenti') }}/${malfunzionamentoId}/segnala`,
@@ -963,21 +939,16 @@ $(document).ready(function() {
                     throw new Error(response.message || 'Errore sconosciuto');
                 }
             },
-            error: function(xhr, status, error) {
-                console.error('Errore segnalazione:', {xhr, status, error});
+            error: function(xhr) {
+                console.error('Errore segnalazione:', xhr);
                 
-                let errorMsg = 'Errore nella segnalazione del malfunzionamento.';
-                
-                if (xhr.responseJSON && xhr.responseJSON.message) {
+                let errorMsg = 'Errore nella segnalazione del malfunzionamento';
+                if (xhr.responseJSON?.message) {
                     errorMsg = xhr.responseJSON.message;
                 } else if (xhr.status === 403) {
-                    errorMsg = 'Non hai i permessi per questa azione.';
+                    errorMsg = 'Non hai i permessi per questa azione';
                 } else if (xhr.status === 404) {
-                    errorMsg = 'Malfunzionamento non trovato.';
-                } else if (xhr.status === 500) {
-                    errorMsg = 'Errore interno del server. Riprova più tardi.';
-                } else if (status === 'timeout') {
-                    errorMsg = 'Timeout della richiesta. Controlla la connessione.';
+                    errorMsg = 'Malfunzionamento non trovato';
                 }
                 
                 showAlert(errorMsg, 'danger');
@@ -986,23 +957,30 @@ $(document).ready(function() {
         });
     };
     
-    // === FUNZIONE AGGIORNA CONTATORE ===
     function updateSegnalazioniCount(malfunzionamentoId, newCount) {
         const badge = $(`#badge-${malfunzionamentoId}`);
         if (badge.length > 0) {
-            badge.html(`<i class="bi bi-flag me-1"></i>${newCount} segnalazioni`);
+            badge.html(`<i class="bi bi-flag me-1"></i>${newCount}`);
         }
     }
     
-    // === FUNZIONE MOSTRA ALERT ===
-    function showAlert(message, type = 'info', duration = 5000) {
+    // === ALERT SYSTEM ===
+    function showAlert(message, type = 'info', duration = 4000) {
         $('.custom-alert').remove();
+        
+        const icons = {
+            success: 'check-circle-fill',
+            danger: 'exclamation-triangle-fill',
+            warning: 'exclamation-triangle-fill',
+            info: 'info-circle-fill'
+        };
         
         const alertHtml = `
             <div class="alert alert-${type} alert-dismissible fade show custom-alert position-fixed" 
-                 style="top: 20px; right: 20px; z-index: 1060; min-width: 300px;" role="alert">
+                 style="top: 20px; right: 20px; z-index: 1060; max-width: 350px;" 
+                 role="alert">
                 <div class="d-flex align-items-center">
-                    <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'danger' ? 'x-circle' : 'info-circle'} me-2"></i>
+                    <i class="bi bi-${icons[type] || 'info-circle-fill'} me-2"></i>
                     <div>${message}</div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
@@ -1011,48 +989,54 @@ $(document).ready(function() {
         
         $('body').append(alertHtml);
         
-        setTimeout(function() {
-            $('.custom-alert').fadeOut(function() {
+        setTimeout(() => {
+            $('.custom-alert').fadeOut(300, function() {
                 $(this).remove();
             });
         }, duration);
     }
     
-    // === TOOLTIPS ===
-    $('[data-bs-toggle="tooltip"]').tooltip();
-    
     // === GESTIONE ERRORI IMMAGINI ===
-    $('.card-img-top, img').on('error', function() {
-        $(this).replaceWith(`
-            <div class="card-img-top d-flex align-items-center justify-content-center bg-light" 
-                 style="height: 300px;">
+    $('.product-image, img').on('error', function() {
+        const $this = $(this);
+        const productName = $this.attr('alt') || 'Prodotto';
+        
+        $this.replaceWith(`
+            <div class="d-flex align-items-center justify-content-center bg-light rounded" 
+                 style="height: ${$this.height() || 280}px;">
                 <div class="text-center">
-                    <i class="bi bi-image text-muted mb-2" style="font-size: 3rem;"></i>
-                    <p class="text-muted mb-0">Immagine non disponibile</p>
+                    <i class="bi bi-image text-muted mb-2" style="font-size: 2rem;"></i>
+                    <div class="small text-muted">${productName}</div>
                 </div>
             </div>
         `);
     });
     
-    // === ANALYTICS TECNICO ===
-    console.log('Vista tecnica completa visualizzata:', {
+    // === TOOLTIP ===
+    $('[title]').tooltip({
+        trigger: 'hover',
+        placement: 'top'
+    });
+    
+    // === NOTIFICHE SESSIONE ===
+    @if(session('success'))
+        showAlert('{{ session('success') }}', 'success');
+    @endif
+    
+    @if(session('error'))
+        showAlert('{{ session('error') }}', 'danger');
+    @endif
+    
+    // === ANALYTICS ===
+    console.log('📊 Vista prodotto:', {
         prodotto_id: {{ $prodotto->id }},
         nome: '{{ $prodotto->nome }}',
         categoria: '{{ $prodotto->categoria }}',
-        malfunzionamenti_count: {{ ($prodotto->malfunzionamenti ?? collect())->count() }},
-        user_level: {{ auth()->user()->livello_accesso }},
+        malfunzionamenti: {{ ($prodotto->malfunzionamenti ?? collect())->count() }},
         timestamp: new Date().toISOString()
     });
     
-    // Traccia tempo di permanenza
-    let startTime = Date.now();
-    
-    $(window).on('beforeunload', function() {
-        const timeSpent = Math.round((Date.now() - startTime) / 1000);
-        console.log(`Tempo trascorso sulla pagina tecnica: ${timeSpent} secondi`);
-    });
-    
-    console.log('Vista prodotto tecnico completo pronta');
+    console.log('✅ Vista prodotto tecnico completo completamente caricata');
 });
 </script>
 @endpush
