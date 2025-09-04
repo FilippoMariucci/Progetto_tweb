@@ -332,60 +332,51 @@
 
 @push('scripts')
 <script>
-$(document).ready(function() {
-    console.log('Pagina contatti caricata');
-    
-    // Validazione form lato client
-    $('#contact-form').on('submit', function(e) {
-        let isValid = true;
-        const requiredFields = ['nome', 'cognome', 'email', 'tipo_richiesta', 'oggetto', 'messaggio'];
-        
-        // Controlla campi obbligatori
-        requiredFields.forEach(function(field) {
-            const input = $('#' + field);
-            if (!input.val().trim()) {
-                input.addClass('is-invalid');
-                isValid = false;
-            } else {
-                input.removeClass('is-invalid');
-            }
-        });
-        
-        // Controlla privacy
-        if (!$('#privacy').is(':checked')) {
-            $('#privacy').addClass('is-invalid');
-            isValid = false;
-        } else {
-            $('#privacy').removeClass('is-invalid');
-        }
-        
-        // Se non valido, impedisce l'invio
-        if (!isValid) {
-            e.preventDefault();
-            alert('Compila tutti i campi obbligatori e accetta la privacy policy.');
-        }
-    });
-    
-    // Rimuovi classe invalid quando l'utente inizia a scrivere
-    $('input, select, textarea').on('input change', function() {
-        $(this).removeClass('is-invalid');
-    });
-    
-    // Auto-resize textarea
-    $('#messaggio').on('input', function() {
-        this.style.height = 'auto';
-        this.style.height = (this.scrollHeight) + 'px';
-    });
-    
-    // Tracciamento interazioni
-    $('a[href^="tel:"]').on('click', function() {
-        console.log('Chiamata avviata:', $(this).attr('href'));
-    });
-    
-    $('a[href^="mailto:"]').on('click', function() {
-        console.log('Email aperta:', $(this).attr('href'));
-    });
-});
+// Inizializza i dati della pagina se non esistono già
+window.PageData = window.PageData || {};
+
+// Aggiungi dati specifici solo se necessari per questa view
+@if(isset($prodotto))
+window.PageData.prodotto = @json($prodotto);
+@endif
+
+@if(isset($prodotti))
+window.PageData.prodotti = @json($prodotti);
+@endif
+
+@if(isset($malfunzionamento))
+window.PageData.malfunzionamento = @json($malfunzionamento);
+@endif
+
+@if(isset($malfunzionamenti))
+window.PageData.malfunzionamenti = @json($malfunzionamenti);
+@endif
+
+@if(isset($centro))
+window.PageData.centro = @json($centro);
+@endif
+
+@if(isset($centri))
+window.PageData.centri = @json($centri);
+@endif
+
+@if(isset($categorie))
+window.PageData.categorie = @json($categorie);
+@endif
+
+@if(isset($staffMembers))
+window.PageData.staffMembers = @json($staffMembers);
+@endif
+
+@if(isset($stats))
+window.PageData.stats = @json($stats);
+@endif
+
+@if(isset($user))
+window.PageData.user = @json($user);
+@endif
+
+// Aggiungi altri dati che potrebbero servire...
 </script>
 @endpush
 

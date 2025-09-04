@@ -1,8 +1,9 @@
 {{-- 
-    Vista Storico Interventi Tecnici - PAGINAZIONE CORRETTA
+    Vista Storico Interventi Tecnici - COMPLETA CON IMMAGINI MIGLIORATE
     File: resources/views/auth/storico-interventi.blade.php
     
-    CORREZIONE: Paginazione e layout sistemi
+    Sistema Assistenza Tecnica - Gruppo 51
+    Versione con immagini prodotti ottimizzate e responsive
 --}}
 
 @extends('layouts.app')
@@ -246,25 +247,118 @@
                                             </div>
                                         </td>
                                         
-                                        {{-- Prodotto --}}
+                                        {{-- Prodotto con immagine migliorata --}}
                                         <td>
                                             <div class="d-flex align-items-center">
+                                                {{-- Immagine del prodotto migliorata --}}
                                                 @if($intervento->prodotto->foto)
-                                                    <img src="{{ asset('storage/' . $intervento->prodotto->foto) }}" 
-                                                         alt="{{ $intervento->prodotto->nome }}"
-                                                         class="rounded me-2"
-                                                         style="width: 32px; height: 32px; object-fit: cover;">
+                                                    <div class="position-relative me-2">
+                                                        <img src="{{ asset('storage/' . $intervento->prodotto->foto) }}" 
+                                                             alt="{{ $intervento->prodotto->nome }}"
+                                                             class="rounded shadow-sm product-thumb"
+                                                             style="width: 40px; height: 40px; object-fit: cover; border: 2px solid #e9ecef;"
+                                                             loading="lazy"
+                                                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                                        {{-- Fallback se immagine non carica --}}
+                                                        <div class="bg-light rounded shadow-sm d-none align-items-center justify-content-center"
+                                                             style="width: 40px; height: 40px; border: 2px solid #e9ecef;">
+                                                            <i class="bi bi-image text-muted" style="font-size: 0.9rem;"></i>
+                                                        </div>
+                                                        {{-- Badge categoria sovrapposto --}}
+                                                        @if($intervento->prodotto->categoria)
+                                                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary" 
+                                                                  style="font-size: 0.6rem; padding: 0.2rem 0.4rem;"
+                                                                  title="{{ ucfirst($intervento->prodotto->categoria) }}">
+                                                                @switch($intervento->prodotto->categoria)
+                                                                    @case('elettrodomestici')
+                                                                        <i class="bi bi-lightning"></i>
+                                                                        @break
+                                                                    @case('informatica')
+                                                                        <i class="bi bi-laptop"></i>
+                                                                        @break
+                                                                    @case('telefonia')
+                                                                        <i class="bi bi-phone"></i>
+                                                                        @break
+                                                                    @case('climatizzazione')
+                                                                        <i class="bi bi-snow"></i>
+                                                                        @break
+                                                                    @case('sicurezza')
+                                                                        <i class="bi bi-shield"></i>
+                                                                        @break
+                                                                    @default
+                                                                        <i class="bi bi-gear"></i>
+                                                                @endswitch
+                                                            </span>
+                                                        @endif
+                                                    </div>
                                                 @else
-                                                    <div class="bg-light rounded me-2 d-flex align-items-center justify-content-center"
-                                                         style="width: 32px; height: 32px;">
-                                                        <i class="bi bi-image text-muted small"></i>
+                                                    {{-- Placeholder se non c'è immagine --}}
+                                                    <div class="position-relative me-2">
+                                                        <div class="bg-gradient rounded shadow-sm d-flex align-items-center justify-content-center"
+                                                             style="width: 40px; height: 40px; border: 2px solid #e9ecef; 
+                                                                    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+                                                            {{-- Icona basata sulla categoria --}}
+                                                            @if($intervento->prodotto->categoria)
+                                                                @switch($intervento->prodotto->categoria)
+                                                                    @case('elettrodomestici')
+                                                                        <i class="bi bi-lightning text-warning" style="font-size: 1.1rem;"></i>
+                                                                        @break
+                                                                    @case('informatica')
+                                                                        <i class="bi bi-laptop text-info" style="font-size: 1.1rem;"></i>
+                                                                        @break
+                                                                    @case('telefonia')
+                                                                        <i class="bi bi-phone text-success" style="font-size: 1.1rem;"></i>
+                                                                        @break
+                                                                    @case('climatizzazione')
+                                                                        <i class="bi bi-snow text-primary" style="font-size: 1.1rem;"></i>
+                                                                        @break
+                                                                    @case('sicurezza')
+                                                                        <i class="bi bi-shield text-danger" style="font-size: 1.1rem;"></i>
+                                                                        @break
+                                                                    @default
+                                                                        <i class="bi bi-gear text-secondary" style="font-size: 1.1rem;"></i>
+                                                                @endswitch
+                                                            @else
+                                                                <i class="bi bi-box text-muted" style="font-size: 1.1rem;"></i>
+                                                            @endif
+                                                        </div>
+                                                        {{-- Badge categoria per placeholder --}}
+                                                        @if($intervento->prodotto->categoria)
+                                                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-secondary" 
+                                                                  style="font-size: 0.6rem; padding: 0.2rem 0.4rem;"
+                                                                  title="{{ ucfirst($intervento->prodotto->categoria) }}">
+                                                                {{ strtoupper(substr($intervento->prodotto->categoria, 0, 2)) }}
+                                                            </span>
+                                                        @endif
                                                     </div>
                                                 @endif
                                                 
+                                                {{-- Informazioni prodotto --}}
                                                 <div class="flex-grow-1">
                                                     <div class="fw-medium small">{{ $intervento->prodotto->nome }}</div>
-                                                    @if($intervento->prodotto->modello)
-                                                        <div class="text-muted small">{{ $intervento->prodotto->modello }}</div>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        @if($intervento->prodotto->modello)
+                                                            <span class="text-muted small">{{ $intervento->prodotto->modello }}</span>
+                                                        @endif
+                                                        @if($intervento->prodotto->codice)
+                                                            <span class="badge bg-light text-dark small" style="font-size: 0.65rem;">
+                                                                {{ $intervento->prodotto->codice }}
+                                                            </span>
+                                                        @endif
+                                                    </div>
+                                                    {{-- Indicatore stato prodotto --}}
+                                                    @if(isset($intervento->prodotto->attivo))
+                                                        <div class="mt-1">
+                                                            @if($intervento->prodotto->attivo)
+                                                                <span class="badge bg-success-subtle text-success small">
+                                                                    <i class="bi bi-check-circle me-1"></i>Attivo
+                                                                </span>
+                                                            @else
+                                                                <span class="badge bg-danger-subtle text-danger small">
+                                                                    <i class="bi bi-x-circle me-1"></i>Inattivo
+                                                                </span>
+                                                            @endif
+                                                        </div>
                                                     @endif
                                                 </div>
                                             </div>
@@ -459,10 +553,10 @@
 </div>
 @endsection
 
-{{-- CSS ottimizzato --}}
+{{-- CSS ottimizzato con immagini migliorate --}}
 @push('styles')
 <style>
-/* Tabella compatta */
+/* === STILI BASE TABELLA === */
 .table td {
     padding: 0.5rem 0.75rem;
     vertical-align: middle;
@@ -493,7 +587,80 @@
     padding: 0.25rem 0.5rem;
 }
 
-/* Responsive per mobile */
+/* === STILI IMMAGINI PRODOTTO === */
+/* Immagini prodotto con effetti */
+.product-thumb {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.product-thumb:hover {
+    transform: scale(1.1);
+    border-color: #0d6efd !important;
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+}
+
+/* Placeholder gradiente */
+.bg-gradient {
+    transition: all 0.3s ease;
+}
+
+.bg-gradient:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Badge categoria sovrapposti */
+.position-absolute .badge {
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.position-absolute .badge:hover {
+    transform: scale(1.1);
+}
+
+/* Badge stato prodotto */
+.bg-success-subtle {
+    background-color: rgba(25, 135, 84, 0.1) !important;
+    border: 1px solid rgba(25, 135, 84, 0.2);
+}
+
+.bg-danger-subtle {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+    border: 1px solid rgba(220, 53, 69, 0.2);
+}
+
+.text-success {
+    color: #198754 !important;
+}
+
+.text-danger {
+    color: #dc3545 !important;
+}
+
+/* Animazione per il caricamento immagini */
+@keyframes imageLoad {
+    0% {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.product-thumb {
+    animation: imageLoad 0.4s ease-out;
+}
+
+/* Tooltip migliorato */
+[data-bs-toggle="tooltip"] {
+    cursor: help;
+}
+
+/* === RESPONSIVE DESIGN === */
 @media (max-width: 768px) {
     .table th:nth-child(1),
     .table td:nth-child(1) {
@@ -514,9 +681,44 @@
         font-size: 0.7rem;
         padding: 0.2rem 0.4rem;
     }
+    
+    /* Immagini più piccole su mobile */
+    .product-thumb,
+    .bg-gradient {
+        width: 32px !important;
+        height: 32px !important;
+    }
+    
+    .position-absolute .badge {
+        font-size: 0.55rem !important;
+        padding: 0.1rem 0.3rem !important;
+    }
+    
+    /* Nascondi alcuni badge su mobile per risparmiare spazio */
+    .badge.bg-light {
+        display: none;
+    }
 }
 
-/* Paginazione Bootstrap custom */
+@media (max-width: 576px) {
+    .product-thumb,
+    .bg-gradient {
+        width: 28px !important;
+        height: 28px !important;
+    }
+    
+    /* Semplifica la visualizzazione su schermi molto piccoli */
+    .position-absolute .badge {
+        display: none;
+    }
+    
+    .bg-success-subtle,
+    .bg-danger-subtle {
+        display: none;
+    }
+}
+
+/* === PAGINAZIONE BOOTSTRAP PERSONALIZZATA === */
 .pagination {
     margin: 0;
 }
@@ -544,6 +746,7 @@
     border-color: #dee2e6;
 }
 
+/* === ANIMAZIONI E EFFETTI === */
 /* Animazione per nuove righe */
 @keyframes fadeInUp {
     from {
@@ -569,12 +772,313 @@
 .progress-bar {
     transition: width 0.6s ease;
 }
+
+/* Effetto loading skeleton */
+.image-skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* === MIGLIORAMENTI ACCESSIBILITÀ === */
+.product-thumb:focus {
+    outline: 2px solid #0d6efd;
+    outline-offset: 2px;
+}
+
+/* Focus visibile per pulsanti */
+.btn:focus-visible {
+    outline: 2px solid #0d6efd;
+    outline-offset: 2px;
+}
+
+/* === PRINT STYLES === */
+@media print {
+    .product-thumb,
+    .bg-gradient {
+        width: 20px !important;
+        height: 20px !important;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+    }
+    
+    .position-absolute .badge {
+        display: none;
+    }
+    
+    .btn-group-vertical {
+        display: none;
+    }
+    
+    .card {
+        border: 1px solid #dee2e6 !important;
+        break-inside: avoid;
+    }
+}
+
+/* === DARK MODE SUPPORT === */
+@media (prefers-color-scheme: dark) {
+    .table {
+        --bs-table-bg: #212529;
+        --bs-table-color: #fff;
+    }
+    
+    .card {
+        background-color: #2d3748;
+        color: #fff;
+    }
+    
+    .bg-light {
+        background-color: #374151 !important;
+    }
+}
+
+/* === HIGH CONTRAST SUPPORT === */
+@media (prefers-contrast: high) {
+    .product-thumb,
+    .bg-gradient {
+        border-width: 3px !important;
+    }
+    
+    .badge {
+        border: 1px solid;
+    }
+}
+
+/* === REDUCED MOTION SUPPORT === */
+@media (prefers-reduced-motion: reduce) {
+    .product-thumb,
+    .bg-gradient,
+    .position-absolute .badge,
+    * {
+        transition: none !important;
+    }
+    
+    .table tbody tr {
+        animation: none !important;
+    }
+}
+
+/* === CUSTOM PROPERTIES === */
+:root {
+    --product-image-size: 40px;
+    --product-image-border: 2px solid #e9ecef;
+    --badge-font-size: 0.6rem;
+    --transition-duration: 0.3s;
+}
+
+/* === UTILITY CLASSES === */
+.fw-medium {
+    font-weight: 500;
+}
+
+.shadow-sm {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+}
+
+.rounded {
+    border-radius: 0.375rem !important;
+}
+
+/* === PERFORMANCE OPTIMIZATIONS === */
+.product-thumb,
+.bg-gradient {
+    will-change: transform;
+}
+
+/* === SCROLLBAR PERSONALIZZATA === */
+.table-responsive::-webkit-scrollbar {
+    height: 6px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* === STACKING CONTEXT === */
+.position-absolute {
+    z-index: 10;
+}
+
+.tooltip {
+    z-index: 1070;
+}
+
+.dropdown-menu {
+    z-index: 1000;
+}
 </style>
 @endpush
 
 {{-- JavaScript ottimizzato --}}
 @push('scripts')
 <script>
+$(document).ready(function() {
+    console.log('📋 Storico Interventi inizializzato');
+    
+    // === INIZIALIZZAZIONE TOOLTIP ===
+    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        $('[data-bs-toggle="tooltip"]').each(function() {
+            new bootstrap.Tooltip(this);
+        });
+        console.log('✅ Tooltip inizializzati');
+    }
+    
+    // === GESTIONE IMMAGINI PRODOTTO ===
+    $('.product-thumb').on('error', function() {
+        console.log('⚠️ Errore caricamento immagine:', $(this).attr('src'));
+        $(this).hide();
+        $(this).next('.d-none').removeClass('d-none').addClass('d-flex');
+    });
+    
+    // === CLICK SU IMMAGINI PER ZOOM (opzionale) ===
+    $('.product-thumb').on('click', function(e) {
+        e.stopPropagation();
+        const imgSrc = $(this).attr('src');
+        const productName = $(this).attr('alt');
+        
+        // Modal semplice per zoom immagine
+        if (imgSrc && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            showImageModal(imgSrc, productName);
+        }
+    });
+    
+    // === GESTIONE FORM FILTRI ===
+    $('#search, #periodo, #gravita, #categoria').on('change', function() {
+        // Auto-submit opzionale (commentato per evitare troppe richieste)
+        // $(this).closest('form').submit();
+    });
+    
+    // === GESTIONE PAGINAZIONE ===
+    $('.pagination .page-link').on('click', function(e) {
+        const $link = $(this);
+        if (!$link.parent().hasClass('disabled') && !$link.parent().hasClass('active')) {
+            $link.html('<span class="spinner-border spinner-border-sm"></span>');
+        }
+    });
+    
+    // === ANIMAZIONI CONTATORI ===
+    function animateCounters() {
+        $('.card h4').each(function() {
+            const $counter = $(this);
+            const target = parseInt($counter.text()) || 0;
+            
+            if (target > 0 && target <= 100) {
+                $counter.text('0');
+                $({ counter: 0 }).animate({ counter: target }, {
+                    duration: 1000,
+                    step: function() {
+                        $counter.text(Math.ceil(this.counter));
+                    }
+                });
+            }
+        });
+    }
+    
+    // Avvia animazioni dopo un breve delay
+    setTimeout(animateCounters, 500);
+    
+    console.log('✅ Storico Interventi JavaScript caricato');
+});
+
+// === FUNZIONE MODAL IMMAGINE ===
+function showImageModal(imgSrc, productName) {
+    const modalHtml = `
+        <div class="modal fade" id="imageModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">${productName}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                        <img src="${imgSrc}" alt="${productName}" class="img-fluid rounded" style="max-height: 400px;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Rimuovi modal esistente e aggiungi nuovo
+    $('#imageModal').remove();
+    $('body').append(modalHtml);
+    
+    const modal = new bootstrap.Modal(document.getElementById('imageModal'));
+    modal.show();
+    
+    // Cleanup al close
+    $('#imageModal').on('hidden.bs.modal', function() {
+        $(this).remove();
+    });
+}
+
+// === UTILITY FUNCTIONS ===
+function showToast(message, type = 'info') {
+    const toastHtml = `
+        <div class="toast align-items-center text-bg-${type} border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    `;
+    
+    if (!$('#toast-container').length) {
+        $('body').append('<div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3"></div>');
+    }
+    
+    const $toast = $(toastHtml);
+    $('#toast-container').append($toast);
+    
+    const toast = new bootstrap.Toast($toast[0]);
+    toast.show();
+    
+    $toast.on('hidden.bs.toast', function() {
+        $(this).remove();
+    });
+}
+
+// === ESPORTAZIONE PER DEBUG ===
+window.storicoInterventi = {
+    showImageModal: showImageModal,
+    showToast: showToast,
+    animateCounters: function() {
+        $('.card h4').each(function() {
+            const $counter = $(this);
+            const target = parseInt($counter.text()) || 0;
+            
+            if (target > 0 && target <= 100) {
+                $counter.text('0');
+                $({ counter: 0 }).animate({ counter: target }, {
+                    duration: 1000,
+                    step: function() {
+                        $counter.text(Math.ceil(this.counter));
+                    }
+                });
+            }
+        });
+    }
+};
+
 // Inizializza i dati della pagina se non esistono già
 window.PageData = window.PageData || {};
 
@@ -619,6 +1123,12 @@ window.PageData.stats = @json($stats);
 window.PageData.user = @json($user);
 @endif
 
-// Aggiungi altri dati che potrebbero servire...
+@if(isset($interventi))
+window.PageData.interventi = {
+    total: {{ $interventi->total() ?? 0 }},
+    currentPage: {{ $interventi->currentPage() ?? 1 }},
+    hasMorePages: {{ $interventi->hasMorePages() ? 'true' : 'false' }}
+};
+@endif
 </script>
 @endpush

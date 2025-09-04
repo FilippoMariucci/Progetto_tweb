@@ -685,11 +685,11 @@ $(document).ready(function() {
         // === AUTENTICAZIONE ===
         'login': 'auth/login.js',
         'register': 'auth/login.js', // Usa stesso script del login
-        'storico.interventi': 'auth/storico-interventi.js',
+        'tecnico.interventi': 'auth/storico-interventi.js',
         
         // === PAGINE ===
-        'pages.azienda': 'pages/azienda.js',
-        'pages.contatti': 'pages/contatti.js',
+        'azienda': 'pages/azienda.js',
+        'contatti': 'pages/contatti.js',
         
         // === ERRORI ===
         '404': 'errors/404.js',

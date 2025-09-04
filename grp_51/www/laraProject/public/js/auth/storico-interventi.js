@@ -3,7 +3,7 @@ $(document).ready(function() {
     console.log('storico.interventi caricato');
     
     const currentRoute = window.LaravelApp?.route || '';
-    if (currentRoute !== 'admin.storico.interventi') {
+    if (currentRoute !== 'tecnico.interventi') {
         return;
     }
     
