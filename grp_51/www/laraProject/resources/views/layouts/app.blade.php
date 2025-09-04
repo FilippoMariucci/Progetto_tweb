@@ -617,6 +617,109 @@
     <script src="{{ asset('js/dashboard.js') }}"></script>
     
     <!-- Script personalizzati -->
+
+    <script>
+$(document).ready(function() {
+    // Configurazione globale
+    window.LaravelApp = {
+        csrfToken: '{{ csrf_token() }}',
+        baseUrl: '{{ url('/') }}',
+        route: @json(request()->route()->getName() ?? ''),
+        user: @json(auth()->user() ?? null),
+        locale: '{{ app()->getLocale() }}'
+    };
+    
+    const routeName = window.LaravelApp.route;
+    const userRole = window.LaravelApp.user?.ruolo ?? 'guest';
+    
+    console.log('Route attuale:', routeName);
+    console.log('Ruolo utente:', userRole);
+    
+    // Mappa route → file JavaScript specifici
+    const scriptMap = {
+        // === ADMIN ===
+        'admin.dashboard': 'admin/dashboard.js',
+        'admin.assegnazioni.index': 'admin/assegnazioni-index.js',
+        'admin.centri.index': 'admin/centri-index.js',
+        'admin.centri.create': 'admin/centri-create.js',
+        'admin.centri.edit': 'admin/centri-edit.js',
+        'admin.centri.show': 'admin/centri-show.js',
+        'admin.prodotti.index': 'admin/prodotti-index.js',
+        'admin.prodotti.create': 'admin/prodotti-create.js',
+        'admin.prodotti.edit': 'admin/prodotti-edit.js',
+        'admin.prodotti.show': 'admin/prodotti-show.js',
+        'admin.users.index': 'admin/users-index.js',
+        'admin.users.create': 'admin/users-create.js',
+        'admin.users.edit': 'admin/users-edit.js',
+        'admin.users.show': 'admin/users-show.js',
+        'admin.statistiche': 'admin/statistiche.js',
+        'admin.manutenzione': 'admin/manutenzione.js',
+        
+        // === STAFF ===
+        'staff.dashboard': 'staff/dashboard.js',
+        'staff.statistiche': 'staff/statistiche.js',
+        
+        // === TECNICO ===
+        'tecnico.dashboard': 'tecnico/dashboard.js',
+        'tecnico.statistiche': 'tecnico/statistiche.js',
+        
+        // === MALFUNZIONAMENTI ===
+        'malfunzionamenti.index': 'malfunzionamenti/index.js',
+        'malfunzionamenti.create': 'malfunzionamenti/create.js',
+        'malfunzionamenti.edit': 'malfunzionamenti/edit.js',
+        'malfunzionamenti.show': 'malfunzionamenti/show.js',
+        'malfunzionamenti.ricerca': 'malfunzionamenti/ricerca.js',
+        
+        // === PRODOTTI PUBBLICI ===
+        'prodotti.index': 'prodotti/pubblico/index.js',
+        'prodotti.show': 'prodotti/pubblico/show.js',
+        
+        // === PRODOTTI COMPLETI (TECNICI) ===
+        'prodotti.completo.index': 'prodotti/completo/index.js',
+        'prodotti.completo.show': 'prodotti/completo/show.js',
+        
+        // === CENTRI ===
+        'centri.index': 'centri/index.js',
+        'centri.show': 'centri/show.js',
+        
+        // === AUTENTICAZIONE ===
+        'login': 'auth/login.js',
+        'register': 'auth/login.js', // Usa stesso script del login
+        'storico.interventi': 'auth/storico-interventi.js',
+        
+        // === PAGINE ===
+        'pages.azienda': 'pages/azienda.js',
+        'pages.contatti': 'pages/contatti.js',
+        
+        // === ERRORI ===
+        '404': 'errors/404.js',
+        '404.authenticated': 'errors/404-authenticated.js',
+        '404.public': 'errors/404-public.js',
+        
+        // === HOME ===
+        'home': 'prodotti/pubblico/index.js'
+    };
+    
+    // Carica lo script specifico per la route
+    if (scriptMap[routeName]) {
+        const scriptUrl = `{{ asset('js/') }}/${scriptMap[routeName]}`;
+        console.log('Caricamento script:', scriptUrl);
+        
+        const script = document.createElement('script');
+        script.src = scriptUrl;
+        script.onerror = function() {
+            console.warn('Script non trovato (normale se non necessario):', scriptUrl);
+        };
+        script.onload = function() {
+            console.log('Script caricato:', scriptUrl);
+        };
+        document.head.appendChild(script);
+    } else {
+        console.log('Nessuno script specifico per questa route');
+    }
+});
+</script>
+
     <script>
         // === CONFIGURAZIONE GLOBALE ===
         
