@@ -1,9 +1,16 @@
 {{--
-    Statistiche Tecnico - Layout Compatto e Lineare
+    ===================================================================
+    STATISTICHE TECNICO - Vista Blade Corretta
+    ===================================================================
     Sistema Assistenza Tecnica - Gruppo 51
+    File: resources/views/tecnico/statistiche.blade.php
     
-    Vista ottimizzata per tecnici con layout compatto, 
-    grafici più piccoli e informazioni essenziali
+    FUNZIONALITÀ:
+    - Layout compatto per tecnici
+    - Grafici personalizzati per performance
+    - Statistiche personali e di centro
+    - Integrazione JavaScript pulita
+    ===================================================================
 --}}
 
 @extends('layouts.app')
@@ -84,6 +91,31 @@
                 </div>
                 <div class="card-body p-2">
                     <canvas id="graficoGravita" height="120"></canvas>
+                    {{-- Legenda compatta --}}
+                    @if(isset($stats['malfunzionamenti']['per_gravita']) && count($stats['malfunzionamenti']['per_gravita']) > 0)
+                        <div class="row g-1 mt-2">
+                            @foreach($stats['malfunzionamenti']['per_gravita'] as $gravita => $count)
+                                <div class="col-6 small text-center">
+                                    @switch($gravita)
+                                        @case('critica')
+                                            <span class="badge bg-danger">{{ $count }}</span> Critica
+                                            @break
+                                        @case('alta')
+                                            <span class="badge bg-warning text-dark">{{ $count }}</span> Alta
+                                            @break
+                                        @case('media')
+                                            <span class="badge bg-success">{{ $count }}</span> Media
+                                            @break
+                                        @case('bassa')
+                                            <span class="badge bg-info">{{ $count }}</span> Bassa
+                                            @break
+                                        @default
+                                            <span class="badge bg-secondary">{{ $count }}</span> {{ ucfirst($gravita) }}
+                                    @endswitch
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -99,6 +131,14 @@
                 </div>
                 <div class="card-body p-2">
                     <canvas id="graficoTrend" height="120"></canvas>
+                    {{-- Info trend --}}
+                    @if(isset($stats['trend_settimanale']) && isset($stats['trend_settimanale']['totale_settimana']))
+                        <div class="text-center mt-2">
+                            <small class="text-success fw-semibold">
+                                Totale settimana: {{ $stats['trend_settimanale']['totale_settimana'] }}
+                            </small>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -114,6 +154,17 @@
                 </div>
                 <div class="card-body p-2">
                     <canvas id="graficoCategorie" height="120"></canvas>
+                    {{-- Dettagli categorie --}}
+                    @if(isset($stats['per_categoria']) && count($stats['per_categoria']) > 0)
+                        <div class="row g-1 mt-2">
+                            @foreach(array_slice($stats['per_categoria'], 0, 4, true) as $categoria => $count)
+                                <div class="col-6 small text-center">
+                                    <span class="badge bg-info">{{ $count }}</span>
+                                    {{ ucfirst($categoria) }}
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -245,223 +296,415 @@
 </div>
 @endsection
 
+{{-- === SCRIPTS SECTION === --}}
 @push('scripts')
+<!-- Chart.js per i grafici -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-// === CONFIGURAZIONE GRAFICI COMPATTI ===
 
-// Configurazione comune per tutti i grafici
-const commonOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-        legend: {
-            display: false // Nasconde legenda per risparmiare spazio
-        }
+<script>
+// ===================================================================
+// PASSAGGIO DATI DAL CONTROLLER PHP AL JAVASCRIPT
+// ===================================================================
+// Dati delle statistiche passati dal controller al JavaScript
+
+console.log('Inizializzazione dati statistiche tecnico...');
+
+// Passa i dati statistiche al JavaScript
+window.statsData = {
+    // Dati malfunzionamenti per gravità
+    malfunzionamenti: {
+        per_gravita: @json($stats['malfunzionamenti']['per_gravita'] ?? []),
+        totali: {{ $stats['malfunzionamenti']['totali'] ?? 0 }},
+        critici: {{ $stats['malfunzionamenti']['critici'] ?? 0 }}
     },
-    elements: {
-        point: {
-            radius: 3 // Punti più piccoli
-        }
+    
+    // Trend settimanale
+    trend_settimanale: {
+        giorni: @json($stats['trend_settimanale']['giorni'] ?? []),
+        conteggi: @json($stats['trend_settimanale']['conteggi'] ?? []),
+        totale_settimana: {{ $stats['trend_settimanale']['totale_settimana'] ?? 0 }}
+    },
+    
+    // Categorie prodotti
+    per_categoria: @json($stats['per_categoria'] ?? []),
+    
+    // Dati generali
+    generale: {
+        total_prodotti: {{ $stats['generale']['total_prodotti'] ?? 0 }},
+        total_centri: {{ $stats['generale']['total_centri'] ?? 0 }}
+    },
+    
+    // Info centro assistenza
+    centro_assistenza: @json($stats['centro_assistenza'] ?? null),
+    
+    // Dati personali
+    personali: {
+        nome: '{{ auth()->user()->nome_completo ?? auth()->user()->name ?? 'Tecnico' }}',
+        specializzazione: '{{ auth()->user()->specializzazione ?? 'N/A' }}',
+        data_registrazione: '{{ $stats['personali']['data_registrazione']->format('Y-m-d') ?? '' }}'
     }
 };
 
-// Grafico Gravità - Compatto
-const ctxGravita = document.getElementById('graficoGravita').getContext('2d');
-new Chart(ctxGravita, {
-    type: 'doughnut',
-    data: {
-        labels: [@foreach(($stats['malfunzionamenti']['per_gravita'] ?? []) as $gravita => $count) '{{ ucfirst($gravita) }}', @endforeach],
-        datasets: [{
-            data: [{{ implode(',', array_values($stats['malfunzionamenti']['per_gravita'] ?? [])) }}],
-            backgroundColor: ['#dc3545', '#ffc107', '#28a745', '#17a2b8'],
-            borderWidth: 1
-        }]
-    },
-    options: {
-        ...commonOptions,
-        cutout: '50%'
-    }
+// Debug: mostra i dati ricevuti
+console.log('Dati statistiche tecnico ricevuti:', {
+    malfunzionamenti_per_gravita: window.statsData.malfunzionamenti.per_gravita,
+    trend_giorni: window.statsData.trend_settimanale.giorni,
+    categorie: window.statsData.per_categoria
 });
 
-// Grafico Trend - Compatto  
-const ctxTrend = document.getElementById('graficoTrend').getContext('2d');
-new Chart(ctxTrend, {
-    type: 'line',
-    data: {
-        labels: {!! json_encode(($stats['trend_settimanale']['giorni'] ?? [])) !!},
-        datasets: [{
-            data: {!! json_encode(($stats['trend_settimanale']['conteggi'] ?? [])) !!},
-            borderColor: '#28a745',
-            backgroundColor: 'rgba(40, 167, 69, 0.1)',
-            tension: 0.3,
-            fill: true,
-            borderWidth: 2
-        }]
-    },
-    options: {
-        ...commonOptions,
-        scales: {
-            x: {
-                display: false // Nasconde etichette X per risparmiare spazio
-            },
-            y: {
-                beginAtZero: true,
-                display: false, // Nasconde etichette Y
-                ticks: {
-                    stepSize: 1
-                }
-            }
-        }
-    }
-});
+// Imposta il route corrente
+window.LaravelApp = window.LaravelApp || {};
+window.LaravelApp.route = 'tecnico.statistiche.view';
 
-// Grafico Categorie - Compatto
-const ctxCategorie = document.getElementById('graficoCategorie').getContext('2d');
-new Chart(ctxCategorie, {
-    type: 'bar',
-    data: {
-        labels: [@foreach(($stats['per_categoria'] ?? []) as $categoria => $count) '{{ ucfirst($categoria) }}', @endforeach],
-        datasets: [{
-            data: [{{ implode(',', array_values($stats['per_categoria'] ?? [])) }}],
-            backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1'],
-            borderWidth: 1
-        }]
-    },
-    options: {
-        ...commonOptions,
-        scales: {
-            x: {
-                display: false
-            },
-            y: {
-                beginAtZero: true,
-                display: false,
-                ticks: {
-                    stepSize: 1
-                }
-            }
-        }
-    }
-});
-
-// === FUNZIONI UTILITY ===
-function aggiornaStatistiche() {
-    const btn = event.target;
-    const originalHtml = btn.innerHTML;
-    btn.innerHTML = '<i class="bi bi-arrow-repeat spinner-border spinner-border-sm"></i>';
-    btn.disabled = true;
-    
-    setTimeout(() => location.reload(), 1000);
-}
-
-// Auto-refresh ogni 10 minuti
-setInterval(() => {
-    console.log('🔄 Auto-refresh statistiche tecnico');
-    // Implementare chiamata AJAX se necessario
-}, 600000);
-
-console.log('✅ Statistiche Tecnico - Layout Compatto caricato');
+console.log('Dati statistiche tecnico inizializzati correttamente');
 </script>
+
+<!-- Carica il file JavaScript delle statistiche tecnico -->
+<script src="{{ asset('js/tecnico/statistiche.js') }}"></script>
 @endpush
 
+{{-- === STYLES SECTION === --}}
 @push('styles')
 <style>
-/* === STILI COMPATTI PER STATISTICHE TECNICO === */
+/* ===================================================================
+   STILI COMPATTI PER STATISTICHE TECNICO
+   =================================================================== */
 
-/* Card più compatte */
+/* Layout generale compatto */
+.container {
+    max-width: 1200px;
+}
+
+/* Card più compatte e moderne */
 .card {
     border-radius: 8px;
     border: none !important;
+    transition: all 0.2s ease-in-out;
 }
 
+.card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+}
+
+/* Header delle card */
 .card-header {
     border-radius: 8px 8px 0 0 !important;
     font-size: 0.9rem;
+    font-weight: 600;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .card-body {
     font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+/* Header compatto */
+h2 {
+    font-size: 1.75rem;
+    font-weight: 600;
+}
+
+.btn-group-sm .btn {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    border-radius: 6px;
+}
+
+/* Statistiche header - card piccole */
+.card-body.py-2 {
+    padding: 0.75rem !important;
 }
 
 /* Tabelle più compatte */
 .table-sm td, .table-sm th {
     padding: 0.4rem;
     font-size: 0.85rem;
+    vertical-align: middle;
 }
 
-/* Grafici più piccoli e responsive */
+/* Grafici responsive con altezza fissa */
 canvas {
     max-height: 120px !important;
 }
 
-/* Badge più piccoli */
+/* Badge più piccoli e colorati */
 .badge {
     font-size: 0.7rem;
+    border-radius: 4px;
+    font-weight: 600;
 }
 
-/* Bottoni più compatti */
-.btn-group-sm .btn {
+/* Pulsanti compatti */
+.btn-sm {
     padding: 0.25rem 0.5rem;
     font-size: 0.8rem;
+    border-radius: 4px;
 }
 
-/* Responsive migliorato */
-@media (max-width: 768px) {
-    .card-body {
-        padding: 0.75rem;
+/* === RESPONSIVE DESIGN === */
+@media (max-width: 992px) {
+    .container {
+        padding-left: 15px;
+        padding-right: 15px;
     }
     
-    .table-responsive {
-        font-size: 0.8rem;
+    .card-body {
+        padding: 0.75rem;
     }
     
     canvas {
         max-height: 100px !important;
     }
-    
-    .col-lg-4, .col-lg-6 {
-        margin-bottom: 0.5rem;
-    }
 }
 
-@media (max-width: 576px) {
+@media (max-width: 768px) {
+    /* Header responsive */
     .d-flex.justify-content-between {
         flex-direction: column;
-        align-items: start !important;
+        align-items: flex-start !important;
+        gap: 0.5rem;
     }
     
     .btn-group {
         margin-top: 0.5rem;
     }
     
-    .small {
-        font-size: 0.75rem !important;
+    /* Card più compatte su mobile */
+    .card-body.p-2 {
+        padding: 0.5rem !important;
+    }
+    
+    .card-body.p-3 {
+        padding: 0.75rem !important;
+    }
+    
+    /* Table responsive */
+    .table-responsive {
+        font-size: 0.8rem;
+    }
+    
+    /* Grid mobile */
+    .col-lg-3,
+    .col-lg-4,
+    .col-lg-6 {
+        margin-bottom: 0.5rem;
     }
 }
 
-/* Animazioni leggere */
-.card {
-    transition: transform 0.2s ease;
+@media (max-width: 576px) {
+    /* Layout ultra-compatto */
+    .container {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    
+    h2 {
+        font-size: 1.5rem;
+    }
+    
+    .card-header h6 {
+        font-size: 0.8rem;
+    }
+    
+    .small {
+        font-size: 0.75rem !important;
+    }
+    
+    /* Badge e elementi piccoli */
+    .badge {
+        font-size: 0.65rem;
+    }
+    
+    .btn-sm {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.7rem;
+    }
 }
 
-.card:hover {
+/* === ANIMAZIONI E TRANSIZIONI === */
+.card, .btn, .badge {
+    transition: all 0.2s ease-in-out;
+}
+
+.btn:hover {
     transform: translateY(-1px);
 }
 
-/* Loading spinner */
+.table-hover tbody tr:hover {
+    --bs-table-accent-bg: rgba(13, 110, 253, 0.05);
+}
+
+/* Spinner loading */
 .spinner-border-sm {
     width: 0.8rem;
     height: 0.8rem;
 }
 
-/* Colori personalizzati */
+/* === UTILITÀ === */
 .text-muted {
     color: #6c757d !important;
 }
 
 .fw-semibold {
     font-weight: 600;
+}
+
+/* Focus per accessibilità */
+.btn:focus-visible {
+    outline: 2px solid #0d6efd;
+    outline-offset: 2px;
+}
+
+/* Custom scrollbar per tabelle */
+.table-responsive::-webkit-scrollbar {
+    height: 6px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* === COLORI TEMA === */
+.card-header.bg-primary {
+    background-color: #0d6efd !important;
+}
+
+.card-header.bg-success {
+    background-color: #198754 !important;
+}
+
+.card-header.bg-info {
+    background-color: #0dcaf0 !important;
+}
+
+.card-header.bg-warning {
+    background-color: #ffc107 !important;
+    color: #000 !important;
+}
+
+.card-header.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.card-header.bg-secondary {
+    background-color: #6c757d !important;
+}
+
+/* Badge specifici per gravità */
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #000 !important;
+}
+
+.badge.bg-success {
+    background-color: #198754 !important;
+}
+
+.badge.bg-info {
+    background-color: #0dcaf0 !important;
+}
+
+/* === STAMPA === */
+@media print {
+    .btn, .btn-group {
+        display: none !important;
+    }
+    
+    .card {
+        border: 1px solid #dee2e6 !important;
+        break-inside: avoid;
+        box-shadow: none !important;
+    }
+    
+    .container {
+        max-width: none;
+        padding: 0;
+    }
+    
+    h2 {
+        page-break-after: avoid;
+    }
+    
+    .table {
+        font-size: 0.75rem;
+    }
+}
+
+/* Toast notifications per feedback */
+.toast-notification {
+    border-radius: 8px;
+    font-size: 0.875rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Performance optimizations */
+.card, canvas, .table {
+    contain: layout style;
+}
+
+/* Custom properties per theming */
+:root {
+    --tecnico-primary: #0d6efd;
+    --tecnico-success: #198754;
+    --tecnico-warning: #ffc107;
+    --tecnico-danger: #dc3545;
+    --tecnico-info: #0dcaf0;
+    --tecnico-border-radius: 8px;
+}
+
+/* Loading states */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Accessibilità migliorata */
+.sr-only {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0,0,0,0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* Riduzione movimento per utenti sensibili */
+@media (prefers-reduced-motion: reduce) {
+    .card,
+    .btn,
+    * {
+        transition: none !important;
+    }
+}
+
+/* Alto contrasto */
+@media (prefers-contrast: high) {
+    .card {
+        border: 2px solid #000;
+    }
+    
+    .badge {
+        border: 1px solid;
+    }
 }
 </style>
 @endpush

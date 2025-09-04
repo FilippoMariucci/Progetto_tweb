@@ -652,28 +652,28 @@ $(document).ready(function() {
         'admin.users.create': 'admin/users-create.js',
         'admin.users.edit': 'admin/users-edit.js',
         'admin.users.show': 'admin/users-show.js',
-        'admin.statistiche': 'admin/statistiche.js',
-        'admin.manutenzione': 'admin/manutenzione.js',
-        
+        'admin.statistiche.index': 'admin/statistiche.js',
+        'admin.manutenzione.index': 'admin/manutenzioni.js',
+
         // === STAFF ===
         'staff.dashboard': 'staff/dashboard.js',
         'staff.statistiche': 'staff/statistiche.js',
         
         // === TECNICO ===
         'tecnico.dashboard': 'tecnico/dashboard.js',
-        'tecnico.statistiche': 'tecnico/statistiche.js',
+        'tecnico.statistiche.view': 'tecnico/statistiche.js',
         
         // === MALFUNZIONAMENTI ===
         'malfunzionamenti.index': 'malfunzionamenti/index.js',
-        'malfunzionamenti.create': 'malfunzionamenti/create.js',
-        'malfunzionamenti.edit': 'malfunzionamenti/edit.js',
+        'staff.malfunzionamenti.create': 'malfunzionamenti/create.js',
+        'staff.malfunzionamenti.edit': 'malfunzionamenti/edit.js',
         'malfunzionamenti.show': 'malfunzionamenti/show.js',
         'malfunzionamenti.ricerca': 'malfunzionamenti/ricerca.js',
         
         // === PRODOTTI PUBBLICI ===
-        'prodotti.index': 'prodotti/pubblico/index.js',
-        'prodotti.show': 'prodotti/pubblico/show.js',
-        
+        'prodotti.pubblico.index': 'prodotti/pubblico/index.js',
+        'prodotti.pubblico.show': 'prodotti/pubblico/show.js',
+
         // === PRODOTTI COMPLETI (TECNICI) ===
         'prodotti.completo.index': 'prodotti/completo/index.js',
         'prodotti.completo.show': 'prodotti/completo/show.js',

@@ -575,34 +575,50 @@
 {{-- JavaScript ottimizzato --}}
 @push('scripts')
 <script>
-$(document).ready(function() {
-    console.log('Storico Interventi inizializzato');
-    
-    // Tooltip per elementi troncati
-    $('[data-bs-toggle="tooltip"]').tooltip();
-    
-    // Auto-submit form quando cambi i filtri (opzionale)
-    $('#periodo, #gravita, #categoria').change(function() {
-        // Uncomment per auto-submit: $(this).closest('form').submit();
-    });
-    
-    // Evidenziazione ricerca
-    const searchTerm = '{{ request("search") }}';
-    if (searchTerm) {
-        $('.table tbody').highlight(searchTerm);
-    }
-    
-    console.log('Storico interventi pronto');
-});
+// Inizializza i dati della pagina se non esistono già
+window.PageData = window.PageData || {};
 
-// Plugin highlight semplice
-$.fn.highlight = function(text) {
-    return this.each(function() {
-        $(this).html($(this).html().replace(
-            new RegExp('(' + text + ')', 'gi'),
-            '<mark>$1</mark>'
-        ));
-    });
-};
+// Aggiungi dati specifici solo se necessari per questa view
+@if(isset($prodotto))
+window.PageData.prodotto = @json($prodotto);
+@endif
+
+@if(isset($prodotti))
+window.PageData.prodotti = @json($prodotti);
+@endif
+
+@if(isset($malfunzionamento))
+window.PageData.malfunzionamento = @json($malfunzionamento);
+@endif
+
+@if(isset($malfunzionamenti))
+window.PageData.malfunzionamenti = @json($malfunzionamenti);
+@endif
+
+@if(isset($centro))
+window.PageData.centro = @json($centro);
+@endif
+
+@if(isset($centri))
+window.PageData.centri = @json($centri);
+@endif
+
+@if(isset($categorie))
+window.PageData.categorie = @json($categorie);
+@endif
+
+@if(isset($staffMembers))
+window.PageData.staffMembers = @json($staffMembers);
+@endif
+
+@if(isset($stats))
+window.PageData.stats = @json($stats);
+@endif
+
+@if(isset($user))
+window.PageData.user = @json($user);
+@endif
+
+// Aggiungi altri dati che potrebbero servire...
 </script>
 @endpush

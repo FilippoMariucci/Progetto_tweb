@@ -412,106 +412,50 @@
 
 @push('scripts')
 <script>
-$(document).ready(function() {
-    console.log('📦 Catalogo Prodotti Pubblico - FILTRI CATEGORIA CORRETTI');
-    console.log('📊 Categorie disponibili:', @json($categorie ?? []));
-    console.log('📊 Stats per categoria:', @json($stats['per_categoria'] ?? []));
-    
-    // === GESTIONE FORM ===
-    $('#clearSearch').on('click', function() {
-        $('#search').val('').focus();
-    });
-    
-    // CORREZIONE: Submit automatico quando cambia categoria nel dropdown
-    $('#categoria').on('change', function() {
-        const categoriaSelezionata = $(this).val();
-        console.log('📂 Categoria selezionata dal dropdown:', categoriaSelezionata);
-        
-        // Submit del form per applicare il filtro
-        $('#search-form').submit();
-    });
-    
-    // CORREZIONE: Gestione click sui badge categoria
-    $('.category-badge').on('click', function(e) {
-        e.preventDefault();
-        const categoria = $(this).data('categoria');
-        console.log('🏷️ Badge categoria cliccato:', categoria);
-        
-        // Costruisci URL con filtro categoria
-        if (categoria && categoria !== '') {
-            window.location.href = `{{ route('prodotti.pubblico.index') }}?categoria=${encodeURIComponent(categoria)}`;
-        } else {
-            // Badge "Tutte" cliccato - rimuovi filtro
-            window.location.href = '{{ route('prodotti.pubblico.index') }}';
-        }
-    });
-    
-    // === GESTIONE ERRORI IMMAGINI ===
-    $('.product-image').on('error', function() {
-        const $this = $(this);
-        const productName = $this.attr('alt') || 'Prodotto';
-        
-        $this.replaceWith(`
-            <div class="card-img-top d-flex align-items-center justify-content-center bg-light" 
-                 style="height: 140px;">
-                <div class="text-center">
-                    <i class="bi bi-image text-muted" style="font-size: 1.5rem;"></i>
-                    <div class="small text-muted mt-1">${productName.substring(0, 20)}</div>
-                </div>
-            </div>
-        `);
-    });
-    
-    // === EVIDENZIAZIONE RICERCA ===
-    const searchTerm = '{{ request("search") }}';
-    if (searchTerm && searchTerm.length > 2 && !searchTerm.includes('*')) {
-        $('.card-title, .card-text').each(function() {
-            const text = $(this).html();
-            const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-            const highlighted = text.replace(regex, '<mark>$1</mark>');
-            $(this).html(highlighted);
-        });
-    }
-    
-    // === LOADING FORM ===
-    $('#search-form').on('submit', function() {
-        const $submitBtn = $(this).find('button[type="submit"]');
-        if ($submitBtn.length) {
-            const originalText = $submitBtn.html();
-            $submitBtn.html('<i class="bi bi-hourglass-split me-1"></i>Cercando...')
-                      .prop('disabled', true);
-            
-            setTimeout(() => {
-                $submitBtn.html(originalText).prop('disabled', false);
-            }, 3000);
-        }
-    });
-    
-    // === DEBUG INFO ===
-    @if(request('search') || request('categoria'))
-        console.log('🔍 Ricerca pubblica:', {
-            termine: '{{ request("search") }}',
-            categoria: '{{ request("categoria") }}',
-            risultati: {{ $prodotti->total() }},
-            timestamp: new Date().toISOString()
-        });
-    @endif
-    
-    console.log('✅ Filtri categoria funzionanti correttamente');
-});
+// Inizializza i dati della pagina se non esistono già
+window.PageData = window.PageData || {};
 
-// === FUNZIONI GLOBALI ===
-function resetSearch() {
-    window.location.href = '{{ route("prodotti.pubblico.index") }}';
-}
+// Aggiungi dati specifici solo se necessari per questa view
+@if(isset($prodotto))
+window.PageData.prodotto = @json($prodotto);
+@endif
 
-function filterByCategory(categoria) {
-    console.log('🏷️ Filtro categoria programmatico:', categoria);
-    if (categoria && categoria !== '') {
-        window.location.href = `{{ route('prodotti.pubblico.index') }}?categoria=${categoria}`;
-    } else {
-        resetSearch();
-    }
-}
+@if(isset($prodotti))
+window.PageData.prodotti = @json($prodotti);
+@endif
+
+@if(isset($malfunzionamento))
+window.PageData.malfunzionamento = @json($malfunzionamento);
+@endif
+
+@if(isset($malfunzionamenti))
+window.PageData.malfunzionamenti = @json($malfunzionamenti);
+@endif
+
+@if(isset($centro))
+window.PageData.centro = @json($centro);
+@endif
+
+@if(isset($centri))
+window.PageData.centri = @json($centri);
+@endif
+
+@if(isset($categorie))
+window.PageData.categorie = @json($categorie);
+@endif
+
+@if(isset($staffMembers))
+window.PageData.staffMembers = @json($staffMembers);
+@endif
+
+@if(isset($stats))
+window.PageData.stats = @json($stats);
+@endif
+
+@if(isset($user))
+window.PageData.user = @json($user);
+@endif
+
+// Aggiungi altri dati che potrebbero servire...
 </script>
 @endpush

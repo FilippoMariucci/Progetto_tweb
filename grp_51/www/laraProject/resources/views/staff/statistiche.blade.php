@@ -462,99 +462,51 @@
 
 @push('scripts')
 <script>
-// === FUNZIONI UTILITY COMPATTE ===
+// Inizializza i dati della pagina se non esistono già
+window.PageData = window.PageData || {};
 
-function aggiornaStatistiche() {
-    const btn = event.target;
-    const originalHtml = btn.innerHTML;
-    btn.innerHTML = '<i class="bi bi-arrow-repeat spinner-border spinner-border-sm"></i>';
-    btn.disabled = true;
-    
-    setTimeout(() => location.reload(), 1000);
-}
+// Aggiungi dati specifici solo se necessari per questa view
+@if(isset($prodotto))
+window.PageData.prodotto = @json($prodotto);
+@endif
 
-$(document).ready(function() {
-    console.log('📊 Statistiche Staff Compatte inizializzate');
+@if(isset($prodotti))
+window.PageData.prodotti = @json($prodotti);
+@endif
 
-    // === ANIMAZIONI CONTATORI ===
-    function animateCounters() {
-        $('.h5.fw-bold').each(function() {
-            const $counter = $(this);
-            const text = $counter.text().trim();
-            const target = parseInt(text.replace(/[^\d]/g, ''));
-            
-            if (!isNaN(target) && target > 0 && target < 500) {
-                $counter.text('0');
-                
-                $({ counter: 0 }).animate({ counter: target }, {
-                    duration: 1200,
-                    easing: 'swing',
-                    step: function() {
-                        $counter.text(Math.ceil(this.counter));
-                    },
-                    complete: function() {
-                        $counter.text(target);
-                    }
-                });
-            }
-        });
-    }
+@if(isset($malfunzionamento))
+window.PageData.malfunzionamento = @json($malfunzionamento);
+@endif
 
-    setTimeout(animateCounters, 300);
+@if(isset($malfunzionamenti))
+window.PageData.malfunzionamenti = @json($malfunzionamenti);
+@endif
 
-    // === TOOLTIP COMPATTI ===
-    $('[title]').tooltip({
-        trigger: 'hover',
-        placement: 'top',
-        delay: { show: 300, hide: 100 }
-    });
+@if(isset($centro))
+window.PageData.centro = @json($centro);
+@endif
 
-    // === HOVER GRAFICI ===
-    $('.chart-bar').hover(
-        function() {
-            $(this).addClass('shadow-sm');
-        },
-        function() {
-            $(this).removeClass('shadow-sm');
-        }
-    );
+@if(isset($centri))
+window.PageData.centri = @json($centri);
+@endif
 
-    // === NOTIFICHE ===
-    @if(session('success'))
-        showNotification('success', {!! json_encode(session('success')) !!});
-    @endif
+@if(isset($categorie))
+window.PageData.categorie = @json($categorie);
+@endif
 
-    @if(session('error'))
-        showNotification('error', {!! json_encode(session('error')) !!});
-    @endif
+@if(isset($staffMembers))
+window.PageData.staffMembers = @json($staffMembers);
+@endif
 
-    function showNotification(type, message) {
-        const alertClass = type === 'error' ? 'danger' : type;
-        const icon = type === 'success' ? 'check-circle' : 'exclamation-triangle';
-        
-        const notification = $(`
-            <div class="alert alert-${alertClass} alert-dismissible fade show position-fixed" 
-                 style="top: 20px; right: 20px; z-index: 9999; max-width: 350px;" 
-                 role="alert">
-                <i class="bi bi-${icon} me-2"></i>
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        `);
-        
-        $('body').append(notification);
-        setTimeout(() => $('.alert').alert('close'), 4000);
-    }
+@if(isset($stats))
+window.PageData.stats = @json($stats);
+@endif
 
-    window.showNotification = showNotification;
+@if(isset($user))
+window.PageData.user = @json($user);
+@endif
 
-    console.log('✅ Statistiche Staff Compatte caricate');
-});
-
-// Auto-refresh ogni 15 minuti
-setInterval(() => {
-    console.log('🔄 Auto-refresh statistiche staff');
-}, 900000);
+// Aggiungi altri dati che potrebbero servire...
 </script>
 @endpush
 

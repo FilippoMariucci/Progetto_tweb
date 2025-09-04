@@ -416,334 +416,51 @@
 
 @push('scripts')
 <script>
-/**
- * JavaScript per Manutenzione Admin - Versione Compatta
- * Gestisce monitoraggio sistema, cache e controlli automatici
- */
+// Inizializza i dati della pagina se non esistono già
+window.PageData = window.PageData || {};
 
-// Variabili globali per il monitoraggio
-let systemCheckInterval = null;
-let autoRefreshEnabled = true;
+// Aggiungi dati specifici solo se necessari per questa view
+@if(isset($prodotto))
+window.PageData.prodotto = @json($prodotto);
+@endif
 
-$(document).ready(function() {
-    console.log('🔧 Inizializzazione manutenzione admin (compatta)');
-    
-    // Controllo iniziale stato sistema
-    checkSystemStatus();
-    
-    // Avvia auto-refresh se abilitato
-    startAutoRefresh();
-    
-    // Setup event listeners
-    setupEventListeners();
-});
+@if(isset($prodotti))
+window.PageData.prodotti = @json($prodotti);
+@endif
 
-/**
- * Configura tutti gli event listener per l'interfaccia
- */
-function setupEventListeners() {
-    // Pulsante controllo manuale sistema
-    $('#manual-check').on('click', function() {
-        checkSystemStatus();
-    });
-    
-    // Toggle auto-refresh con feedback visivo
-    $('#auto-refresh').on('change', function() {
-        autoRefreshEnabled = $(this).is(':checked');
-        
-        if (autoRefreshEnabled) {
-            startAutoRefresh();
-            showNotification('Auto-refresh attivato', 'success');
-        } else {
-            stopAutoRefresh();
-            showNotification('Auto-refresh disattivato', 'info');
-        }
-    });
-    
-    // Conferme per azioni critiche
-    $('form').on('submit', function(e) {
-        const btn = $(this).find('button[type="submit"]');
-        const actionText = btn.text().trim();
-        
-        // Mostra loading durante l'invio
-        if (!btn.hasClass('btn-sm')) {
-            btn.prop('disabled', true);
-            btn.html('<i class="bi bi-arrow-repeat spinner-border spinner-border-sm me-1"></i>Elaborazione...');
-        }
-    });
-}
+@if(isset($malfunzionamento))
+window.PageData.malfunzionamento = @json($malfunzionamento);
+@endif
 
-/**
- * Controlla lo stato del sistema via AJAX
- * Implementazione compatta con gestione errori
- */
-function checkSystemStatus() {
-    const statusContainer = $('#system-status');
-    const button = $('#manual-check');
-    
-    // Mostra stato loading compatto
-    statusContainer.html(`
-        <div class="d-flex justify-content-center">
-            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
-            <small>Controllo...</small>
-        </div>
-    `);
-    
-    button.prop('disabled', true);
-    
-    // Simula chiamata AJAX (sostituire con endpoint reale)
-    setTimeout(() => {
-        try {
-            // Simula risposta sistema (in produzione usare vero endpoint)
-            const mockResponse = {
-                success: true,
-                status: 'operational',
-                components: {
-                    database: 'online',
-                    cache: 'active',
-                    storage: 'writable',
-                    logs: 'active'
-                },
-                server_info: {
-                    memory_usage: (Math.random() * 50 + 20).toFixed(1) + 'MB'
-                }
-            };
-            
-            displaySystemStatus(mockResponse);
-            updateMemoryUsage(mockResponse.server_info);
-            
-        } catch (error) {
-            console.error('Errore controllo sistema:', error);
-            displaySystemError('Errore nel controllo sistema');
-        } finally {
-            button.prop('disabled', false);
-        }
-    }, 1500); // Simula latenza rete
-}
+@if(isset($malfunzionamenti))
+window.PageData.malfunzionamenti = @json($malfunzionamenti);
+@endif
 
-/**
- * Mostra lo stato del sistema in formato compatto
- */
-function displaySystemStatus(response) {
-    const statusContainer = $('#system-status');
-    const status = response.status;
-    
-    let statusClass, statusIcon, statusText;
-    
-    // Determina classe e icona in base allo stato
-    switch(status) {
-        case 'operational':
-            statusClass = 'success';
-            statusIcon = 'check-circle-fill';
-            statusText = 'Operativo';
-            break;
-        case 'degraded':
-            statusClass = 'warning';
-            statusIcon = 'exclamation-triangle-fill';
-            statusText = 'Degradato';
-            break;
-        case 'error':
-            statusClass = 'danger';
-            statusIcon = 'x-circle-fill';
-            statusText = 'Errori';
-            break;
-        default:
-            statusClass = 'secondary';
-            statusIcon = 'question-circle-fill';
-            statusText = 'Sconosciuto';
-    }
-    
-    // HTML compatto per lo stato
-    let html = `
-        <div class="text-center mb-2">
-            <i class="bi bi-${statusIcon} text-${statusClass} fs-4"></i>
-            <div class="fw-semibold text-${statusClass}">${statusText}</div>
-            <small class="text-muted">${new Date().toLocaleTimeString('it-IT')}</small>
-        </div>
-    `;
-    
-    // Aggiunge dettagli componenti se disponibili
-    if (response.components) {
-        html += '<div class="row g-1">';
-        
-        Object.entries(response.components).forEach(([component, state]) => {
-            let componentClass = state === 'online' || state === 'active' || state === 'writable' ? 'success' : 'warning';
-            let componentIcon = componentClass === 'success' ? 'check' : 'exclamation-triangle';
-            
-            html += `
-                <div class="col-6">
-                    <div class="d-flex align-items-center justify-content-center p-1">
-                        <i class="bi bi-${componentIcon} text-${componentClass} me-1"></i>
-                        <small class="fw-semibold">${component}</small>
-                    </div>
-                </div>
-            `;
-        });
-        
-        html += '</div>';
-    }
-    
-    statusContainer.html(html);
-}
+@if(isset($centro))
+window.PageData.centro = @json($centro);
+@endif
 
-/**
- * Mostra errore nel controllo sistema
- */
-function displaySystemError(message) {
-    const statusContainer = $('#system-status');
-    
-    statusContainer.html(`
-        <div class="text-center">
-            <i class="bi bi-exclamation-triangle text-danger fs-4"></i>
-            <div class="fw-semibold text-danger">Errore</div>
-            <small class="text-muted">${message}</small>
-        </div>
-    `);
-}
+@if(isset($centri))
+window.PageData.centri = @json($centri);
+@endif
 
-/**
- * Aggiorna display memoria nell'header
- */
-function updateMemoryUsage(serverInfo) {
-    if (serverInfo && serverInfo.memory_usage) {
-        $('#memory-display').text(serverInfo.memory_usage);
-    }
-}
+@if(isset($categorie))
+window.PageData.categorie = @json($categorie);
+@endif
 
-/**
- * Avvia controlli automatici del sistema
- */
-function startAutoRefresh() {
-    if (systemCheckInterval) {
-        clearInterval(systemCheckInterval);
-    }
-    
-    if (autoRefreshEnabled) {
-        systemCheckInterval = setInterval(function() {
-            if (autoRefreshEnabled && document.visibilityState === 'visible') {
-                checkSystemStatus();
-            }
-        }, 30000); // Ogni 30 secondi
-        
-        console.log('✅ Auto-refresh avviato (30s)');
-    }
-}
+@if(isset($staffMembers))
+window.PageData.staffMembers = @json($staffMembers);
+@endif
 
-/**
- * Ferma controlli automatici
- */
-function stopAutoRefresh() {
-    if (systemCheckInterval) {
-        clearInterval(systemCheckInterval);
-        systemCheckInterval = null;
-        console.log('⏹️ Auto-refresh fermato');
-    }
-}
+@if(isset($stats))
+window.PageData.stats = @json($stats);
+@endif
 
-/**
- * Funzione per aggiornare info sistema (chiamata dal pulsante header)
- */
-function aggiornaInfoSistema() {
-    const btn = event.target;
-    const originalHtml = btn.innerHTML;
-    
-    // Mostra loading
-    btn.innerHTML = '<i class="bi bi-arrow-repeat spinner-border spinner-border-sm"></i>';
-    btn.disabled = true;
-    
-    // Ricarica pagina dopo delay
-    setTimeout(() => {
-        location.reload();
-    }, 1000);
-}
+@if(isset($user))
+window.PageData.user = @json($user);
+@endif
 
-/**
- * Sistema di notifiche toast compatto
- */
-function showNotification(message, type = 'success') {
-    // Rimuove notifiche precedenti
-    $('.toast-notification').remove();
-    
-    const alertClass = type === 'success' ? 'alert-success' : 
-                      type === 'info' ? 'alert-info' :
-                      type === 'warning' ? 'alert-warning' : 'alert-danger';
-    
-    const icon = type === 'success' ? 'check-circle' : 
-                 type === 'info' ? 'info-circle' :
-                 type === 'warning' ? 'exclamation-triangle' : 'x-circle';
-    
-    // Crea notifica compatta
-    const notification = $(`
-        <div class="toast-notification alert ${alertClass} alert-dismissible fade show position-fixed" 
-             style="top: 20px; right: 20px; z-index: 9999; max-width: 300px;">
-            <i class="bi bi-${icon} me-2"></i>
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `);
-    
-    $('body').append(notification);
-    
-    // Auto-rimuovi dopo 3 secondi
-    setTimeout(() => {
-        notification.fadeOut(() => notification.remove());
-    }, 3000);
-}
-
-/**
- * Gestione visibilità pagina per ottimizzare performance
- */
-document.addEventListener('visibilitychange', function() {
-    if (document.visibilityState === 'hidden') {
-        // Pausa auto-refresh quando pagina non visibile
-        if (autoRefreshEnabled) {
-            console.log('⏸️ Auto-refresh in pausa (tab nascosto)');
-        }
-    } else {
-        // Riprendi e fai controllo immediato
-        if (autoRefreshEnabled) {
-            console.log('▶️ Auto-refresh ripreso');
-            checkSystemStatus();
-        }
-    }
-});
-
-/**
- * Cleanup quando si esce dalla pagina
- */
-$(window).on('beforeunload', function() {
-    stopAutoRefresh();
-});
-
-/**
- * Gestione connessione di rete
- */
-$(window).on('online', function() {
-    showNotification('Connessione ripristinata', 'success');
-    if (autoRefreshEnabled) {
-        checkSystemStatus();
-    }
-});
-
-$(window).on('offline', function() {
-    showNotification('Connessione persa', 'warning');
-});
-
-/**
- * Debug per sviluppo
- */
-if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    // Debug ogni minuto in sviluppo
-    setInterval(() => {
-        console.log('🔧 Debug Manutenzione:', {
-            autoRefresh: autoRefreshEnabled,
-            interval: !!systemCheckInterval,
-            visible: document.visibilityState
-        });
-    }, 60000);
-}
-
-console.log('✅ Sistema manutenzione admin compatto inizializzato');
+// Aggiungi altri dati che potrebbero servire...
 </script>
 @endpush
 

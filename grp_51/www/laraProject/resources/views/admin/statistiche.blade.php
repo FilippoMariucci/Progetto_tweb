@@ -1,9 +1,16 @@
 {{--
-    Statistiche Admin - Layout Compatto e Lineare
+    ===================================================================
+    STATISTICHE ADMIN - Vista Blade Corretta
+    ===================================================================
     Sistema Assistenza Tecnica - Gruppo 51
+    File: resources/views/admin/statistiche.blade.php
     
-    Vista ottimizzata per amministratori con layout compatto, 
-    grafici più piccoli e informazioni essenziali
+    FUNZIONALITÀ:
+    - Layout compatto per amministratori
+    - Grafici Chart.js integrati
+    - Statistiche in tempo reale
+    - Design responsive
+    ===================================================================
 --}}
 
 @extends('layouts.app')
@@ -31,7 +38,7 @@
             <a href="{{ route('admin.statistiche.index', ['periodo' => 90]) }}" 
                class="btn btn-outline-success {{ ($periodo ?? 30) == 90 ? 'active' : '' }}">90g</a>
             {{-- Azioni --}}
-            <button class="btn btn-primary" onclick="aggiornaStatistiche()">
+            <button class="btn btn-primary" onclick="aggiornaStatistiche(event)">
                 <i class="bi bi-arrow-clockwise"></i> Aggiorna
             </button>
             <a href="{{ route('admin.dashboard') }}" class="btn btn-outline-secondary">
@@ -48,18 +55,6 @@
                     <i class="bi bi-people text-primary fs-4"></i>
                     <h5 class="fw-bold mb-0 mt-1">{{ $stats['utenti_totali'] ?? 0 }}</h5>
                     <small class="text-muted">Utenti Totali</small>
-                    @if(isset($stats['nuovi_utenti']) && $stats['nuovi_utenti'] > 0)
-                        <br><small class="text-success">+{{ $stats['nuovi_utenti'] }} nuovi</small>
-                    @endif
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <div class="card border-0 shadow-sm text-center">
-                <div class="card-body py-2">
-                    <i class="bi bi-box text-info fs-4"></i>
-                    <h5 class="fw-bold mb-0 mt-1">{{ $stats['prodotti_totali'] ?? 0 }}</h5>
-                    <small class="text-muted">Prodotti</small>
                     @if(isset($stats['nuovi_prodotti']) && $stats['nuovi_prodotti'] > 0)
                         <br><small class="text-info">+{{ $stats['nuovi_prodotti'] }} nuovi</small>
                     @endif
@@ -400,358 +395,149 @@
 </div>
 @endsection
 
+{{-- === SCRIPTS SECTION === --}}
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Chart.js per i grafici -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+
 <script>
-// === CONFIGURAZIONE GRAFICI COMPATTI ===
+// ===================================================================
+// PASSAGGIO DATI DAL CONTROLLER PHP AL JAVASCRIPT
+// ===================================================================
+// Questo è il punto cruciale: i dati devono essere passati correttamente
+// dal controller Laravel al JavaScript attraverso la vista Blade
 
-// Configurazione comune per tutti i grafici
-const commonOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-        legend: {
-            display: false // Nasconde legenda per risparmiare spazio
-        }
-    },
-    elements: {
-        point: {
-            radius: 3 // Punti più piccoli
-        }
-    }
-};
+console.log('📊 Inizializzazione dati statistiche...');
 
-// Dati dal controller PHP
-const distribuzioneUtenti = @json($distribuzioneUtenti ?? []);
-const prodottiPerCategoria = @json($prodottiPerCategoria ?? []);
-const malfunzionamentiPerGravita = @json($malfunzionamentiPerGravita ?? []);
-const crescitaUtenti = @json($crescitaUtenti ?? []);
-const crescitaSoluzioni = @json($crescitaSoluzioni ?? []);
+// Passa i dati dal controller PHP alle variabili JavaScript globali
+// Questi dati vengono poi utilizzati dai grafici Chart.js
+window.distribuzioneUtenti = @json($distribuzioneUtenti ?? []);
+window.prodottiPerCategoria = @json($prodottiPerCategoria ?? []);
+window.malfunzionamentiPerGravita = @json($malfunzionamentiPerGravita ?? []);
+window.crescitaUtenti = @json($crescitaUtenti ?? []);
+window.crescitaSoluzioni = @json($crescitaSoluzioni ?? []);
 
-$(document).ready(function() {
-    console.log('📊 Statistiche Admin Compatte inizializzate');
-    console.log('📊 Dati ricevuti:', {
-        distribuzioneUtenti,
-        prodottiPerCategoria,
-        malfunzionamentiPerGravita
-    });
-    
-    // Inizializza grafici
-    initializeCharts();
+// Debug: mostra i dati ricevuti dal controller
+console.log('🔍 Dati ricevuti dal controller:', {
+    distribuzioneUtenti: window.distribuzioneUtenti,
+    prodottiPerCategoria: window.prodottiPerCategoria,
+    malfunzionamentiPerGravita: window.malfunzionamentiPerGravita,
+    crescitaUtenti: window.crescitaUtenti,
+    crescitaSoluzioni: window.crescitaSoluzioni
 });
 
-// Grafico Utenti - Compatto
-function initUsersChart() {
-    const ctx = document.getElementById('graficoUtenti');
-    if (!ctx) return;
-    
-    const labels = [];
-    const values = [];
-    const colors = ['#6c757d', '#0dcaf0', '#ffc107', '#dc3545'];
-    
-    Object.entries(distribuzioneUtenti).forEach(([livello, count]) => {
-        switch(livello) {
-            case '1': labels.push('Pubblico'); break;
-            case '2': labels.push('Tecnici'); break;
-            case '3': labels.push('Staff'); break;
-            case '4': labels.push('Admin'); break;
-            default: labels.push('Livello ' + livello); break;
-        }
-        values.push(count);
-    });
-    
-    if (values.length === 0) return;
-    
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: values,
-                backgroundColor: colors.slice(0, labels.length),
-                borderWidth: 1
-            }]
-        },
-        options: {
-            ...commonOptions,
-            cutout: '50%'
-        }
-    });
+// Verifica che i dati non siano vuoti
+if (Object.keys(window.distribuzioneUtenti).length === 0) {
+    console.warn('⚠️ distribuzioneUtenti è vuoto - controllare il controller');
+}
+if (Object.keys(window.prodottiPerCategoria).length === 0) {
+    console.warn('⚠️ prodottiPerCategoria è vuoto - controllare il controller');
+}
+if (Object.keys(window.malfunzionamentiPerGravita).length === 0) {
+    console.warn('⚠️ malfunzionamentiPerGravita è vuoto - controllare il controller');
 }
 
-// Grafico Prodotti - Compatto  
-function initProductsChart() {
-    const ctx = document.getElementById('graficoProdotti');
-    if (!ctx) return;
-    
-    const labels = Object.keys(prodottiPerCategoria).map(cat => 
-        cat.charAt(0).toUpperCase() + cat.slice(1)
-    );
-    const values = Object.values(prodottiPerCategoria);
-    
-    if (values.length === 0) return;
-    
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: values,
-                backgroundColor: '#0dcaf0',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            ...commonOptions,
-            scales: {
-                x: {
-                    display: false
-                },
-                y: {
-                    beginAtZero: true,
-                    display: false,
-                    ticks: {
-                        stepSize: 1
-                    }
-                }
-            }
-        }
-    });
-}
+// Imposta il route corrente per il JavaScript
+window.LaravelApp = window.LaravelApp || {};
+window.LaravelApp.route = 'admin.statistiche';
 
-// Grafico Gravità - Compatto
-function initGravityChart() {
-    const ctx = document.getElementById('graficoGravita');
-    if (!ctx) return;
-    
-    const labels = [];
-    const values = [];
-    const colors = [];
-    
-    const gravitaOrder = ['critica', 'alta', 'media', 'bassa'];
-    const gravitaColors = {
-        'critica': '#dc3545',
-        'alta': '#ffc107', 
-        'media': '#0dcaf0',
-        'bassa': '#198754'
-    };
-    
-    gravitaOrder.forEach(gravita => {
-        if (malfunzionamentiPerGravita[gravita]) {
-            labels.push(gravita.charAt(0).toUpperCase() + gravita.slice(1));
-            values.push(malfunzionamentiPerGravita[gravita]);
-            colors.push(gravitaColors[gravita]);
-        }
-    });
-    
-    if (values.length === 0) return;
-    
-    new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: values,
-                backgroundColor: colors,
-                borderWidth: 1
-            }]
-        },
-        options: {
-            ...commonOptions
-        }
-    });
-}
-
-// Grafico Crescita - Compatto
-function initGrowthChart() {
-    const ctx = document.getElementById('graficoCrescita');
-    if (!ctx) return;
-    
-    const labels = crescitaUtenti.map(item => {
-        const date = new Date(item.data);
-        return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
-    });
-    
-    const utentiData = crescitaUtenti.map(item => item.count || 0);
-    const soluzioniData = crescitaSoluzioni.map(item => item.count || 0);
-    
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Utenti',
-                data: utentiData,
-                borderColor: '#0dcaf0',
-                backgroundColor: 'rgba(13, 202, 240, 0.1)',
-                tension: 0.3,
-                fill: true,
-                borderWidth: 2
-            }, {
-                label: 'Soluzioni',
-                data: soluzioniData,
-                borderColor: '#198754',
-                backgroundColor: 'rgba(25, 135, 84, 0.1)',
-                tension: 0.3,
-                fill: true,
-                borderWidth: 2
-            }]
-        },
-        options: {
-            ...commonOptions,
-            scales: {
-                x: {
-                    display: false
-                },
-                y: {
-                    beginAtZero: true,
-                    display: false,
-                    ticks: {
-                        stepSize: 1
-                    }
-                }
-            }
-        }
-    });
-}
-
-function initializeCharts() {
-    try {
-        initUsersChart();
-        initProductsChart();
-        initGravityChart();
-        initGrowthChart();
-        console.log('✅ Tutti i grafici admin inizializzati');
-    } catch (error) {
-        console.error('❌ Errore inizializzazione grafici:', error);
-    }
-}
-
-// === FUNZIONI UTILITY ===
-function aggiornaStatistiche() {
-    const btn = event.target;
-    const originalHtml = btn.innerHTML;
-    btn.innerHTML = '<i class="bi bi-arrow-repeat spinner-border spinner-border-sm"></i>';
-    btn.disabled = true;
-    
-    setTimeout(() => location.reload(), 1000);
-}
-
-// === ANIMAZIONI CONTATORI ===
-function animateCounters() {
-    $('.h5.fw-bold').each(function() {
-        const $counter = $(this);
-        const text = $counter.text().trim();
-        const target = parseInt(text.replace(/[^\d]/g, ''));
-        
-        if (!isNaN(target) && target > 0 && target < 1000) {
-            $counter.text('0');
-            
-            $({ counter: 0 }).animate({ counter: target }, {
-                duration: 1500,
-                easing: 'swing',
-                step: function() {
-                    $counter.text(Math.ceil(this.counter));
-                },
-                complete: function() {
-                    $counter.text(target);
-                }
-            });
-        }
-    });
-}
-
-setTimeout(animateCounters, 500);
-
-// === NOTIFICHE ===
-function showNotification(message, type = 'success') {
-    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
-    const icon = type === 'success' ? 'check-circle' : 'exclamation-triangle';
-    
-    const alert = $(`
-        <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
-             style="top: 20px; right: 20px; z-index: 9999; max-width: 350px;">
-            <i class="bi bi-${icon} me-2"></i>
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `);
-    
-    $('body').append(alert);
-    setTimeout(() => alert.alert('close'), 4000);
-}
-
-// Auto-refresh ogni 10 minuti
-setInterval(() => {
-    console.log('🔄 Auto-refresh statistiche admin');
-}, 600000);
-
-console.log('✅ Statistiche Admin Compatte caricate');
+console.log('✅ Dati passati correttamente al JavaScript');
 </script>
+
+<!-- Carica il file JavaScript delle statistiche -->
+<script src="{{ asset('js/admin/statistiche.js') }}"></script>
 @endpush
 
+{{-- === STYLES SECTION === --}}
 @push('styles')
 <style>
-/* === STILI COMPATTI PER STATISTICHE ADMIN === */
+/* ===================================================================
+   STILI COMPATTI PER STATISTICHE ADMIN
+   =================================================================== */
 
-/* Badge per livelli utente */
-.badge-livello-1 { background-color: #6c757d !important; color: white !important; }
-.badge-livello-2 { background-color: #0dcaf0 !important; color: white !important; }
-.badge-livello-3 { background-color: #ffc107 !important; color: #000 !important; }
-.badge-livello-4 { background-color: #dc3545 !important; color: white !important; }
+/* Badge personalizzati per livelli utente */
+.badge-livello-1 { 
+    background-color: #6c757d !important; 
+    color: white !important; 
+}
+.badge-livello-2 { 
+    background-color: #0dcaf0 !important; 
+    color: white !important; 
+}
+.badge-livello-3 { 
+    background-color: #ffc107 !important; 
+    color: #000 !important; 
+}
+.badge-livello-4 { 
+    background-color: #dc3545 !important; 
+    color: white !important; 
+}
 
-/* Card più compatte */
+/* Card con bordi arrotondati e ombre leggere */
 .card {
     border-radius: 8px;
     border: none !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+.card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+}
+
+/* Header delle card più compatti */
 .card-header {
     border-radius: 8px 8px 0 0 !important;
     font-size: 0.9rem;
+    font-weight: 600;
 }
 
 .card-body {
     font-size: 0.9rem;
 }
 
-/* Tabelle più compatte */
+/* Tabelle più compatte per layout responsivo */
 .table-sm td, .table-sm th {
     padding: 0.4rem;
     font-size: 0.85rem;
+    vertical-align: middle;
 }
 
-/* Grafici più piccoli e responsive */
+/* Grafici responsive con altezza fissa */
 canvas {
     max-height: 120px !important;
 }
 
-/* Badge più piccoli */
+/* Badge più piccoli e colorati */
 .badge {
     font-size: 0.7rem;
+    border-radius: 6px;
 }
 
-/* Bottoni più compatti */
+/* Bottoni gruppo più compatti */
 .btn-group-sm .btn {
     padding: 0.25rem 0.5rem;
     font-size: 0.8rem;
+    border-radius: 4px;
 }
 
 /* Liste compatte */
 .list-group-item {
     font-size: 0.85rem;
+    border-radius: 4px !important;
 }
 
-/* Progress bar e elementi interattivi */
+/* Progress bar con animazioni */
 .progress {
     border-radius: 6px;
+    height: 8px;
 }
 
 .progress-bar {
-    transition: width 0.4s ease;
+    transition: width 0.6s ease;
 }
 
-/* Responsive migliorato */
+/* === RESPONSIVE DESIGN === */
 @media (max-width: 768px) {
     .card-body {
         padding: 0.75rem;
@@ -773,19 +559,20 @@ canvas {
         margin-bottom: 0.25rem;
         border-radius: 0.375rem !important;
     }
-}
-
-@media (max-width: 576px) {
+    
+    /* Header responsive */
     .d-flex.justify-content-between {
         flex-direction: column;
-        align-items: start !important;
+        align-items: flex-start !important;
+        gap: 0.5rem;
     }
     
     .btn-group {
-        margin-top: 0.5rem;
         width: 100%;
     }
-    
+}
+
+@media (max-width: 576px) {
     .small {
         font-size: 0.75rem !important;
     }
@@ -797,24 +584,36 @@ canvas {
     .fs-4 {
         font-size: 1.2rem !important;
     }
+    
+    /* Container più stretto su mobile */
+    .container {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
 }
 
-/* Animazioni leggere */
-.card {
-    transition: transform 0.2s ease;
+/* === ANIMAZIONI E TRANSIZIONI === */
+.card, .btn, .badge, .alert {
+    transition: all 0.2s ease-in-out;
 }
 
-.card:hover {
+/* Effetti hover */
+.btn:hover {
     transform: translateY(-1px);
 }
 
-/* Loading spinner */
+.table-hover tbody tr:hover {
+    --bs-table-accent-bg: rgba(13, 110, 253, 0.05);
+    transform: scale(1.001);
+}
+
+/* Spinner personalizzato */
 .spinner-border-sm {
     width: 0.8rem;
     height: 0.8rem;
 }
 
-/* Colori personalizzati */
+/* === UTILITÀ === */
 .text-muted {
     color: #6c757d !important;
 }
@@ -823,40 +622,18 @@ canvas {
     font-weight: 600;
 }
 
-/* Effetti speciali per le statistiche */
 .bg-opacity-10 {
     background-color: rgba(var(--bs-primary-rgb), 0.1) !important;
 }
 
-/* Stile per le icone nelle card */
-.fs-4 {
-    font-size: 1.25rem !important;
+/* Focus per accessibilità */
+.btn:focus-visible, 
+.form-control:focus-visible {
+    outline: 2px solid #0d6efd;
+    outline-offset: 2px;
 }
 
-/* Hover per le righe della tabella */
-.table-hover tbody tr:hover {
-    --bs-table-accent-bg: rgba(0, 0, 0, 0.025);
-}
-
-/* Alert personalizzati */
-.alert {
-    border-radius: 8px;
-    font-size: 0.9rem;
-}
-
-/* Ottimizzazioni per stampa */
-@media print {
-    .btn, .btn-group {
-        display: none !important;
-    }
-    
-    .card {
-        border: 1px solid #dee2e6 !important;
-        break-inside: avoid;
-    }
-}
-
-/* Scrollbar personalizzata per le tabelle */
+/* Scrollbar personalizzata */
 .table-responsive::-webkit-scrollbar {
     height: 6px;
 }
@@ -875,64 +652,7 @@ canvas {
     background: #a8a8a8;
 }
 
-/* Effetto focus migliorato */
-.btn:focus {
-    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
-}
-
-/* Stile per elementi disabilitati */
-.btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-/* Animazione per il refresh */
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.spinner-border {
-    animation: spin 1s linear infinite;
-}
-
-/* Margini consistenti */
-.mb-3 {
-    margin-bottom: 1rem !important;
-}
-
-.mt-4 {
-    margin-top: 1.5rem !important;
-}
-
-/* Stile per link */
-a {
-    text-decoration: none;
-}
-
-a:hover {
-    text-decoration: underline;
-}
-
-/* Stili specifici per badge di stato */
-.badge.bg-success {
-    background-color: #198754 !important;
-}
-
-.badge.bg-warning {
-    background-color: #ffc107 !important;
-    color: #000 !important;
-}
-
-.badge.bg-danger {
-    background-color: #dc3545 !important;
-}
-
-.badge.bg-info {
-    background-color: #0dcaf0 !important;
-}
-
-/* Stili per le cards con colori specifici */
+/* === COLORI TEMA === */
 .card-header.bg-primary {
     background-color: #0d6efd !important;
 }
@@ -943,6 +663,7 @@ a:hover {
 
 .card-header.bg-warning {
     background-color: #ffc107 !important;
+    color: #000 !important;
 }
 
 .card-header.bg-success {
@@ -961,59 +682,32 @@ a:hover {
     background-color: #212529 !important;
 }
 
-/* Finali responsive per ultra-piccoli schermi */
-@media (max-width: 360px) {
-    .container {
-        padding-left: 0.5rem;
-        padding-right: 0.5rem;
-    }
-    
-    .card-body {
-        padding: 0.5rem;
-    }
-    
-    .btn-group-sm .btn {
-        font-size: 0.7rem;
-        padding: 0.2rem 0.4rem;
-    }
-    
-    .h2 {
-        font-size: 1.3rem !important;
-    }
-}
-
-/* Stili per tooltip */
-.tooltip {
-    font-size: 0.8rem;
-}
-
-/* Miglioramenti accessibilità */
-.sr-only {
-    position: absolute !important;
-    width: 1px !important;
-    height: 1px !important;
-    padding: 0 !important;
-    margin: -1px !important;
-    overflow: hidden !important;
-    clip: rect(0,0,0,0) !important;
-    white-space: nowrap !important;
-    border: 0 !important;
-}
-
-/* Focus visibile per accessibilità */
-.btn:focus-visible, 
-.form-control:focus-visible {
-    outline: 2px solid #0d6efd;
-    outline-offset: 2px;
-}
-
-/* Transizioni fluide globali */
+/* === OTTIMIZZAZIONI PRESTAZIONI === */
 * {
     box-sizing: border-box;
 }
 
-.card, .btn, .badge, .alert, .table-hover tbody tr {
-    transition: all 0.2s ease-in-out;
+/* Migliora le performance di rendering */
+.card, canvas, .table {
+    contain: layout style;
+}
+
+/* === STAMPA === */
+@media print {
+    .btn, .btn-group {
+        display: none !important;
+    }
+    
+    .card {
+        border: 1px solid #dee2e6 !important;
+        break-inside: avoid;
+        box-shadow: none !important;
+    }
+    
+    .card-header {
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+    }
 }
 </style>
 @endpush

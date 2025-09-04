@@ -587,329 +587,50 @@ mark {
 
 @push('scripts')
 <script>
-$(document).ready(function() {
-    console.log('📦 Catalogo Tecnico Compatto caricato');
-    console.log('📊 Prodotti visualizzati:', {{ $prodotti->count() }});
-    
-    // === GESTIONE FORM ===
-    $('#clearSearch').on('click', function() {
-        $('#search').val('').focus();
-    });
-    
-    $('#categoria, #filter').on('change', function() {
-        $(this).closest('form').submit();
-    });
-    
-    // === SHORTCUT TASTIERA ===
-    $(document).on('keydown', function(e) {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-            e.preventDefault();
-            $('#search').focus();
-        }
-        if (e.key === 'Escape') {
-            $('#search').blur();
-        }
-    });
-    
-    // === GESTIONE ERRORI IMMAGINI ===
-    $('.product-image').on('error', function() {
-        const $this = $(this);
-        const productName = $this.attr('alt') || 'Prodotto';
-        
-        $this.replaceWith(`
-            <div class="card-img-top d-flex align-items-center justify-content-center bg-light" 
-                 style="height: 140px;">
-                <div class="text-center">
-                    <i class="bi bi-image text-muted" style="font-size: 2rem;"></i>
-                    <div class="small text-muted mt-1">${productName}</div>
-                </div>
-            </div>
-        `);
-    });
-    
-    // === LAZY LOADING IMMAGINI ===
-    if ('IntersectionObserver' in window) {
-        const imageObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const img = entry.target;
-                    if (img.dataset.src) {
-                        img.src = img.dataset.src;
-                        img.classList.remove('lazy');
-                        imageObserver.unobserve(img);
-                    }
-                }
-            });
-        });
-        
-        document.querySelectorAll('img[data-src]').forEach(img => {
-            imageObserver.observe(img);
-        });
-    }
-    
-    // === EVIDENZIAZIONE RICERCA ===
-    const searchTerm = '{{ request("search") }}';
-    if (searchTerm && searchTerm.length > 2 && !searchTerm.includes('*')) {
-        $('.card-title, .card-text').each(function() {
-            const text = $(this).html();
-            const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-            const highlighted = text.replace(regex, '<mark>$1</mark>');
-            $(this).html(highlighted);
-        });
-    }
-    
-    // === TOOLTIP ===
-    $('[data-bs-toggle="tooltip"]').tooltip({
-        trigger: 'hover',
-        placement: 'top'
-    });
-    
-    // === LOADING FORM ===
-    $('form').on('submit', function() {
-        const $submitBtn = $(this).find('button[type="submit"]');
-        if ($submitBtn.length) {
-            const originalText = $submitBtn.html();
-            $submitBtn.html('<i class="bi bi-hourglass-split me-1"></i>Cercando...')
-                      .prop('disabled', true);
-            
-            setTimeout(() => {
-                $submitBtn.html(originalText).prop('disabled', false);
-            }, 3000);
-        }
-    });
-    
-    // === ANALYTICS RICERCA ===
-    @if(request('search') || request('categoria') || request('filter'))
-        console.log('🔍 Ricerca tecnica effettuata:', {
-            termine: '{{ request("search") }}',
-            categoria: '{{ request("categoria") }}',
-            filtro: '{{ request("filter") }}',
-            risultati: {{ $prodotti->total() }},
-            staff_filter: '{{ request("staff_filter") }}',
-            timestamp: new Date().toISOString()
-        });
-    @endif
-    
-    // === AUTO-REFRESH OPZIONALE ===
-    @if(request('filter') === 'critici')
-        // Aggiorna ogni 5 minuti per problemi critici
-        setInterval(() => {
-            console.log('🔄 Auto-refresh per problemi critici');
-            // location.reload(); // Decommentare se necessario
-        }, 300000);
-    @endif
-    
-    // === ANIMAZIONI CONTATORI ===
-    setTimeout(() => {
-        $('.fw-bold').each(function() {
-            const $counter = $(this);
-            const text = $counter.text().trim();
-            const target = parseInt(text);
-            
-            if (!isNaN(target) && target > 0 && target < 100) {
-                $counter.text('0');
-                
-                $({ counter: 0 }).animate({ counter: target }, {
-                    duration: 1000,
-                    easing: 'swing',
-                    step: function() {
-                        $counter.text(Math.ceil(this.counter));
-                    },
-                    complete: function() {
-                        $counter.text(target);
-                    }
-                });
-            }
-        });
-    }, 300);
-    
-    // === GESTIONE STATI HOVER ===
-    $('.product-card').hover(
-        function() {
-            $(this).addClass('shadow-lg');
-        },
-        function() {
-            $(this).removeClass('shadow-lg');
-        }
-    );
-    
-    // === CONFERME AZIONI ===
-    $('[data-confirm]').on('click', function(e) {
-        const message = $(this).data('confirm') || 'Sei sicuro di voler procedere?';
-        if (!confirm(message)) {
-            e.preventDefault();
-            return false;
-        }
-    });
-    
-    // === NOTIFICHE SESSIONE ===
-    @if(session('success'))
-        showNotification('{{ session('success') }}', 'success');
-    @endif
-    
-    @if(session('error'))
-        showNotification('{{ session('error') }}', 'error');
-    @endif
-    
-    @if(session('warning'))
-        showNotification('{{ session('warning') }}', 'warning');
-    @endif
-    
-    function showNotification(message, type = 'info') {
-        const alertClass = {
-            'success': 'alert-success',
-            'error': 'alert-danger',
-            'warning': 'alert-warning',
-            'info': 'alert-info'
-        }[type] || 'alert-info';
-        
-        const icon = {
-            'success': 'check-circle',
-            'error': 'exclamation-triangle',
-            'warning': 'exclamation-triangle',
-            'info': 'info-circle'
-        }[type] || 'info-circle';
-        
-        const notification = $(`
-            <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
-                 style="top: 20px; right: 20px; z-index: 9999; max-width: 350px;" 
-                 role="alert">
-                <i class="bi bi-${icon} me-2"></i>
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        `);
-        
-        $('body').append(notification);
-        
-        // Auto-rimuovi dopo 4 secondi
-        setTimeout(() => {
-            notification.alert('close');
-        }, 4000);
-    }
-    
-    // Rende la funzione disponibile globalmente
-    window.showNotification = showNotification;
-    
-    // === PERFORMANCE MONITORING ===
-    const performanceData = {
-        loadTime: Date.now(),
-        totalProducts: {{ $prodotti->total() }},
-        displayedProducts: {{ $prodotti->count() }},
-        searchActive: {{ request('search') ? 'true' : 'false' }},
-        filtersActive: {{ (request('categoria') || request('filter')) ? 'true' : 'false' }}
-    };
-    
-    console.log('📊 Performance Data:', performanceData);
-    
-    // === CLEANUP ===
-    $(window).on('beforeunload', function() {
-        // Cleanup tooltip
-        $('[data-bs-toggle="tooltip"]').tooltip('dispose');
-        console.log('🧹 Cleanup completato');
-    });
-    
-    console.log('✅ Catalogo Tecnico Compatto completamente caricato');
-});
+// Inizializza i dati della pagina se non esistono già
+window.PageData = window.PageData || {};
 
-// === FUNZIONI GLOBALI UTILITY ===
+// Aggiungi dati specifici solo se necessari per questa view
+@if(isset($prodotto))
+window.PageData.prodotto = @json($prodotto);
+@endif
 
-/**
- * Filtra prodotti per categoria via JavaScript (opzionale)
- */
-function filterByCategory(categoria) {
-    if (categoria) {
-        window.location.href = `{{ route('prodotti.completo.index') }}?categoria=${categoria}`;
-    } else {
-        window.location.href = `{{ route('prodotti.completo.index') }}`;
-    }
-}
+@if(isset($prodotti))
+window.PageData.prodotti = @json($prodotti);
+@endif
 
-/**
- * Ricerca rapida senza submit
- */
-function quickSearch(term) {
-    if (term.length > 2) {
-        $('#search').val(term);
-        $('form').submit();
-    }
-}
+@if(isset($malfunzionamento))
+window.PageData.malfunzionamento = @json($malfunzionamento);
+@endif
 
-/**
- * Toggle filtro staff
- */
-function toggleStaffFilter(filter) {
-    const currentUrl = new URL(window.location.href);
-    
-    if (filter === 'my_products') {
-        currentUrl.searchParams.set('staff_filter', 'my_products');
-    } else {
-        currentUrl.searchParams.delete('staff_filter');
-    }
-    
-    window.location.href = currentUrl.toString();
-}
+@if(isset($malfunzionamenti))
+window.PageData.malfunzionamenti = @json($malfunzionamenti);
+@endif
 
-/**
- * Reset completo filtri
- */
-function resetAllFilters() {
-    window.location.href = `{{ route('prodotti.completo.index') }}`;
-}
+@if(isset($centro))
+window.PageData.centro = @json($centro);
+@endif
 
-/**
- * Funzione per evidenziare un prodotto specifico
- */
-function highlightProduct(productId) {
-    const $card = $(`.product-card[data-product-id="${productId}"]`);
-    if ($card.length) {
-        $card.addClass('border-primary border-3 shadow-lg');
-        $card[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-        
-        setTimeout(() => {
-            $card.removeClass('border-primary border-3');
-        }, 3000);
-    }
-}
+@if(isset($centri))
+window.PageData.centri = @json($centri);
+@endif
 
-/**
- * Statistiche di utilizzo (opzionale per analytics)
- */
-function trackUsage(action, details = {}) {
-    if (typeof gtag !== 'undefined') {
-        gtag('event', action, {
-            ...details,
-            page_title: 'Catalogo Tecnico Completo',
-            page_location: window.location.href
-        });
-    }
-    
-    console.log('📈 Azione tracciata:', action, details);
-}
+@if(isset($categorie))
+window.PageData.categorie = @json($categorie);
+@endif
 
-// === EVENT LISTENERS GLOBALI ===
+@if(isset($staffMembers))
+window.PageData.staffMembers = @json($staffMembers);
+@endif
 
-// Track click sui prodotti
-$(document).on('click', '.product-card a', function() {
-    const productName = $(this).closest('.product-card').find('.card-title').text();
-    trackUsage('product_view', {
-        product_name: productName,
-        view_type: 'tecnico_completo'
-    });
-});
+@if(isset($stats))
+window.PageData.stats = @json($stats);
+@endif
 
-// Track ricerche
-$(document).on('submit', 'form', function() {
-    const searchTerm = $('#search').val();
-    const categoria = $('#categoria').val();
-    
-    if (searchTerm || categoria) {
-        trackUsage('search_performed', {
-            search_term: searchTerm,
-            category: categoria,
-            results_count: {{ $prodotti->total() }}
-        });
-    }
-});
+@if(isset($user))
+window.PageData.user = @json($user);
+@endif
+
+// Aggiungi altri dati che potrebbero servire...
 </script>
 @endpush

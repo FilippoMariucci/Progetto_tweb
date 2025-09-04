@@ -1,17 +1,9 @@
-Esempi per file specifici
-admin/assegnazioni-index.js:
-javascript/**
- * Admin Assegnazioni Index - Gestione assegnazione prodotti a staff
- * File: /public/js/admin/assegnazioni-index.js
- * Gestisce: selezione multipla prodotti, assegnazione staff, filtri
- * @author Gruppo 51 - Corso Tecnologie Web 2024/2025
- */
 
 $(document).ready(function() {
-    console.log('Admin assegnazioni index caricato');
+    console.log('storico.interventi caricato');
     
     const currentRoute = window.LaravelApp?.route || '';
-    if (currentRoute !== 'admin.assegnazioni.index') {
+    if (currentRoute !== 'admin.storico.interventi') {
         return;
     }
     
@@ -19,4 +11,33 @@ $(document).ready(function() {
     let selectedProducts = [];
     
     // Il tuo codice JavaScript qui...
+    $(document).ready(function() {
+    console.log('Storico Interventi inizializzato');
+    
+    // Tooltip per elementi troncati
+    $('[data-bs-toggle="tooltip"]').tooltip();
+    
+    // Auto-submit form quando cambi i filtri (opzionale)
+    $('#periodo, #gravita, #categoria').change(function() {
+        // Uncomment per auto-submit: $(this).closest('form').submit();
+    });
+    
+    // Evidenziazione ricerca
+    const searchTerm = '{{ request("search") }}';
+    if (searchTerm) {
+        $('.table tbody').highlight(searchTerm);
+    }
+    
+    console.log('Storico interventi pronto');
+});
+
+// Plugin highlight semplice
+$.fn.highlight = function(text) {
+    return this.each(function() {
+        $(this).html($(this).html().replace(
+            new RegExp('(' + text + ')', 'gi'),
+            '<mark>$1</mark>'
+        ));
+    });
+};
 });
