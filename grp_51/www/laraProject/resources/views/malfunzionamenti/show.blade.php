@@ -345,7 +345,9 @@
 {{-- === STILI PERSONALIZZATI === --}}
 @push('styles')
 <style>
-/* Stili per la pagina di dettaglio malfunzionamento */
+/* === STILI BASE PER PAGINA DETTAGLIO MALFUNZIONAMENTO === */
+
+/* Transizioni fluide per tutte le card */
 .card {
     transition: all 0.2s ease-in-out;
 }
@@ -366,9 +368,66 @@ h1.h3 {
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
 }
 
-/* Stili per il pulsante di segnalazione */
+/* === STILI MIGLIORATI PER PULSANTE SUCCESS === */
+
+/* Pulsante success con massima visibilità */
+.btn-success {
+    background-color: #198754 !important;
+    border-color: #146c43 !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    border-width: 2px !important;
+}
+
+.btn-success:hover:not(:disabled) {
+    background-color: #157347 !important;
+    border-color: #146c43 !important;
+    color: #ffffff !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(25, 135, 84, 0.4) !important;
+}
+
+.btn-success:focus:not(:disabled) {
+    background-color: #198754 !important;
+    border-color: #146c43 !important;
+    box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25) !important;
+}
+
+.btn-success:disabled {
+    background-color: #198754 !important;
+    border-color: #146c43 !important;
+    color: #ffffff !important;
+    opacity: 0.95 !important;
+    cursor: not-allowed;
+}
+
+/* === ANIMAZIONE PULSO PER PULSANTE SUCCESS === */
+
+@keyframes pulse-success {
+    0% {
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.7);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 0 10px rgba(25, 135, 84, 0.2);
+        transform: scale(1.05);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0);
+        transform: scale(1);
+    }
+}
+
+.pulse-success {
+    animation: pulse-success 1.5s ease-in-out 2;
+}
+
+/* === STILI PER PULSANTE SEGNALAZIONE === */
+
 .segnala-btn {
     transition: all 0.3s ease;
+    border-width: 2px;
+    font-weight: 500;
 }
 
 .segnala-btn:hover:not(:disabled) {
@@ -376,8 +435,79 @@ h1.h3 {
     box-shadow: 0 4px 8px rgba(255, 193, 7, 0.3);
 }
 
-/* Responsive improvements */
+.segnala-btn:focus:not(:disabled) {
+    box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25);
+}
+
+/* === MIGLIORAMENTI ALERT === */
+
+/* Alert success più visibile */
+.alert-success {
+    background-color: #d1edda !important;
+    border: 1px solid #badbcc !important;
+    color: #0f5132 !important;
+    font-weight: 500;
+    border-radius: 0.5rem;
+}
+
+.alert-success .bi {
+    color: #198754;
+}
+
+/* Alert danger migliorato */
+.alert-danger {
+    background-color: #f8d7da !important;
+    border: 1px solid #f1aeb5 !important;
+    color: #721c24 !important;
+    font-weight: 500;
+    border-radius: 0.5rem;
+}
+
+.alert-danger .bi {
+    color: #dc3545;
+}
+
+/* Stile per alert flottanti */
+.alert-floating {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1055;
+    min-width: 350px;
+    max-width: 500px;
+    border: none !important;
+    border-radius: 0.5rem !important;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* === CONTRASTO MIGLIORATO PER BADGE === */
+
+/* Badge contatore segnalazioni */
+#segnalazioni-counter {
+    background-color: #ffffff !important;
+    color: #495057 !important;
+    border: 2px solid #dee2e6 !important;
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+}
+
+/* Badge nella card header */
+.card-header .badge.bg-light {
+    background-color: #ffffff !important;
+    color: #495057 !important;
+    border: 2px solid #dee2e6 !important;
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+}
+
+/* === MIGLIORAMENTI RESPONSIVE === */
+
+/* Tablet e mobile */
 @media (max-width: 768px) {
+    /* Pulsanti in colonna su mobile */
     .d-flex.gap-2 {
         flex-direction: column;
     }
@@ -390,20 +520,154 @@ h1.h3 {
     .d-flex.gap-2 > *:last-child {
         margin-bottom: 0;
     }
+    
+    /* Pulsante success più grande su mobile */
+    .btn-success {
+        font-size: 1.1rem;
+        padding: 0.75rem 1.25rem;
+        min-height: 50px;
+    }
+    
+    .btn-success .bi {
+        font-size: 1.2rem;
+    }
+    
+    /* Alert flottanti responsive */
+    .alert-floating {
+        right: 10px;
+        left: 10px;
+        min-width: auto;
+        max-width: none;
+        width: calc(100% - 20px);
+    }
 }
 
-/* Stile per alert di successo/errore */
-.alert-floating {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1055;
-    min-width: 300px;
-    max-width: 500px;
+/* Mobile piccoli */
+@media (max-width: 576px) {
+    .card-body {
+        padding: 1rem 0.75rem;
+    }
+    
+    .btn {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+    }
+    
+    .btn-success {
+        font-size: 1rem;
+        padding: 0.75rem 1rem;
+        min-height: 48px;
+    }
+}
+
+/* === STILI PER SPINNER DI CARICAMENTO === */
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.125em;
+}
+
+/* Spinner nel pulsante */
+.btn .spinner-border-sm {
+    margin-right: 0.5rem;
+}
+
+/* === MIGLIORAMENTI ACCESSIBILITÀ === */
+
+/* Focus visibile per elementi interattivi */
+.btn:focus,
+.btn-close:focus {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Miglioramenti per lettori di schermo */
+.visually-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* === STILI PER STATI DISABLED === */
+
+.btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.8;
+}
+
+/* === MIGLIORAMENTI PERFORMANCE === */
+
+/* Preload per transizioni fluide */
+* {
+    box-sizing: border-box;
+}
+
+/* Ottimizzazione animazioni */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .pulse-success {
+        animation: none;
+    }
+}
+
+/* === STILI AGGIUNTIVI PER MIGLIORARE L'ESPERIENZA === */
+
+/* Card prodotto nella sidebar */
+.card-body img {
+    object-fit: contain;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+}
+
+/* Badge gravità con colori migliorati */
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+    color: #ffffff !important;
+}
+
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #000000 !important;
+}
+
+.badge.bg-info {
+    background-color: #0dcaf0 !important;
+    color: #000000 !important;
+}
+
+.badge.bg-secondary {
+    background-color: #6c757d !important;
+    color: #ffffff !important;
+}
+
+/* === STAMPA === */
+
+@media print {
+    .btn,
+    .alert-floating {
+        display: none !important;
+    }
+    
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #dee2e6 !important;
+    }
 }
 </style>
 @endpush
-
 {{-- === JAVASCRIPT === --}}
 @push('scripts')
 <script>
@@ -418,70 +682,175 @@ $(document).ready(function() {
     // === IMPLEMENTAZIONE SEGNALAZIONE MALFUNZIONAMENTO ===
     // Definisce la funzione globale chiamata dai bottoni onclick (STESSA IMPLEMENTAZIONE DI ricerca.blade.php)
     window.segnalaMalfunzionamento = function(malfunzionamentoId) {
-        if (!malfunzionamentoId) {
-            alert('Errore: ID malfunzionamento non valido');
-            return;
-        }
-        
-        if (!confirm('Confermi di aver riscontrato questo problema?')) {
-            return;
-        }
-        
-        // Trova il bottone corretto usando l'onclick
-        const button = $(`button[onclick="segnalaMalfunzionamento('${malfunzionamentoId}')"]`);
-        const originalText = button.html();
-        
-        // Mostra stato di caricamento
-        button.html('<span class="spinner-border spinner-border-sm me-1"></span>Segnalando...').prop('disabled', true);
-        
-        // Chiamata AJAX per segnalare il malfunzionamento
-        $.ajax({
-            url: `{{ url('/api/malfunzionamenti') }}/${malfunzionamentoId}/segnala`,
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                'Content-Type': 'application/json'
-            },
-            timeout: 10000,
-            success: function(response) {
-                if (response.success) {
-                    // Aggiorna il contatore delle segnalazioni nella card
-                    button.closest('.card-body')
-                          .find('.bi-exclamation-triangle')
-                          .parent()
-                          .html(`<i class="bi bi-exclamation-triangle me-1"></i>${response.nuovo_count} segnalazioni`);
-                    
-                    // Cambia il pulsante per mostrare successo
-                    button.removeClass('btn-outline-warning')
-                          .addClass('btn-success')
-                          .html('<i class="bi bi-check-circle me-1"></i>Segnalato')
-                          .prop('disabled', true)
-                          .removeAttr('onclick'); // Rimuove l'onclick handler
-                    
-                    // Mostra messaggio di successo
-                    showAlert(`Segnalazione registrata! Totale: ${response.nuovo_count}`, 'success');
-                } else {
-                    throw new Error(response.message || 'Errore nella risposta');
-                }
-            },
-            error: function(xhr) {
-                console.error('Errore AJAX:', xhr);
-                let msg = 'Errore nella segnalazione del malfunzionamento';
-                
-                // Gestione messaggi di errore specifici
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    msg = xhr.responseJSON.message;
-                } else if (xhr.status === 403) {
-                    msg = 'Non hai i permessi per questa azione';
-                } else if (xhr.status === 404) {
-                    msg = 'Malfunzionamento non trovato';
+    console.log('Funzione segnalaMalfunzionamento chiamata con ID:', malfunzionamentoId);
+    
+    if (!malfunzionamentoId) {
+        alert('Errore: ID malfunzionamento non valido');
+        return;
+    }
+    
+    if (!confirm('Confermi di aver riscontrato questo problema?\n\nQuesta segnalazione aiuterà altri tecnici a identificare problemi frequenti.')) {
+        return;
+    }
+    
+    // Trova il bottone corretto usando l'onclick
+    const button = $(`button[onclick="segnalaMalfunzionamento('${malfunzionamentoId}')"]`);
+    
+    if (button.length === 0) {
+        console.error('Pulsante non trovato per ID:', malfunzionamentoId);
+        alert('Errore: Pulsante non trovato');
+        return;
+    }
+    
+    const originalText = button.html();
+    
+    // Mostra stato di caricamento con spinner
+    button.html('<span class="spinner-border spinner-border-sm me-2" role="status"></span>Segnalando...')
+          .prop('disabled', true)
+          .removeClass('btn-outline-warning')
+          .addClass('btn-warning');
+    
+    console.log('Invio richiesta AJAX per segnalazione...');
+    
+    // Chiamata AJAX per segnalare il malfunzionamento
+    $.ajax({
+        url: `{{ url('/api/malfunzionamenti') }}/${malfunzionamentoId}/segnala`,
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        timeout: 15000, // 15 secondi timeout
+        success: function(response) {
+            console.log('Risposta ricevuta:', response);
+            
+            if (response.success) {
+                // Aggiorna il contatore delle segnalazioni nella sidebar
+                const counterElement = $('#segnalazioni-counter');
+                if (counterElement.length > 0) {
+                    counterElement.html(`<i class="bi bi-exclamation-triangle me-1"></i>${response.nuovo_count} segnalazioni`);
                 }
                 
-                showAlert(msg, 'danger');
-                button.html(originalText).prop('disabled', false);
+                // CAMBIAMENTO PRINCIPALE: Pulsante success molto più visibile
+                button.removeClass('btn-warning btn-outline-warning')
+                      .addClass('btn-success')
+                      .css({
+                          'background-color': '#198754',
+                          'border-color': '#146c43',
+                          'color': '#ffffff',
+                          'font-weight': 'bold',
+                          'box-shadow': '0 3px 12px rgba(25, 135, 84, 0.4)',
+                          'transform': 'translateY(-1px)'
+                      })
+                      .html('<i class="bi bi-check-circle-fill me-2"></i><strong>Problema Segnalato!</strong>')
+                      .prop('disabled', true)
+                      .removeAttr('onclick'); // Rimuove l'onclick handler
+                
+                // Aggiungi animazione pulso per attirare l'attenzione
+                button.addClass('pulse-success');
+                
+                // Rimuovi l'effetto pulso dopo 4 secondi
+                setTimeout(() => {
+                    button.removeClass('pulse-success');
+                }, 4000);
+                
+                // Mostra messaggio di successo migliorato
+                showAlert(`Segnalazione registrata con successo! Totale segnalazioni: ${response.nuovo_count}`, 'success');
+                
+                console.log('Segnalazione completata con successo');
+                
+            } else {
+                throw new Error(response.message || 'Errore nella risposta del server');
             }
-        });
+        },
+        error: function(xhr, status, error) {
+            console.error('Errore AJAX completo:', {
+                xhr: xhr,
+                status: status,
+                error: error,
+                responseText: xhr.responseText
+            });
+            
+            let msg = 'Errore nella segnalazione del malfunzionamento';
+            
+            // Gestione messaggi di errore specifici
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                msg = xhr.responseJSON.message;
+            } else if (xhr.status === 403) {
+                msg = 'Non hai i permessi per effettuare questa segnalazione';
+            } else if (xhr.status === 404) {
+                msg = 'Malfunzionamento non trovato';
+            } else if (xhr.status === 422) {
+                msg = 'Dati non validi per la segnalazione';
+            } else if (xhr.status === 500) {
+                msg = 'Errore interno del server. Riprova più tardi.';
+            } else if (status === 'timeout') {
+                msg = 'Timeout della richiesta. Controlla la connessione.';
+            } else if (xhr.status === 0) {
+                msg = 'Errore di connessione. Verifica la tua connessione internet.';
+            }
+            
+            showAlert(msg, 'danger');
+            
+            // Ripristina il pulsante allo stato originale
+            button.removeClass('btn-warning')
+                  .addClass('btn-outline-warning')
+                  .css({
+                      'background-color': '',
+                      'border-color': '',
+                      'color': '',
+                      'font-weight': '',
+                      'box-shadow': '',
+                      'transform': ''
+                  })
+                  .html(originalText)
+                  .prop('disabled', false);
+        }
+    });
+};
+
+// === FUNZIONE HELPER MIGLIORATA PER ALERT ===
+function showAlert(message, type = 'info') {
+    // Rimuovi alert esistenti
+    $('.alert-floating').remove();
+    
+    const alertClass = `alert-${type}`;
+    const iconClasses = {
+        'success': 'check-circle-fill text-success',
+        'danger': 'exclamation-triangle-fill text-danger',
+        'warning': 'exclamation-triangle-fill text-warning',
+        'info': 'info-circle-fill text-info'
     };
+    
+    const iconClass = iconClasses[type] || iconClasses.info;
+    
+    const alertHtml = `
+        <div class="alert ${alertClass} alert-dismissible fade show alert-floating shadow-lg" 
+             style="position: fixed; top: 20px; right: 20px; z-index: 1055; min-width: 350px; max-width: 500px; border: none; border-radius: 0.5rem;">
+            <div class="d-flex align-items-start">
+                <i class="bi bi-${iconClass} me-3 fs-4 flex-shrink-0"></i>
+                <div class="flex-grow-1">
+                    <div class="fw-bold mb-1">${type.charAt(0).toUpperCase() + type.slice(1)}</div>
+                    <div>${message}</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Chiudi"></button>
+            </div>
+        </div>
+    `;
+    
+    $('body').append(alertHtml);
+    
+    console.log(`Alert mostrato: ${type} - ${message}`);
+    
+    // Auto-rimuovi dopo un tempo basato sul tipo
+    const autoRemoveDelay = type === 'success' ? 8000 : 6000;
+    setTimeout(() => {
+        $('.alert-floating').fadeOut(500, function() {
+            $(this).remove();
+        });
+    }, autoRemoveDelay);
+}
     
     // === FUNZIONE HELPER PER ALERT ===
     function showAlert(type, message) {
