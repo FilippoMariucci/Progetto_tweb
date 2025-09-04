@@ -24,11 +24,11 @@
         </div>
         <div class="btn-group btn-group-sm">
             {{-- Controlli periodo --}}
-            <a href="{{ route('admin.statistiche', ['periodo' => 7]) }}" 
+            <a href="{{ route('admin.statistiche.index', ['periodo' => 7]) }}" 
                class="btn btn-outline-success {{ ($periodo ?? 30) == 7 ? 'active' : '' }}">7g</a>
-            <a href="{{ route('admin.statistiche', ['periodo' => 30]) }}" 
+            <a href="{{ route('admin.statistiche.index', ['periodo' => 30]) }}" 
                class="btn btn-outline-success {{ ($periodo ?? 30) == 30 ? 'active' : '' }}">30g</a>
-            <a href="{{ route('admin.statistiche', ['periodo' => 90]) }}" 
+            <a href="{{ route('admin.statistiche.index', ['periodo' => 90]) }}" 
                class="btn btn-outline-success {{ ($periodo ?? 30) == 90 ? 'active' : '' }}">90g</a>
             {{-- Azioni --}}
             <button class="btn btn-primary" onclick="aggiornaStatistiche()">
@@ -320,7 +320,7 @@
                         </div>
                         
                         <div class="text-center mt-2">
-                            <a href="{{ route('admin.utenti.index') }}" 
+                            <a href="{{ route('admin.users.index') }}" 
                                class="btn btn-sm btn-outline-secondary">
                                 <i class="bi bi-list me-1"></i>Vedi Tutti
                             </a>
