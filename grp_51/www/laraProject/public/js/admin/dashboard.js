@@ -1,9 +1,4 @@
-/**
- * [NOME FILE] - [DESCRIZIONE FUNZIONALITA]
- * File: /public/js/[percorso]/[nome-file].js
- * Gestisce: [lista delle funzionalità]
- * @author Gruppo 51 - Corso Tecnologie Web 2024/2025
- */
+
 
 $(document).ready(function() {
     console.log('admin.dashboard caricato');
