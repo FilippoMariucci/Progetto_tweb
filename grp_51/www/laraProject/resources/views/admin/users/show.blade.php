@@ -6,7 +6,29 @@
 @section('content')
 <div class="container mt-4">
     
-   
+    <!-- === BREADCRUMB === -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{{ route('home') }}" class="text-decoration-none">
+                    <i class="bi bi-house-door me-1"></i>Home
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{{ route('admin.dashboard') }}" class="text-decoration-none">
+                    <i class="bi bi-speedometer2 me-1"></i>Dashboard Admin
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{{ route('admin.users.index') }}" class="text-decoration-none">
+                    <i class="bi bi-people me-1"></i>Gestione Utenti
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                <i class="bi bi-eye me-1"></i>{{ $user->nome_completo }}
+            </li>
+        </ol>
+    </nav>
 
     <!-- === HEADER === -->
     <div class="row mb-4">
@@ -38,15 +60,7 @@
                                 <i class="bi bi-three-dots"></i>
                             </button>
                             <ul class="dropdown-menu">
-                                <li>
-                                    <form action="{{ route('admin.users.toggle-status', $user) }}" method="POST" style="display: inline;">
-                                        @csrf
-                                        <button type="submit" class="dropdown-item">
-                                            <i class="bi bi-{{ $user->attivo ?? true ? 'pause' : 'play' }} me-2"></i>
-                                            {{ $user->attivo ?? true ? 'Sospendi Account' : 'Attiva Account' }}
-                                        </button>
-                                    </form>
-                                </li>
+                                {{-- Reset Password --}}
                                 <li>
                                     <form action="{{ route('admin.users.reset-password', $user) }}" method="POST" style="display: inline;">
                                         @csrf
@@ -55,14 +69,27 @@
                                         </button>
                                     </form>
                                 </li>
+                                
+                                {{-- Visualizza Dettagli Aggiuntivi --}}
+                                @if($user->isStaff())
+                                    <li>
+                                        <a href="{{ route('admin.assegnazioni.index', ['staff_id' => $user->id]) }}" class="dropdown-item">
+                                            <i class="bi bi-box-seam me-2"></i>Gestisci Prodotti
+                                        </a>
+                                    </li>
+                                @endif
+                                
+                                {{-- Separatore prima dell'eliminazione --}}
                                 <li><hr class="dropdown-divider"></li>
+                                
+                                {{-- Eliminazione Account --}}
                                 <li>
                                     <form action="{{ route('admin.users.destroy', $user) }}" method="POST" style="display: inline;">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" 
                                                 class="dropdown-item text-danger" 
-                                                onclick="return confirm('ATTENZIONE: Eliminare definitivamente {{ $user->nome_completo }}? Questa azione non può essere annullata.')">
+                                                onclick="return confirm('ATTENZIONE: Eliminare definitivamente {{ $user->nome_completo }}?\n\nQuesta azione non può essere annullata e rimuoverà anche tutti i dati associati.')">
                                             <i class="bi bi-trash me-2"></i>Elimina Account
                                         </button>
                                     </form>
@@ -70,7 +97,12 @@
                             </ul>
                         </div>
                     @else
-                        <span class="badge bg-info">Il tuo account</span>
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-info me-2">Il tuo account</span>
+                            <a href="{{ route('profilo') }}" class="btn btn-outline-primary">
+                                <i class="bi bi-gear me-1"></i>Modifica Profilo
+                            </a>
+                        </div>
                     @endif
                 </div>
             </div>
@@ -207,9 +239,14 @@
                                                 <div class="d-flex align-items-center">
                                                     <img src="{{ $prodotto->foto_url }}" 
                                                          class="rounded me-3" 
-                                                         style="width: 50px; height: 50px; object-fit: cover;"
-                                                         alt="{{ $prodotto->nome }}">
-                                                    <div>
+                                                         style="width: 50px; height: 50px; object-fit: contain; background-color: #f8f9fa;"
+                                                         alt="{{ $prodotto->nome }}"
+                                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                                    <div class="rounded me-3 d-none align-items-center justify-content-center bg-light" 
+                                                         style="width: 50px; height: 50px; min-width: 50px;">
+                                                        <i class="bi bi-box text-muted"></i>
+                                                    </div>
+                                                    <div class="flex-grow-1">
                                                         <h6 class="mb-1">{{ $prodotto->nome }}</h6>
                                                         <small class="text-muted">{{ $prodotto->modello }}</small>
                                                         <div>
@@ -267,7 +304,7 @@
                                 @endforeach
                             </div>
                         @else
-                            <p class="text-muted text-center">Nessuna attività recente</p>
+                            <p class="text-muted text-center py-3">Nessuna attività recente da visualizzare</p>
                         @endif
                     </div>
                 </div>
@@ -311,6 +348,23 @@
                                     </div>
                                 </div>
                             @endif
+                        @elseif($user->isTecnico())
+                            <div class="col-12">
+                                <div class="p-3 bg-info bg-opacity-10 rounded mb-3">
+                                    <i class="bi bi-tools text-info fs-1"></i>
+                                    <h4 class="mt-2 mb-1">{{ $user->livello_descrizione }}</h4>
+                                    <small class="text-muted">Tecnico Specializzato</small>
+                                </div>
+                            </div>
+                            @if($user->centroAssistenza)
+                                <div class="col-12">
+                                    <div class="p-3 bg-secondary bg-opacity-10 rounded">
+                                        <i class="bi bi-building text-secondary fs-1"></i>
+                                        <h4 class="mt-2 mb-1">{{ $user->centroAssistenza->nome }}</h4>
+                                        <small class="text-muted">Centro Assegnato</small>
+                                    </div>
+                                </div>
+                            @endif
                         @else
                             <div class="col-12">
                                 <div class="p-3 bg-info bg-opacity-10 rounded">
@@ -324,40 +378,44 @@
                 </div>
             </div>
 
-            <!-- Stato Account -->
+            <!-- Informazioni Account -->
             <div class="card card-custom mb-4">
                 <div class="card-header bg-success text-white">
                     <h5 class="mb-0">
                         <i class="bi bi-shield-check me-2"></i>
-                        Stato Account
+                        Informazioni Account
                     </h5>
                 </div>
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span class="fw-semibold">Stato:</span>
-                        <span class="badge bg-{{ $user->attivo ?? true ? 'success' : 'danger' }}">
-                            {{ $user->attivo ?? true ? 'Attivo' : 'Sospeso' }}
-                        </span>
-                    </div>
-                    
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span class="fw-semibold">Accesso:</span>
+                        <span class="fw-semibold">Livello Accesso:</span>
                         <span class="badge bg-info">Livello {{ $user->livello_accesso }}</span>
                     </div>
                     
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="fw-semibold">Account creato:</span>
+                        <span class="text-muted">{{ $user->created_at->format('d/m/Y') }}</span>
+                    </div>
+                    
                     @if($user->last_login_at)
-                        <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
                             <span class="fw-semibold">Ultimo Login:</span>
                             <span title="{{ $user->last_login_at->format('d/m/Y H:i') }}">
                                 {{ $user->last_login_at->diffForHumans() }}
                             </span>
                         </div>
                     @else
-                        <div class="alert alert-warning">
+                        <div class="alert alert-warning mb-3">
                             <i class="bi bi-exclamation-triangle me-2"></i>
                             <small>Non ha mai effettuato l'accesso</small>
                         </div>
                     @endif
+
+                    {{-- Mostra sempre come attivo dato che non c'è più la funzione sospendi --}}
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-semibold">Stato Account:</span>
+                        <span class="badge bg-success">Attivo</span>
+                    </div>
                 </div>
             </div>
 
@@ -382,7 +440,7 @@
                             
                             <form action="{{ route('admin.users.reset-password', $user) }}" method="POST" style="display: inline;">
                                 @csrf
-                                <button type="submit" class="btn btn-outline-info btn-sm w-100" onclick="return confirm('Resettare la password?')">
+                                <button type="submit" class="btn btn-outline-info btn-sm w-100" onclick="return confirm('Resettare la password per {{ $user->nome_completo }}?\n\nVerrà generata una password temporanea.')">
                                     <i class="bi bi-key me-1"></i>Reset Password
                                 </button>
                             </form>
@@ -393,6 +451,12 @@
                                 <i class="bi bi-box-seam me-1"></i>Gestisci Prodotti
                             </a>
                         @endif
+
+                        {{-- Link diretto per creare nuovo utente --}}
+                        <hr class="my-2">
+                        <a href="{{ route('admin.users.create') }}" class="btn btn-outline-success btn-sm">
+                            <i class="bi bi-person-plus me-1"></i>Nuovo Utente
+                        </a>
                     </div>
                 </div>
             </div>
@@ -409,6 +473,10 @@
     transition: all 0.3s ease;
 }
 
+.card-custom:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
 .avatar-circle {
     width: 60px;
     height: 60px;
@@ -418,20 +486,255 @@
     justify-content: center;
     font-weight: bold;
     font-size: 1.5rem;
+    border: 3px solid rgba(255, 255, 255, 0.2);
 }
 
 .badge-livello {
     font-size: 0.75rem;
+    padding: 0.5em 0.8em;
+    border-radius: 0.375rem;
 }
 
-.badge-livello-4 { background-color: #dc3545; }
-.badge-livello-3 { background-color: #ffc107; color: #000; }
-.badge-livello-2 { background-color: #0dcaf0; color: #000; }
-.badge-livello-1 { background-color: #6c757d; }
+.badge-livello-4 { 
+    background-color: #dc3545; 
+    color: white;
+}
+.badge-livello-3 { 
+    background-color: #ffc107; 
+    color: #000; 
+}
+.badge-livello-2 { 
+    background-color: #0dcaf0; 
+    color: #000; 
+}
+.badge-livello-1 { 
+    background-color: #6c757d; 
+    color: white;
+}
 
 .table-borderless td {
     border: none;
     padding: 0.5rem 0;
+    vertical-align: middle;
+}
+
+.table-borderless .fw-semibold {
+    min-width: 140px;
+    white-space: nowrap;
+}
+
+/* Miglioramenti per le card prodotti */
+.card .card-body .d-flex img,
+.card .card-body .d-flex .bg-light {
+    border: 1px solid #e9ecef;
+}
+
+/* Miglioramenti responsive */
+@media (max-width: 768px) {
+    .avatar-circle {
+        width: 50px;
+        height: 50px;
+        font-size: 1.2rem;
+    }
+    
+    .table-borderless .fw-semibold {
+        min-width: auto;
+        font-size: 0.9rem;
+    }
+}
+
+/* Effetti hover per i pulsanti azioni */
+.btn-outline-secondary:hover,
+.btn-outline-info:hover,
+.btn-outline-primary:hover,
+.btn-outline-success:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Stili per le statistiche */
+.bg-opacity-10 {
+    background-color: rgba(var(--bs-primary-rgb), 0.1) !important;
+}
+
+.fs-1 {
+    font-size: 2.5rem !important;
 }
 </style>
+@endpush
+
+@push('scripts')
+<script>
+$(document).ready(function() {
+    console.log('Vista dettagli utente inizializzata - senza funzione sospendi');
+    
+    // === GESTIONE RESET PASSWORD ===
+    $('form[action*="reset-password"]').on('submit', function(e) {
+        e.preventDefault();
+        
+        const form = $(this);
+        const button = form.find('button[type="submit"]');
+        const originalText = button.text();
+        const userName = '{{ $user->nome_completo }}';
+        
+        if (!confirm(`Resettare la password per ${userName}?\n\nVerrà generata una password temporanea che dovrà essere comunicata all'utente.`)) {
+            return;
+        }
+        
+        // Mostra loading
+        button.prop('disabled', true)
+              .html('<i class="bi bi-hourglass-split me-1"></i>Elaborazione...');
+        
+        // Invia richiesta AJAX
+        $.ajax({
+            url: form.attr('action'),
+            method: 'POST',
+            data: form.serialize(),
+            success: function(response) {
+                if (response.success) {
+                    // Mostra alert con password temporanea
+                    const alertHtml = `
+                        <div class="alert alert-success alert-dismissible fade show position-fixed" 
+                             style="top: 20px; right: 20px; z-index: 9999; min-width: 450px; max-width: 500px;">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-check-circle-fill me-2 fs-5 flex-shrink-0 mt-1"></i>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-2">Password Resetata con Successo</h6>
+                                    <p class="mb-2">${response.message}</p>
+                                    <hr>
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <div>
+                                            <strong>Password Temporanea:</strong><br>
+                                            <code class="bg-light p-2 rounded d-inline-block mt-1" style="font-size: 1.1em; letter-spacing: 1px;">${response.temp_password}</code>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-primary btn-sm ms-2" 
+                                                onclick="navigator.clipboard.writeText('${response.temp_password}').then(() => { this.innerHTML='<i class=\\'bi bi-check\\' ></i> Copiato!'; setTimeout(() => { this.innerHTML='<i class=\\'bi bi-clipboard\\'></i> Copia'; }, 2000); })">
+                                            <i class="bi bi-clipboard"></i> Copia
+                                        </button>
+                                    </div>
+                                    <small class="text-muted mt-2 d-block">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Comunica questa password all'utente. Scadrà al primo login.
+                                    </small>
+                                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        </div>
+                    `;
+                    $('body').append(alertHtml);
+                    
+                    // Auto-rimuovi dopo 30 secondi per password sensibili
+                    setTimeout(() => {
+                        $('.alert').fadeOut(500, function() { $(this).remove(); });
+                    }, 30000);
+                } else {
+                    showNotification(response.message, 'danger');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Errore reset password:', error);
+                showNotification('Errore durante il reset della password. Riprova.', 'danger');
+            },
+            complete: function() {
+                // Ripristina pulsante
+                button.prop('disabled', false).html(originalText);
+            }
+        });
+    });
+    
+    // === GESTIONE ELIMINAZIONE UTENTE ===
+    $('form[action*="destroy"] button[type="submit"]').on('click', function(e) {
+        const form = $(this).closest('form');
+        const userName = '{{ $user->nome_completo }}';
+        
+        // Prima conferma
+        const firstConfirm = confirm(`ATTENZIONE: Stai per eliminare l'utente "${userName}".\n\nQuesta azione rimuoverà:\n- L'account utente\n- Tutti i dati associati\n- Le assegnazioni prodotti (se staff)\n- I collegamenti al centro assistenza (se tecnico)\n\nVuoi continuare?`);
+        
+        if (!firstConfirm) {
+            e.preventDefault();
+            return false;
+        }
+        
+        // Seconda conferma per sicurezza
+        const finalConfirm = confirm(`CONFERMA FINALE: Eliminare definitivamente "${userName}"?\n\nQuesta azione NON PUÒ essere annullata.`);
+        
+        if (!finalConfirm) {
+            e.preventDefault();
+            return false;
+        }
+        
+        // Mostra loading se confermato
+        const button = $(this);
+        button.html('<i class="bi bi-hourglass-split me-1"></i>Eliminazione...')
+              .prop('disabled', true);
+              
+        return true;
+    });
+    
+    // === TOOLTIP ===
+    $('[title]').tooltip();
+    
+    // === GESTIONE ERRORI IMMAGINI PRODOTTI ===
+    $('img[alt]').on('error', function() {
+        $(this).hide().next('.bg-light').removeClass('d-none').addClass('d-flex');
+    });
+    
+    // === FUNZIONE HELPER PER NOTIFICHE ===
+    function showNotification(message, type = 'success') {
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        const iconClass = type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill';
+        
+        const alert = $(`
+            <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
+                 style="top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 400px;">
+                <div class="d-flex align-items-center">
+                    <i class="bi ${iconClass} me-2 fs-5"></i>
+                    <div class="flex-grow-1">${message}</div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            </div>
+        `);
+        
+        $('body').append(alert);
+        
+        // Auto-rimuovi dopo 5 secondi
+        setTimeout(() => alert.fadeOut(300, () => alert.remove()), 5000);
+    }
+    
+    // === KEYBOARD SHORTCUTS ===
+    $(document).on('keydown', function(e) {
+        // Ctrl+E per modificare utente
+        if ((e.ctrlKey || e.metaKey) && e.key === 'e' && {{ $user->id !== auth()->id() ? 'true' : 'false' }}) {
+            e.preventDefault();
+            window.location.href = "{{ route('admin.users.edit', $user) }}";
+        }
+        
+        // Ctrl+Backspace per tornare alla lista
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Backspace') {
+            e.preventDefault();
+            window.location.href = "{{ route('admin.users.index') }}";
+        }
+    });
+    
+    // === LOG INFORMAZIONI UTENTE (per debug) ===
+    console.log('Dettagli utente caricati:', {
+        id: {{ $user->id }},
+        nome: '{{ $user->nome_completo }}',
+        livello_accesso: {{ $user->livello_accesso }},
+        ruolo: '{{ $user->livello_descrizione }}',
+        is_current_user: {{ $user->id === auth()->id() ? 'true' : 'false' }},
+        is_tecnico: {{ $user->isTecnico() ? 'true' : 'false' }},
+        is_staff: {{ $user->isStaff() ? 'true' : 'false' }},
+        @if($user->isStaff())
+        prodotti_assegnati: {{ $user->prodottiAssegnati->count() ?? 0 }},
+        @endif
+        @if($user->isTecnico())
+        ha_centro: {{ $user->centroAssistenza ? 'true' : 'false' }},
+        @endif
+        ultimo_accesso: '{{ $user->last_login_at ? $user->last_login_at->format("d/m/Y H:i") : "Mai" }}'
+    });
+    
+    console.log('Vista dettagli utente inizializzata - funzionalità sospendi account rimossa');
+});
+</script>
 @endpush
