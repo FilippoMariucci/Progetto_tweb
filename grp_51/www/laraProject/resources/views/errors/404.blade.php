@@ -138,12 +138,6 @@
         </div>
     </div>
     
-    <script>
-        // Log dell'errore per debugging
-        console.log('404 Error:', {
-            url: window.location.href,
-            timestamp: new Date().toISOString()
-        });
-    </script>
+  
 </body>
 </html>

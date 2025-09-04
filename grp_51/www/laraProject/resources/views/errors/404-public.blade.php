@@ -217,48 +217,7 @@
     {{-- Bootstrap JS --}}
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    {{-- Script per effetti interattivi --}}
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Aggiungi animazione di entrata alla card
-            const card = document.querySelector('.error-card');
-            card.style.opacity = '0';
-            card.style.transform = 'translateY(30px)';
-            
-            setTimeout(() => {
-                card.style.transition = 'all 0.6s ease';
-                card.style.opacity = '1';
-                card.style.transform = 'translateY(0)';
-            }, 100);
-            
-            // Effetto parallax leggero per il pattern di sfondo
-            document.addEventListener('mousemove', function(e) {
-                const pattern = document.querySelector('.tech-pattern');
-                const x = e.clientX / window.innerWidth;
-                const y = e.clientY / window.innerHeight;
-                
-                pattern.style.transform = `translate(${x * 10}px, ${y * 10}px)`;
-            });
-            
-            // Log dell'errore 404 per statistiche
-            console.log('404 Error - Public User:', {
-                url: window.location.href,
-                referrer: document.referrer,
-                timestamp: new Date().toISOString(),
-                userAgent: navigator.userAgent
-            });
-            
-            // Animazione del numero 404
-            const errorNumber = document.querySelector('.error-number');
-            errorNumber.addEventListener('mouseenter', function() {
-                this.style.transform = 'scale(1.05) rotate(2deg)';
-                this.style.transition = 'all 0.3s ease';
-            });
-            
-            errorNumber.addEventListener('mouseleave', function() {
-                this.style.transform = 'scale(1) rotate(0deg)';
-            });
-        });
-    </script>
+   
+    
 </body>
 </html>

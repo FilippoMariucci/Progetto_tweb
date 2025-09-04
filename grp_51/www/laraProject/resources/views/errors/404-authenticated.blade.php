@@ -121,31 +121,7 @@
 </div>
 
 {{-- Script per migliorare l'esperienza utente --}}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Aggiungi effetto hover ai pulsanti
-    const buttons = document.querySelectorAll('.btn-outline-primary, .btn-outline-secondary, .btn-outline-info, .btn-outline-warning, .btn-outline-danger');
-    
-    buttons.forEach(button => {
-        button.addEventListener('mouseenter', function() {
-            this.style.transform = 'translateY(-2px)';
-            this.style.transition = 'all 0.3s ease';
-        });
-        
-        button.addEventListener('mouseleave', function() {
-            this.style.transform = 'translateY(0)';
-        });
-    });
-    
-    // Log dell'errore 404 per statistiche (se necessario)
-    console.log('404 Error - Authenticated User:', {
-        url: window.location.href,
-        referrer: document.referrer,
-        timestamp: new Date().toISOString(),
-        user: @json($user ?? null)
-    });
-});
-</script>
+
 
 {{-- Stili aggiuntivi --}}
 <style>
