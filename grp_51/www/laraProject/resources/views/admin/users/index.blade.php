@@ -6,8 +6,6 @@
 @section('content')
 <div class="container mt-4">
     
-   
-
     <!-- === HEADER === -->
     <div class="row mb-4">
         <div class="col-12">
@@ -208,22 +206,17 @@
                         Utenti 
                         <span class="badge bg-secondary">{{ $users->total() }}</span>
                     </h5>
-                    <div>
-                        <button type="button" class="btn btn-outline-primary btn-sm" id="selectAllBtn">
-                            <i class="bi bi-check-all me-1"></i>Seleziona Tutti
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                            <i class="bi bi-sort-down me-1"></i>Ordina
                         </button>
-                        <div class="btn-group" role="group">
-                            <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
-                                <i class="bi bi-sort-down me-1"></i>Ordina
-                            </button>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="?{{ http_build_query(array_merge(request()->all(), ['sort' => 'nome'])) }}">Nome A-Z</a></li>
-                                <li><a class="dropdown-item" href="?{{ http_build_query(array_merge(request()->all(), ['sort' => '-nome'])) }}">Nome Z-A</a></li>
-                                <li><a class="dropdown-item" href="?{{ http_build_query(array_merge(request()->all(), ['sort' => 'created_at'])) }}">Più Recenti</a></li>
-                                <li><a class="dropdown-item" href="?{{ http_build_query(array_merge(request()->all(), ['sort' => '-created_at'])) }}">Più Vecchi</a></li>
-                                <li><a class="dropdown-item" href="?{{ http_build_query(array_merge(request()->all(), ['sort' => 'livello_accesso'])) }}">Livello Accesso</a></li>
-                            </ul>
-                        </div>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="?{{ http_build_query(array_merge(request()->all(), ['sort' => 'nome'])) }}">Nome A-Z</a></li>
+                            <li><a class="dropdown-item" href="?{{ http_build_query(array_merge(request()->all(), ['sort' => '-nome'])) }}">Nome Z-A</a></li>
+                            <li><a class="dropdown-item" href="?{{ http_build_query(array_merge(request()->all(), ['sort' => 'created_at'])) }}">Più Recenti</a></li>
+                            <li><a class="dropdown-item" href="?{{ http_build_query(array_merge(request()->all(), ['sort' => '-created_at'])) }}">Più Vecchi</a></li>
+                            <li><a class="dropdown-item" href="?{{ http_build_query(array_merge(request()->all(), ['sort' => 'livello_accesso'])) }}">Livello Accesso</a></li>
+                        </ul>
                     </div>
                 </div>
                 <div class="card-body">
@@ -232,9 +225,6 @@
                             <table class="table table-hover">
                                 <thead class="table-light">
                                     <tr>
-                                        <th width="40">
-                                            <input type="checkbox" id="checkAll" class="form-check-input">
-                                        </th>
                                         <th>Utente</th>
                                         <th>Livello</th>
                                         <th>Centro/Specializzazione</th>
@@ -246,11 +236,6 @@
                                 <tbody>
                                     @foreach($users as $user)
                                         <tr class="user-row" data-user-id="{{ $user->id }}">
-                                            <td>
-                                                <input type="checkbox" 
-                                                       class="form-check-input user-checkbox" 
-                                                       value="{{ $user->id }}">
-                                            </td>
                                             <td>
                                                 <div class="d-flex align-items-center">
                                                     <div class="avatar-circle bg-{{ $user->livello_accesso == '4' ? 'danger' : ($user->livello_accesso == '3' ? 'warning' : ($user->livello_accesso == '2' ? 'info' : 'secondary')) }} text-white me-3">
@@ -317,60 +302,59 @@
                                                     </a>
                                                     
                                                     <!-- Azioni Dropdown -->
-<!-- Azioni Dropdown -->
-<div class="btn-group" role="group">
-    <button type="button" 
-            class="btn btn-outline-secondary btn-sm dropdown-toggle" 
-            data-bs-toggle="dropdown">
-        <i class="bi bi-three-dots"></i>
-    </button>
-    <ul class="dropdown-menu">
-        @if($user->id !== auth()->id())
-            {{-- Reset Password --}}
-            <li>
-                <form action="{{ route('admin.users.reset-password', $user) }}" method="POST" style="display: inline;">
-                    @csrf
-                    <button type="submit" class="dropdown-item" onclick="return confirm('Resettare la password?')">
-                        <i class="bi bi-key me-2"></i>Reset Password
-                    </button>
-                </form>
-            </li>
-            
-            {{-- Visualizza Dettagli --}}
-            <li>
-                <a href="{{ route('admin.users.show', $user) }}" class="dropdown-item">
-                    <i class="bi bi-info-circle me-2"></i>Visualizza Dettagli
-                </a>
-            </li>
-            
-            {{-- Separatore prima dell'eliminazione --}}
-            <li><hr class="dropdown-divider"></li>
-            
-            {{-- Eliminazione Utente --}}
-            <li>
-                <form action="{{ route('admin.users.destroy', $user) }}" method="POST" style="display: inline;">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" 
-                            class="dropdown-item text-danger" 
-                            onclick="return confirm('ATTENZIONE: Eliminare questo utente?\n\nQuesta azione non può essere annullata.')">
-                        <i class="bi bi-trash me-2"></i>Elimina Utente
-                    </button>
-                </form>
-            </li>
-        @else
-            {{-- Se è l'utente corrente --}}
-            <li><span class="dropdown-item text-muted">
-                <i class="bi bi-person-check me-2"></i>Sei tu!
-            </span></li>
-            <li>
-                <a href="{{ route('profilo') }}" class="dropdown-item">
-                    <i class="bi bi-gear me-2"></i>Vai al Profilo
-                </a>
-            </li>
-        @endif
-    </ul>
-</div>
+                                                    <div class="btn-group" role="group">
+                                                        <button type="button" 
+                                                                class="btn btn-outline-secondary btn-sm dropdown-toggle" 
+                                                                data-bs-toggle="dropdown">
+                                                            <i class="bi bi-three-dots"></i>
+                                                        </button>
+                                                        <ul class="dropdown-menu">
+                                                            @if($user->id !== auth()->id())
+                                                                {{-- Reset Password --}}
+                                                                <li>
+                                                                    <form action="{{ route('admin.users.reset-password', $user) }}" method="POST" style="display: inline;">
+                                                                        @csrf
+                                                                        <button type="submit" class="dropdown-item" onclick="return confirm('Resettare la password?')">
+                                                                            <i class="bi bi-key me-2"></i>Reset Password
+                                                                        </button>
+                                                                    </form>
+                                                                </li>
+                                                                
+                                                                {{-- Visualizza Dettagli --}}
+                                                                <li>
+                                                                    <a href="{{ route('admin.users.show', $user) }}" class="dropdown-item">
+                                                                        <i class="bi bi-info-circle me-2"></i>Visualizza Dettagli
+                                                                    </a>
+                                                                </li>
+                                                                
+                                                                {{-- Separatore prima dell'eliminazione --}}
+                                                                <li><hr class="dropdown-divider"></li>
+                                                                
+                                                                {{-- Eliminazione Utente --}}
+                                                                <li>
+                                                                    <form action="{{ route('admin.users.destroy', $user) }}" method="POST" style="display: inline;">
+                                                                        @csrf
+                                                                        @method('DELETE')
+                                                                        <button type="submit" 
+                                                                                class="dropdown-item text-danger" 
+                                                                                onclick="return confirm('ATTENZIONE: Eliminare questo utente?\n\nQuesta azione non può essere annullata.')">
+                                                                            <i class="bi bi-trash me-2"></i>Elimina Utente
+                                                                        </button>
+                                                                    </form>
+                                                                </li>
+                                                            @else
+                                                                {{-- Se è l'utente corrente --}}
+                                                                <li><span class="dropdown-item text-muted">
+                                                                    <i class="bi bi-person-check me-2"></i>Sei tu!
+                                                                </span></li>
+                                                                <li>
+                                                                    <a href="{{ route('profilo') }}" class="dropdown-item">
+                                                                        <i class="bi bi-gear me-2"></i>Vai al Profilo
+                                                                    </a>
+                                                                </li>
+                                                            @endif
+                                                        </ul>
+                                                    </div>
                                                 </div>
                                             </td>
                                         </tr>
@@ -421,7 +405,6 @@
                 <!-- Form corretto che punta al metodo exportAll esistente -->
                 <form action="{{ route('admin.export.all') }}" method="POST">
                     @csrf
-                    <!-- RIMOSSO: <input type="hidden" name="type" value="users"> -->
                     
                     <div class="mb-3">
                         <label for="export_format" class="form-label">Formato Export:</label>
@@ -430,8 +413,6 @@
                             <option value="json">JSON</option>
                         </select>
                     </div>
-                    
-                    
                     
                     <!-- Alert informativo -->
                     <div class="alert alert-info mt-3">
@@ -488,11 +469,6 @@
 .badge-livello-2 { background-color: #0dcaf0; color: #000; } /* Tecnico */
 .badge-livello-1 { background-color: #6c757d; } /* Pubblico */
 
-/* Row selection */
-tr.selected {
-    background-color: #e3f2fd !important;
-}
-
 /* Hover effects */
 .user-row:hover {
     background-color: #f8f9fa;
@@ -506,72 +482,16 @@ tr.selected {
 
 @push('scripts')
 <script>
-<script>
 $(document).ready(function() {
-    console.log('🔧 Gestione Utenti inizializzata');
+    console.log('Gestione Utenti inizializzata - modalità singola');
     
-    let selectedUsers = [];
-    
-    // === GESTIONE SELEZIONE UTENTI ===
-    
-    // Select All checkbox
-    $('#checkAll').on('change', function() {
-        const isChecked = $(this).is(':checked');
-        $('.user-checkbox').prop('checked', isChecked);
-        updateSelection();
-    });
-    
-    // Singola checkbox utente
-    $('.user-checkbox').on('change', function() {
-        updateSelection();
-        updateSelectAllState();
-    });
-    
-    function updateSelection() {
-    selectedUsers = [];
-    $('.user-checkbox:checked').each(function() {
-        selectedUsers.push($(this).val());
-        $(this).closest('tr').addClass('selected');
-    });
-    
-    $('.user-checkbox:not(:checked)').closest('tr').removeClass('selected');
-    
-    // ✅ NUOVO: Solo log per debug (opzionale)
-    console.log('🔄 Utenti selezionati:', selectedUsers.length);
-}
-    
-    function updateSelectAllState() {
-        const total = $('.user-checkbox').length;
-        const checked = $('.user-checkbox:checked').length;
-        
-        $('#checkAll').prop('indeterminate', checked > 0 && checked < total);
-        $('#checkAll').prop('checked', checked === total && total > 0);
-    }
-    
-    // === SELECT ALL BUTTON ===
-    $('#selectAllBtn').on('click', function() {
-        const allChecked = $('.user-checkbox:checked').length === $('.user-checkbox').length;
-        
-        if (allChecked) {
-            $('.user-checkbox').prop('checked', false);
-            $('#checkAll').prop('checked', false);
-            $(this).html('<i class="bi bi-check-all me-1"></i>Seleziona Tutti');
-        } else {
-            $('.user-checkbox').prop('checked', true);
-            $('#checkAll').prop('checked', true);
-            $(this).html('<i class="bi bi-square me-1"></i>Deseleziona Tutti');
-        }
-        
-        updateSelection();
-    });
-    
-    // === FILTRI DINAMICI CORRETTI ===
+    // === FILTRI DINAMICI ===
     $('#livello_accesso, #centro_assistenza_id, #data_registrazione').on('change', function() {
-        console.log('🔄 Applicazione filtro:', $(this).attr('name'), '=', $(this).val());
+        console.log('Applicazione filtro:', $(this).attr('name'), '=', $(this).val());
         $(this).closest('form').submit();
     });
     
-    // === SEARCH DINAMICA MIGLIORATA ===
+    // === RICERCA DINAMICA ===
     let searchTimeout;
     $('#search').on('input', function() {
         clearTimeout(searchTimeout);
@@ -579,15 +499,15 @@ $(document).ready(function() {
         
         if (query.length >= 2 || query.length === 0) {
             searchTimeout = setTimeout(() => {
-                console.log('🔍 Ricerca per:', query);
+                console.log('Ricerca per:', query);
                 $('#filterForm').submit();
             }, 800);
         }
     });
     
-    // === GESTIONE AZIONI UTENTE (SENZA SOSPENDI/ATTIVA) ===
+    // === GESTIONE AZIONI UTENTE ===
     
-    // Reset password con AJAX migliorato
+    // Reset password con AJAX
     $('form[action*="reset-password"]').on('submit', function(e) {
         e.preventDefault();
         
@@ -641,7 +561,7 @@ $(document).ready(function() {
         });
     });
     
-    // Conferma eliminazione migliorata
+    // Conferma eliminazione
     $('form[action*="destroy"] button[type="submit"]').on('click', function(e) {
         const form = $(this).closest('form');
         const userRow = $(this).closest('tr');
@@ -652,7 +572,7 @@ $(document).ready(function() {
         if (confirmed) {
             userRow.addClass('table-warning');
             userRow.find('td').last().html('<i class="bi bi-hourglass-split"></i> Eliminazione...');
-            return true; // Procedi con il submit
+            return true;
         } else {
             e.preventDefault();
             return false;
@@ -661,11 +581,6 @@ $(document).ready(function() {
     
     // === KEYBOARD SHORTCUTS ===
     $(document).on('keydown', function(e) {
-        if (e.ctrlKey && e.key === 'a' && !$(e.target).is('input, textarea')) {
-            e.preventDefault();
-            $('#selectAllBtn').click();
-        }
-        
         if (e.ctrlKey && e.key === 'n') {
             e.preventDefault();
             window.location.href = "{{ route('admin.users.create') }}";
@@ -679,7 +594,7 @@ $(document).ready(function() {
     // === TOOLTIP ===
     $('[title]').tooltip();
     
-    // === FUNZIONE HELPER ===
+    // === FUNZIONE HELPER PER NOTIFICHE ===
     function showNotification(message, type = 'success') {
         const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
         const alert = $(`
@@ -694,8 +609,8 @@ $(document).ready(function() {
         setTimeout(() => alert.alert('close'), 5000);
     }
     
-    console.log('✅ Gestione utenti inizializzata - SENZA funzione sospendi');
-    console.log(`📊 Utenti caricati: {{ $users->total() ?? 0 }}`);
+    console.log('Gestione utenti inizializzata - versione senza selezione multipla');
+    console.log('Utenti caricati:', {{ $users->total() ?? 0 }});
 });
 </script>
 @endpush

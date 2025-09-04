@@ -312,7 +312,10 @@
                             <img src="{{ asset('storage/' . $prodotto->foto) }}" 
                                  class="card-img-top product-image" 
                                  alt="{{ $prodotto->nome }}"
-                                 style="height: 160px; object-fit: cover;">
+                                 style="height: 160px;
+    object-fit: contain !important; /* ← Mostra immagine completa */
+    object-position: center center;
+    background-color: #f8f9fa;">
                         @else
                             <div class="card-img-top d-flex align-items-center justify-content-center bg-light" 
                                  style="height: 160px;">

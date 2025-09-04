@@ -764,15 +764,14 @@ $(document).ready(function() {
     if (searchTerm && searchTerm.length > 2) {
         $('.fw-bold a, p.text-muted').each(function() {
             const text = $(this).html();
-            const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\            success: function(response) {
-                if (response.success) {
-                    // Aggiorna il contatore
-                    $(`[data-segnalazioni-count="${malfunzionamentoId}"]`)
-                        .html(`<i class="bi bi-flag me-1"></i>${response')})`, 'gi');
-            const highlighted = text.replace(regex, '<mark>$1</mark>');
-            $(this).html(highlighted);
+            const regex = new RegExp(
+    `(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`,
+    'gi'
+);
+const highlighted = text.replace(regex, '<mark>$1</mark>');
+$(this).html(highlighted);
         });
-    }
+                }
     
     // === HOVER EFFECTS ===
     $('.product-thumb, .product-thumb-placeholder').hover(

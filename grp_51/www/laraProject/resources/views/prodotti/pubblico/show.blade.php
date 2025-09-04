@@ -1,24 +1,43 @@
 {{-- 
-    Vista PUBBLICA per scheda prodotto singolo (senza malfunzionamenti)
+    Vista PUBBLICA per scheda prodotto singolo - STILE UNIFICATO
     Path: resources/views/prodotti/pubblico/show.blade.php
-    Layout orizzontale e compatto con colori Bootstrap originali
+    Sistema Assistenza Tecnica - Gruppo 51
+    
+    Stesso layout compatto della vista tecnica ma SENZA malfunzionamenti
 --}}
+
 @extends('layouts.app')
 
-@section('title', $prodotto->nome . ' - ' . config('app.name'))
+@section('title', $prodotto->nome . ' - Scheda Tecnica')
 
 @section('content')
 <div class="container-fluid px-4 py-3">
     
+    {{-- === HEADER COMPATTO UNIFICATO === --}}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2 class="mb-1">{{ $prodotto->nome }}</h2>
+            <p class="text-muted small mb-0">Scheda tecnica pubblica</p>
+        </div>
+        <div class="btn-group btn-group-sm">
+            <a href="{{ route('prodotti.pubblico.index') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Catalogo
+            </a>
+            @auth
+                @if(Auth::user()->canViewMalfunzionamenti())
+                    <a href="{{ route('prodotti.completo.show', $prodotto) }}" class="btn btn-outline-info">
+                        <i class="bi bi-tools"></i> Vista Tecnica
+                    </a>
+                @endif
+            @endauth
+        </div>
+    </div>
+
     {{-- Breadcrumb compatto --}}
     <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb bg-light rounded px-3 py-2">
-            <li class="breadcrumb-item">
-                <a href="{{ route('home') }}">Home</a>
-            </li>
-            <li class="breadcrumb-item">
-                <a href="{{ route('prodotti.pubblico.index') }}">Catalogo</a>
-            </li>
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="{{ route('home') }}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{{ route('prodotti.pubblico.index') }}">Catalogo Pubblico</a></li>
             @if($prodotto->categoria)
                 <li class="breadcrumb-item">
                     <a href="{{ route('prodotti.pubblico.index') }}?categoria={{ urlencode($prodotto->categoria) }}">
@@ -26,53 +45,60 @@
                     </a>
                 </li>
             @endif
-            <li class="breadcrumb-item active">{{ $prodotto->nome }}</li>
+            <li class="breadcrumb-item active">{{ Str::limit($prodotto->nome, 30) }}</li>
         </ol>
     </nav>
 
-    {{-- Alert tecnici compatto --}}
+    {{-- === ALERT TECNICO DISPONIBILE === --}}
     @auth
         @if(Auth::user()->canViewMalfunzionamenti())
-            <div class="alert alert-info d-flex align-items-center mb-3">
-                <i class="bi bi-tools me-2"></i>
-                <span class="me-auto">Accesso tecnico disponibile - Visualizza malfunzionamenti e soluzioni</span>
-                <a href="{{ route('prodotti.completo.show', $prodotto) }}" class="btn btn-info btn-sm">
-                    <i class="bi bi-eye me-1"></i>Vista Tecnica
-                </a>
+            <div class="alert alert-info border-0 shadow-sm mb-3">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-info-circle-fill me-2 fs-5"></i>
+                    <div class="flex-grow-1">
+                        <strong>Vista Tecnica Disponibile</strong> - 
+                        Accedi alla vista completa con malfunzionamenti e soluzioni tecniche.
+                    </div>
+                    <a href="{{ route('prodotti.completo.show', $prodotto) }}" class="btn btn-info btn-sm">
+                        <i class="bi bi-tools me-1"></i>Vista Completa
+                    </a>
+                </div>
             </div>
         @endif
     @endauth
 
-    {{-- Layout orizzontale principale --}}
+    {{-- === LAYOUT ORIZZONTALE PRINCIPALE UNIFICATO === --}}
     <div class="row g-4">
         
-        {{-- Colonna immagine più stretta --}}
-        <div class="col-md-4">
-            <div class="card">
+        {{-- === COLONNA IMMAGINE E INFO (stile identico alla vista tecnica) === --}}
+        <div class="col-lg-4 col-md-5">
+            <div class="card border-0 shadow-sm">
                 <div class="position-relative">
                     @if($prodotto->foto)
+                        {{-- IMMAGINE CORRETTA CON OBJECT-FIT CONTAIN --}}
                         <img src="{{ asset('storage/' . $prodotto->foto) }}" 
-                             class="card-img-top" 
+                             class="card-img-top product-image" 
                              alt="{{ $prodotto->nome }}"
-                             style="height: 300px; object-fit: cover; cursor: pointer;"
+                             style="height: 280px; object-fit: contain; background-color: #f8f9fa; cursor: pointer; padding: 1rem;"
                              onclick="openImageModal('{{ asset('storage/' . $prodotto->foto) }}', '{{ $prodotto->nome }}')">
                     @else
                         <div class="card-img-top d-flex align-items-center justify-content-center bg-light" 
-                             style="height: 300px;">
+                             style="height: 280px;">
                             <div class="text-center">
                                 <i class="bi bi-image text-muted mb-2" style="font-size: 3rem;"></i>
-                                <p class="text-muted mb-0">Immagine non disponibile</p>
+                                <p class="text-muted mb-0 small">Immagine non disponibile</p>
                             </div>
                         </div>
                     @endif
                     
-                    {{-- Badge compatti --}}
+                    {{-- Badge categoria --}}
                     <div class="position-absolute top-0 start-0 m-2">
                         <span class="badge bg-primary">
                             {{ ucfirst(str_replace('_', ' ', $prodotto->categoria)) }}
                         </span>
                     </div>
                     
+                    {{-- Badge prezzo --}}
                     @if($prodotto->prezzo)
                         <div class="position-absolute top-0 end-0 m-2">
                             <span class="badge bg-success">
@@ -82,10 +108,10 @@
                     @endif
                 </div>
                 
-                {{-- Azioni immagine --}}
+                {{-- Azioni immagine compatte --}}
                 @if($prodotto->foto)
-                    <div class="card-body p-2">
-                        <div class="d-flex gap-2">
+                    <div class="card-body py-2">
+                        <div class="d-flex gap-1">
                             <button type="button" class="btn btn-primary btn-sm flex-fill" 
                                     onclick="openImageModal('{{ asset('storage/' . $prodotto->foto) }}', '{{ $prodotto->nome }}')">
                                 <i class="bi bi-zoom-in me-1"></i>Ingrandisci
@@ -100,81 +126,159 @@
                 @endif
             </div>
             
-            {{-- Info box compatto --}}
-            <div class="card mt-3">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i class="bi bi-info-circle me-1"></i>
-                        Informazioni
+            {{-- === INFO TECNICHE COMPATTE (stile identico) === --}}
+            <div class="card border-0 shadow-sm mt-3">
+                <div class="card-header bg-warning text-dark py-2">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-info-circle me-1"></i>Informazioni Prodotto
                     </h6>
                 </div>
-                <div class="card-body p-3">
-                    <div class="row g-3 text-center">
+                <div class="card-body py-3">
+                    <div class="row g-2 text-center">
                         @if($prodotto->created_at)
                             <div class="col-6">
-                                <small class="text-muted d-block">Catalogo</small>
-                                <strong>{{ $prodotto->created_at->format('d/m/Y') }}</strong>
+                                <div class="p-2 bg-light rounded">
+                                    <small class="text-muted d-block">Catalogato</small>
+                                    <strong class="small">{{ $prodotto->created_at->format('d/m/Y') }}</strong>
+                                </div>
                             </div>
                         @endif
                         <div class="col-6">
-                            <small class="text-muted d-block">Categoria</small>
-                            <strong>{{ ucfirst(str_replace('_', ' ', $prodotto->categoria)) }}</strong>
+                            <div class="p-2 bg-light rounded">
+                                <small class="text-muted d-block">Categoria</small>
+                                <strong class="small">{{ ucfirst(str_replace('_', ' ', $prodotto->categoria)) }}</strong>
+                            </div>
                         </div>
-                        @if($prodotto->codice_prodotto ?? false)
+                        @if($prodotto->modello)
                             <div class="col-12">
-                                <small class="text-muted d-block">Codice</small>
-                                <code>{{ $prodotto->codice_prodotto }}</code>
+                                <div class="p-2 bg-light rounded">
+                                    <small class="text-muted d-block">Modello</small>
+                                    <code class="small">{{ $prodotto->modello }}</code>
+                                </div>
+                            </div>
+                        @endif
+                        
+                        {{-- Staff assegnato (se presente) --}}
+                        @if($prodotto->staffAssegnato)
+                            <div class="col-12">
+                                <div class="p-2 bg-info bg-opacity-10 rounded">
+                                    <small class="text-muted d-block">Referente Tecnico</small>
+                                    <span class="badge bg-info small">
+                                        <i class="bi bi-person-badge me-1"></i>
+                                        {{ $prodotto->staffAssegnato->nome_completo }}
+                                    </span>
+                                </div>
                             </div>
                         @endif
                     </div>
                 </div>
             </div>
+
+            {{-- === ASSISTENZA TECNICA BOX === --}}
+            <div class="card border-0 shadow-sm mt-3">
+                <div class="card-header bg-primary text-white py-2">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-headset me-1"></i>Assistenza Tecnica
+                    </h6>
+                </div>
+                <div class="card-body py-3">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <div class="text-center p-2 bg-success bg-opacity-10 rounded">
+                                <div class="fw-bold text-success">24/7</div>
+                                <small class="text-muted">Supporto</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center p-2 bg-info bg-opacity-10 rounded">
+                                <div class="fw-bold text-info">Gratuita</div>
+                                <small class="text-muted">Consulenza</small>
+                            </div>
+                        </div>
+                        <div class="col-12 mt-2">
+                            <div class="d-grid gap-1">
+                                <a href="{{ route('centri.index') }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-geo-alt me-1"></i>Trova Centro Assistenza
+                                </a>
+                                <a href="{{ route('contatti') }}" class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-envelope me-1"></i>Contatta Supporto
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
         
-        {{-- Colonna informazioni più ampia --}}
-        <div class="col-md-8">
+        {{-- === COLONNA INFORMAZIONI PRINCIPALE (stile identico) === --}}
+        <div class="col-lg-8 col-md-7">
             
-            {{-- Header prodotto in linea --}}
-            <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
-                <div>
-                    <h1 class="h2 mb-1">{{ $prodotto->nome }}</h1>
-                    @if($prodotto->modello)
-                        <span class="badge bg-secondary">{{ $prodotto->modello }}</span>
-                    @endif
+            {{-- Header prodotto compatto --}}
+            <div class="d-flex flex-wrap align-items-start justify-content-between mb-3">
+                <div class="flex-grow-1">
+                    <h1 class="h3 mb-2">{{ $prodotto->nome }}</h1>
+                    <div class="d-flex flex-wrap gap-1 mb-2">
+                        @if($prodotto->modello)
+                            <span class="badge bg-secondary small">{{ $prodotto->modello }}</span>
+                        @endif
+                        
+                        {{-- Badge categoria --}}
+                        <span class="badge bg-primary small">
+                            <i class="bi bi-tag me-1"></i>
+                            {{ ucfirst(str_replace('_', ' ', $prodotto->categoria)) }}
+                        </span>
+                        
+                        {{-- Badge staff assegnato --}}
+                        @if($prodotto->staffAssegnato)
+                            <span class="badge bg-info small">
+                                <i class="bi bi-person-badge me-1"></i>
+                                Ref: {{ Str::limit($prodotto->staffAssegnato->nome_completo, 20) }}
+                            </span>
+                        @endif
+                        
+                        {{-- Badge pubblico --}}
+                        <span class="badge bg-success small">
+                            <i class="bi bi-eye me-1"></i>
+                            Vista Pubblica
+                        </span>
+                    </div>
                 </div>
                 @if($prodotto->prezzo)
                     <div class="text-end">
-                        <h3 class="text-success mb-0">€{{ number_format($prodotto->prezzo, 2, ',', '.') }}</h3>
+                        <h4 class="text-success mb-0">€{{ number_format($prodotto->prezzo, 2, ',', '.') }}</h4>
                     </div>
                 @endif
             </div>
             
             {{-- Descrizione --}}
             @if($prodotto->descrizione)
-                <p class="text-muted mb-3">{{ $prodotto->descrizione }}</p>
+                <div class="mb-3">
+                    <p class="text-muted">{{ $prodotto->descrizione }}</p>
+                </div>
             @endif
             
-            {{-- Scheda tecnica orizzontale --}}
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="bi bi-file-earmark-text me-2"></i>
-                        Scheda Tecnica
-                    </h5>
+            {{-- === SCHEDA TECNICA COMPATTA (stile identico) === --}}
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-primary text-white py-2">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-file-earmark-text me-1"></i>Scheda Tecnica Completa
+                    </h6>
                 </div>
-                <div class="card-body">
+                <div class="card-body py-3">
                     
-                    {{-- Layout a colonne per scheda tecnica --}}
-                    <div class="row g-4">
+                    {{-- Layout compatto per scheda tecnica --}}
+                    <div class="row g-3">
                         
                         {{-- Note tecniche --}}
                         @if($prodotto->note_tecniche)
                             <div class="col-lg-4">
-                                <h6 class="text-primary">
-                                    <i class="bi bi-gear me-1"></i>Specifiche
+                                <h6 class="text-primary small fw-semibold">
+                                    <i class="bi bi-gear me-1"></i>Specifiche Tecniche
                                 </h6>
-                                <div class="bg-light p-3 rounded">
-                                    {!! nl2br(e($prodotto->note_tecniche)) !!}
+                                <div class="bg-light p-3 rounded border-start border-primary border-3">
+                                    <div class="small">
+                                        {!! nl2br(e($prodotto->note_tecniche)) !!}
+                                    </div>
                                 </div>
                             </div>
                         @endif
@@ -182,11 +286,13 @@
                         {{-- Installazione --}}
                         @if($prodotto->modalita_installazione)
                             <div class="col-lg-4">
-                                <h6 class="text-success">
-                                    <i class="bi bi-tools me-1"></i>Installazione
+                                <h6 class="text-success small fw-semibold">
+                                    <i class="bi bi-tools me-1"></i>Modalità Installazione
                                 </h6>
                                 <div class="bg-light p-3 rounded border-start border-success border-3">
-                                    {!! nl2br(e($prodotto->modalita_installazione)) !!}
+                                    <div class="small">
+                                        {!! nl2br(e($prodotto->modalita_installazione)) !!}
+                                    </div>
                                 </div>
                             </div>
                         @endif
@@ -194,22 +300,26 @@
                         {{-- Modalità d'uso --}}
                         @if($prodotto->modalita_uso)
                             <div class="col-lg-4">
-                                <h6 class="text-info">
-                                    <i class="bi bi-book me-1"></i>Utilizzo
+                                <h6 class="text-info small fw-semibold">
+                                    <i class="bi bi-book me-1"></i>Modalità d'Uso
                                 </h6>
                                 <div class="bg-light p-3 rounded border-start border-info border-3">
-                                    {!! nl2br(e($prodotto->modalita_uso)) !!}
+                                    <div class="small">
+                                        {!! nl2br(e($prodotto->modalita_uso)) !!}
+                                    </div>
                                 </div>
                             </div>
                         @endif
                         
-                        {{-- Se mancano informazioni --}}
+                        {{-- Messaggio informazioni mancanti --}}
                         @if(!$prodotto->note_tecniche && !$prodotto->modalita_installazione && !$prodotto->modalita_uso)
-                            <div class="col-12 text-center py-4">
+                            <div class="col-12 text-center py-3">
                                 <i class="bi bi-info-circle text-muted mb-2" style="font-size: 2rem;"></i>
                                 <p class="text-muted mb-0">
-                                    Scheda tecnica in aggiornamento.<br>
-                                    <a href="{{ route('contatti') }}">Contatta l'assistenza</a> per maggiori informazioni.
+                                    Scheda tecnica in aggiornamento.
+                                    <br><a href="{{ route('contatti') }}" class="btn btn-outline-primary btn-sm mt-2">
+                                        <i class="bi bi-envelope me-1"></i>Richiedi informazioni
+                                    </a>
                                 </p>
                             </div>
                         @endif
@@ -217,42 +327,178 @@
                 </div>
             </div>
             
-            {{-- Call to action orizzontale --}}
-            <div class="card bg-primary text-white mt-3">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <h5 class="mb-2">
-                                <i class="bi bi-question-circle me-2"></i>
-                                Hai bisogno di assistenza?
-                            </h5>
-                            <p class="mb-0">
-                                Il nostro team tecnico è a tua disposizione per supporto e risoluzione problemi.
-                            </p>
-                        </div>
-                        <div class="col-md-4 text-end mt-2 mt-md-0">
-                            <div class="d-flex flex-wrap gap-2 justify-content-end">
-                                @guest
-                                    <a href="{{ route('login') }}" class="btn btn-light btn-sm">
-                                        <i class="bi bi-person-check me-1"></i>Login
-                                    </a>
-                                @endguest
-                                <a href="{{ route('centri.index') }}" class="btn btn-outline-light btn-sm">
-                                    <i class="bi bi-geo-alt me-1"></i>Centri
-                                </a>
-                                <a href="{{ route('contatti') }}" class="btn btn-outline-light btn-sm">
-                                    <i class="bi bi-envelope me-1"></i>Contatti
-                                </a>
+            {{-- === SEZIONE ASSISTENZA TECNICA (invece dei malfunzionamenti) === --}}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-info text-white py-2">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <h6 class="mb-0 fw-semibold">
+                            <i class="bi bi-headset me-1"></i>
+                            Supporto e Assistenza Tecnica
+                        </h6>
+                    </div>
+                </div>
+                <div class="card-body py-3">
+                    
+                    {{-- Griglia servizi assistenza --}}
+                    <div class="row g-3">
+                        
+                        {{-- Supporto tecnico --}}
+                        <div class="col-lg-6">
+                            <div class="card border-start border-primary border-3 h-100">
+                                <div class="card-body py-3">
+                                    <h6 class="card-title mb-2 fw-bold small text-primary">
+                                        <i class="bi bi-tools me-1"></i>Supporto Tecnico Specializzato
+                                    </h6>
+                                    <p class="text-muted small mb-2">
+                                        I nostri tecnici qualificati sono pronti ad assisterti per installazione, 
+                                        configurazione e risoluzione di eventuali problemi tecnici.
+                                    </p>
+                                    <div class="d-flex flex-wrap gap-1 mb-2">
+                                        <span class="badge bg-primary small">24/7</span>
+                                        <span class="badge bg-success small">Gratuito</span>
+                                        <span class="badge bg-info small">Specializzato</span>
+                                    </div>
+                                    <div class="d-grid gap-1">
+                                        @guest
+                                            <a href="{{ route('login') }}" class="btn btn-primary btn-sm">
+                                                <i class="bi bi-person-check me-1"></i>Accesso Tecnici
+                                            </a>
+                                        @else
+                                            @if(Auth::user()->canViewMalfunzionamenti())
+                                                <a href="{{ route('prodotti.completo.show', $prodotto) }}" class="btn btn-primary btn-sm">
+                                                    <i class="bi bi-tools me-1"></i>Area Tecnica
+                                                </a>
+                                            @else
+                                                <a href="{{ route('contatti') }}" class="btn btn-primary btn-sm">
+                                                    <i class="bi bi-headset me-1"></i>Richiedi Supporto
+                                                </a>
+                                            @endif
+                                        @endguest
+                                        <a href="{{ route('centri.index') }}" class="btn btn-outline-primary btn-sm">
+                                            <i class="bi bi-geo-alt me-1"></i>Centri Assistenza
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
+                        </div>
+                        
+                        {{-- Documentazione e guide --}}
+                        <div class="col-lg-6">
+                            <div class="card border-start border-success border-3 h-100">
+                                <div class="card-body py-3">
+                                    <h6 class="card-title mb-2 fw-bold small text-success">
+                                        <i class="bi bi-book me-1"></i>Guide e Documentazione
+                                    </h6>
+                                    <p class="text-muted small mb-2">
+                                        Accedi alle guide di installazione, manuali d'uso e documentazione tecnica 
+                                        per sfruttare al meglio le funzionalità del prodotto.
+                                    </p>
+                                    <div class="d-flex flex-wrap gap-1 mb-2">
+                                        <span class="badge bg-success small">PDF</span>
+                                        <span class="badge bg-warning small">Video Guide</span>
+                                        <span class="badge bg-info small">FAQ</span>
+                                    </div>
+                                    
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {{-- Call to action per accesso tecnico --}}
+                    @guest
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="alert alert-info mb-0">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-info-circle me-2"></i>
+                                        <div class="flex-grow-1">
+                                            <strong>Sei un tecnico autorizzato?</strong> 
+                                            Accedi per visualizzare informazioni dettagliate sui malfunzionamenti e le relative soluzioni tecniche.
+                                        </div>
+                                        <a href="{{ route('login') }}" class="btn btn-info btn-sm ms-2">
+                                            <i class="bi bi-person-check me-1"></i>Accedi
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endguest
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- === PRODOTTI CORRELATI COMPATTI (se disponibili) === --}}
+    @if(isset($prodottiCorrelati) && $prodottiCorrelati->count() > 0)
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-light py-2">
+                        <h6 class="mb-0 fw-semibold">
+                            <i class="bi bi-collection text-info me-1"></i>
+                            Altri Prodotti della Categoria "{{ ucfirst(str_replace('_', ' ', $prodotto->categoria)) }}"
+                        </h6>
+                    </div>
+                    <div class="card-body py-3">
+                        <div class="row g-3">
+                            @foreach($prodottiCorrelati->take(4) as $correlato)
+                                <div class="col-lg-3 col-md-6">
+                                    <div class="card h-100 border-0 shadow-sm">
+                                        <div class="card-body p-3">
+                                            <div class="d-flex align-items-start">
+                                                @if($correlato->foto)
+                                                    <img src="{{ asset('storage/' . $correlato->foto) }}" 
+                                                         class="rounded me-3" 
+                                                         style="width: 50px; height: 50px; object-fit: contain; background-color: #f8f9fa;">
+                                                @else
+                                                    <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" 
+                                                         style="width: 50px; height: 50px;">
+                                                        <i class="bi bi-box text-muted"></i>
+                                                    </div>
+                                                @endif
+                                                
+                                                <div class="flex-grow-1">
+                                                    <h6 class="mb-1 small">
+                                                        <a href="{{ route('prodotti.pubblico.show', $correlato) }}" 
+                                                           class="text-decoration-none">
+                                                            {{ Str::limit($correlato->nome, 25) }}
+                                                        </a>
+                                                    </h6>
+                                                    <small class="text-muted d-block mb-1">
+                                                        {{ $correlato->modello ?? 'Modello N/A' }}
+                                                    </small>
+                                                    <div class="d-flex gap-1">
+                                                        @if($correlato->prezzo)
+                                                            <span class="badge bg-success small">
+                                                                €{{ number_format($correlato->prezzo, 0, ',', '.') }}
+                                                            </span>
+                                                        @endif
+                                                        <span class="badge bg-primary small">Disponibile</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                        
+                        {{-- Link catalogo categoria --}}
+                        <div class="text-center mt-3">
+                            <a href="{{ route('prodotti.pubblico.index') }}?categoria={{ urlencode($prodotto->categoria) }}" 
+                               class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-eye me-1"></i>
+                                Vedi Tutti i Prodotti {{ ucfirst(str_replace('_', ' ', $prodotto->categoria)) }}
+                            </a>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    @endif
 </div>
 
-{{-- Modal semplice --}}
+{{-- === MODAL IMMAGINE IDENTICO === --}}
 <div class="modal fade" id="imageModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content bg-dark">
@@ -261,99 +507,440 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-0">
-                <img id="imageModalImg" src="" alt="" class="img-fluid w-100">
+                <img id="imageModalImg" src="" alt="" class="img-fluid w-100" style="object-fit: contain;">
             </div>
         </div>
     </div>
 </div>
 @endsection
 
-{{-- CSS minimo e pulito --}}
 @push('styles')
 <style>
-/* Layout compatto e orizzontale */
-.card-img-top {
-    transition: transform 0.2s ease;
-}
+/* === STILI IDENTICI ALLA VISTA TECNICA === */
 
-.card-img-top:hover {
-    transform: scale(1.02);
-}
-
+/* Card base */
 .card {
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.15) !important;
+}
+
+/* === IMMAGINE PRODOTTO CORRETTA === */
+.product-image {
+    transition: transform 0.3s ease;
     border-radius: 0.375rem;
 }
 
-.badge {
-    font-size: 0.75rem;
+.product-image:hover {
+    transform: scale(1.02);
 }
 
-/* Responsive per layout orizzontale */
+/* Badge più compatti */
+.badge.small {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+}
+
+/* Card body compatti */
+.card-body.py-2 {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+}
+
+.card-body.py-3 {
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+}
+
+/* Card header compatti */
+.card-header.py-2 {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+}
+
+.border-3 {
+    border-width: 3px !important;
+}
+
+/* Background opacity personalizzati */
+.bg-primary.bg-opacity-10 {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+}
+
+.bg-warning.bg-opacity-10 {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+}
+
+.bg-danger.bg-opacity-10 {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+}
+
+.bg-info.bg-opacity-10 {
+    background-color: rgba(13, 202, 240, 0.1) !important;
+}
+
+.bg-success.bg-opacity-10 {
+    background-color: rgba(25, 135, 84, 0.1) !important;
+}
+
+/* Alert personalizzati */
+.alert {
+    border-radius: 0.5rem;
+}
+
+.custom-alert {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Responsive design identico */
 @media (max-width: 768px) {
     .container-fluid {
         padding-left: 1rem !important;
         padding-right: 1rem !important;
     }
     
+    .product-image {
+        height: 180px !important;
+        padding: 0.5rem;
+    }
+    
+    .row.g-3 {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+    }
+    
+    .row.g-3 > * {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+    
     .h2 {
-        font-size: 1.5rem;
+        font-size: 1.2rem;
     }
     
-    .card-img-top {
-        height: 250px !important;
-    }
-    
-    /* Stack verticale su mobile */
-    .col-md-8 .row.align-items-center {
-        text-align: center;
-    }
-    
-    .col-md-8 .row .col-md-4 {
-        margin-top: 1rem;
+    .d-flex.flex-wrap.gap-1 {
+        gap: 0.25rem !important;
     }
 }
 
-/* Colori Bootstrap originali mantenuti */
-.bg-primary { background-color: #0d6efd !important; }
-.bg-success { background-color: #198754 !important; }
-.bg-info { background-color: #0dcaf0 !important; }
-.bg-secondary { background-color: #6c757d !important; }
+/* Loading states */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
 
-.text-primary { color: #0d6efd !important; }
-.text-success { color: #198754 !important; }
-.text-info { color: #0dcaf0 !important; }
+.spinner-border-sm {
+    width: 0.8rem;
+    height: 0.8rem;
+}
 
-.border-primary { border-color: #0d6efd !important; }
-.border-success { border-color: #198754 !important; }
-.border-info { border-color: #0dcaf0 !important; }
-
-/* Hover discreto */
+/* Animazioni */
 .btn:hover {
     transform: translateY(-1px);
 }
 
-.card:hover {
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+.badge:hover {
+    transform: scale(1.05);
+}
+
+/* Focus migliorato */
+.btn:focus {
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+/* Breadcrumb personalizzato */
+.breadcrumb-item + .breadcrumb-item::before {
+    content: "›";
+    color: #6c757d;
+}
+
+/* Modal immagine */
+#imageModal .modal-body img {
+    max-height: 80vh;
+}
+
+/* Scrollbar personalizzata */
+.overflow-auto::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.overflow-auto::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 6px;
+}
+
+.overflow-auto::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 6px;
+}
+
+.overflow-auto::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Scroll smooth per navigazione interna */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Evidenziazione sezioni quando linkate */
+.section-highlight {
+    animation: highlight 2s ease-in-out;
+}
+
+@keyframes highlight {
+    0% { background-color: rgba(255, 193, 7, 0.3); }
+    100% { background-color: transparent; }
 }
 </style>
 @endpush
 
-{{-- JavaScript essenziale --}}
 @push('scripts')
 <script>
 $(document).ready(function() {
-    console.log('Vista prodotto orizzontale inizializzata');
+    console.log('📄 Vista prodotto pubblica con stile unificato caricata');
     
-    /**
-     * Modal immagine semplice
-     */
+    // === MODAL IMMAGINE IDENTICO ===
     window.openImageModal = function(imageSrc, imageTitle) {
-        $('#imageModalImg').attr('src', imageSrc);
+        $('#imageModalImg').attr('src', imageSrc).attr('alt', imageTitle);
         $('#imageModalTitle').text(imageTitle);
         $('#imageModal').modal('show');
     };
     
-    console.log('Vista prodotto pronta');
+    // === SCROLL TO SECTION ===
+    window.scrollToSection = function(section) {
+        let targetSelector = '';
+        
+        if (section === 'installazione') {
+            targetSelector = 'h6:contains("Modalità Installazione")';
+        } else if (section === 'uso') {
+            targetSelector = 'h6:contains("Modalità d\'Uso")';
+        }
+        
+        if (targetSelector) {
+            const $target = $(targetSelector).closest('.col-lg-4');
+            if ($target.length > 0) {
+                $target.addClass('section-highlight');
+                $('html, body').animate({
+                    scrollTop: $target.offset().top - 100
+                }, 500);
+                
+                setTimeout(() => {
+                    $target.removeClass('section-highlight');
+                }, 2000);
+            }
+        }
+    };
+    
+    // === GESTIONE ERRORI IMMAGINI ===
+    $('.product-image, img').on('error', function() {
+        const $this = $(this);
+        const productName = $this.attr('alt') || 'Prodotto';
+        const height = $this.height() || 280;
+        
+        $this.replaceWith(`
+            <div class="d-flex align-items-center justify-content-center bg-light rounded" 
+                 style="height: ${height}px;">
+                <div class="text-center">
+                    <i class="bi bi-image text-muted mb-2" style="font-size: 2rem;"></i>
+                    <div class="small text-muted">${productName.substring(0, 30)}</div>
+                </div>
+            </div>
+        `);
+    });
+    
+    // === ALERT SYSTEM ===
+    function showAlert(message, type = 'info', duration = 4000) {
+        $('.custom-alert').remove();
+        
+        const icons = {
+            success: 'check-circle-fill',
+            danger: 'exclamation-triangle-fill',
+            warning: 'exclamation-triangle-fill',
+            info: 'info-circle-fill'
+        };
+        
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show custom-alert position-fixed" 
+                 style="top: 20px; right: 20px; z-index: 1060; max-width: 350px;" 
+                 role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-${icons[type] || 'info-circle-fill'} me-2"></i>
+                    <div>${message}</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        $('body').append(alertHtml);
+        
+        setTimeout(() => {
+            $('.custom-alert').fadeOut(300, function() {
+                $(this).remove();
+            });
+        }, duration);
+    }
+    
+    // === TOOLTIP ===
+    $('[title]').tooltip({
+        trigger: 'hover',
+        placement: 'top'
+    });
+    
+    // === NOTIFICHE SESSIONE ===
+    @if(session('success'))
+        showAlert('{{ session('success') }}', 'success');
+    @endif
+    
+    @if(session('error'))
+        showAlert('{{ session('error') }}', 'danger');
+    @endif
+    
+    @if(session('info'))
+        showAlert('{{ session('info') }}', 'info');
+    @endif
+    
+    // === ANALYTICS E DEBUG ===
+    const prodottoData = {
+        prodotto_id: {{ $prodotto->id }},
+        nome: '{{ $prodotto->nome }}',
+        categoria: '{{ $prodotto->categoria }}',
+        modello: '{{ $prodotto->modello ?? "N/A" }}',
+        ha_foto: {{ $prodotto->foto ? 'true' : 'false' }},
+        ha_prezzo: {{ $prodotto->prezzo ? 'true' : 'false' }},
+        staff_assegnato: {{ $prodotto->staffAssegnato ? 'true' : 'false' }},
+        vista_tipo: 'pubblica',
+        user_authenticated: {{ auth()->check() ? 'true' : 'false' }},
+        @auth
+            user_can_view_malfunctions: {{ Auth::user()->canViewMalfunzionamenti() ? 'true' : 'false' }},
+        @endauth
+        timestamp: new Date().toISOString()
+    };
+    
+    console.log('📊 Vista prodotto pubblico:', prodottoData);
+    
+    // === PERFORMANCE MONITORING ===
+    const performanceData = {
+        loadTime: Date.now(),
+        imagesLoaded: $('img').length,
+        cardsCount: $('.card').length,
+        buttonsCount: $('.btn').length
+    };
+    
+    console.log('⚡ Performance vista pubblica:', performanceData);
+    
+    // === LAZY LOADING IMMAGINI (se supportato) ===
+    if ('IntersectionObserver' in window) {
+        const imageObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    if (img.dataset.src && !img.src) {
+                        img.src = img.dataset.src;
+                        img.classList.remove('lazy');
+                        imageObserver.unobserve(img);
+                    }
+                }
+            });
+        });
+        
+        document.querySelectorAll('img[data-src]').forEach(img => {
+            imageObserver.observe(img);
+        });
+    }
+    
+    // === SHORTCUT TASTIERA ===
+    $(document).on('keydown', function(e) {
+        // ESC chiude modal
+        if (e.key === 'Escape' && $('#imageModal').hasClass('show')) {
+            $('#imageModal').modal('hide');
+        }
+        
+        // Ctrl+K per focus ricerca (se presente)
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            const $searchInput = $('#search');
+            if ($searchInput.length > 0) {
+                $searchInput.focus();
+            }
+        }
+    });
+    
+    // === SMOOTH SCROLL PER LINK INTERNI ===
+    $('a[href^="#"]').on('click', function(e) {
+        e.preventDefault();
+        const target = $(this.getAttribute('href'));
+        if (target.length) {
+            $('html, body').animate({
+                scrollTop: target.offset().top - 100
+            }, 500);
+        }
+    });
+    
+    // === TRACKING CLICKS SUI BOTTONI ===
+    $('.btn').on('click', function() {
+        const btnText = $(this).text().trim();
+        const btnClass = $(this).attr('class');
+        
+        console.log('🔘 Click bottone:', {
+            text: btnText,
+            classes: btnClass,
+            timestamp: new Date().toISOString()
+        });
+    });
+    
+    // === STATO CARICAMENTO COMPLETATO ===
+    setTimeout(() => {
+        console.log('✅ Vista prodotto pubblica con stile unificato completamente caricata');
+        
+        // Rimuovi eventuali indicatori di loading
+        $('.loading-indicator').fadeOut();
+        
+        // Attiva animazioni se necessario
+        $('.card').addClass('loaded');
+        
+    }, 100);
+    
+    console.log('📱 Responsive breakpoints attivi');
 });
+
+// === FUNZIONI GLOBALI ===
+
+/**
+ * Funzione per condividere prodotto (futura implementazione)
+ */
+window.shareProdotto = function() {
+    if (navigator.share) {
+        navigator.share({
+            title: '{{ $prodotto->nome }}',
+            text: '{{ Str::limit($prodotto->descrizione, 100) }}',
+            url: window.location.href
+        });
+    } else {
+        // Fallback: copia URL
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            showAlert('Link copiato negli appunti!', 'success');
+        });
+    }
+};
+
+/**
+ * Funzione per stampare scheda prodotto
+ */
+window.printProdotto = function() {
+    window.print();
+};
+
+/**
+ * Funzione per favoriti (futura implementazione)
+ */
+window.toggleFavorite = function() {
+    // Implementazione futura con localStorage o backend
+    console.log('Toggle favoriti per prodotto ID: {{ $prodotto->id }}');
+};
 </script>
 @endpush
