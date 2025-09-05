@@ -655,7 +655,7 @@ $(document).ready(function() {
         'admin.users.edit': 'admin/users-edit.js',
         'admin.users.show': 'admin/users-show.js',
         'admin.statistiche.index': 'admin/statistiche.js',
-        'admin.manutenzione.index': 'admin/manutenzioni.js',
+        'admin.manutenzione.index': 'admin/manutenzione.js',
 
         // === STAFF ===
         'staff.dashboard': 'staff/dashboard.js',
