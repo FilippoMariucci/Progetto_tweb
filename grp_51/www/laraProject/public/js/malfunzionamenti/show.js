@@ -1,4 +1,8 @@
-
+/**
+ * Pagina Dettaglio Malfunzionamento - JS
+ * Gestione segnalazione malfunzionamento, debug e interazioni utente.
+ * TechSupport Pro - Gruppo 51
+ */
 
 $(document).ready(function() {
     console.log('malfunzionamenti.show caricato');
