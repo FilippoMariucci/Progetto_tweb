@@ -10,7 +10,7 @@
 
 
 </script>
-<link rel="icon" type="image/png" href="favicon.png">
+<link rel="icon" type="image/png" href="{{ asset('favicon.ico') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
@@ -666,8 +666,8 @@ $(document).ready(function() {
         'tecnico.statistiche.view': 'tecnico/statistiche.js',
         
         // === MALFUNZIONAMENTI ===
-        'malfunzionamenti.index': 'malfunzionamenti/index.js',
-        'staff.malfunzionamenti.create': 'malfunzionamenti/create.js',
+    'malfunzionamenti.index': 'malfunzionamenti/index.js?v=' . filemtime(public_path('js/malfunzionamenti/index.js')),
+        'staff.create.nuova.soluzione': 'malfunzionamenti/create.js',
         'staff.malfunzionamenti.edit': 'malfunzionamenti/edit.js',
         'malfunzionamenti.show': 'malfunzionamenti/show.js',
         'malfunzionamenti.ricerca': 'malfunzionamenti/ricerca.js',
@@ -685,8 +685,7 @@ $(document).ready(function() {
         'centri.show': 'centri/show.js',
         
         // === AUTENTICAZIONE ===
-        'login': 'auth/login.js',
-        'register': 'auth/login.js', // Usa stesso script del login
+        
         'tecnico.interventi': 'auth/storico-interventi.js',
         
         // === PAGINE ===

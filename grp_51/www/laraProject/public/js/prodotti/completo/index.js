@@ -11,10 +11,8 @@ $(document).ready(function() {
     let selectedProducts = [];
     
     // Il tuo codice JavaScript qui...
-    
-    $(document).ready(function() {
     console.log('📦 Catalogo Tecnico Compatto caricato');
-    console.log('📊 Prodotti visualizzati:', {{ $prodotti->count() }});
+    console.log('📊 Prodotti visualizzati:', window.PageData.prodottiCount);
     
     // === GESTIONE FORM ===
     $('#clearSearch').on('click', function() {
@@ -73,11 +71,12 @@ $(document).ready(function() {
     }
     
     // === EVIDENZIAZIONE RICERCA ===
-    const searchTerm = '{{ request("search") }}';
+    // Per evidenziare la ricerca, passare il termine da Blade a window.PageData.searchTerm
+    const searchTerm = window.PageData.searchTerm || '';
     if (searchTerm && searchTerm.length > 2 && !searchTerm.includes('*')) {
         $('.card-title, .card-text').each(function() {
             const text = $(this).html();
-            const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')})`, 'gi');
             const highlighted = text.replace(regex, '<mark>$1</mark>');
             $(this).html(highlighted);
         });
@@ -104,25 +103,25 @@ $(document).ready(function() {
     });
     
     // === ANALYTICS RICERCA ===
-    @if(request('search') || request('categoria') || request('filter'))
+    if (window.PageData.searchTerm || window.PageData.categoria || window.PageData.filtro) {
         console.log('🔍 Ricerca tecnica effettuata:', {
-            termine: '{{ request("search") }}',
-            categoria: '{{ request("categoria") }}',
-            filtro: '{{ request("filter") }}',
-            risultati: {{ $prodotti->total() }},
-            staff_filter: '{{ request("staff_filter") }}',
+            termine: window.PageData.searchTerm,
+            categoria: window.PageData.categoria,
+            filtro: window.PageData.filtro,
+            risultati: window.PageData.prodottiTotal,
+            staff_filter: window.PageData.staffFilter,
             timestamp: new Date().toISOString()
         });
-    @endif
+    }
     
     // === AUTO-REFRESH OPZIONALE ===
-    @if(request('filter') === 'critici')
+    if (window.PageData.filtro === 'critici') {
         // Aggiorna ogni 5 minuti per problemi critici
         setInterval(() => {
             console.log('🔄 Auto-refresh per problemi critici');
             // location.reload(); // Decommentare se necessario
         }, 300000);
-    @endif
+    }
     
     // === ANIMAZIONI CONTATORI ===
     setTimeout(() => {
@@ -168,17 +167,16 @@ $(document).ready(function() {
     });
     
     // === NOTIFICHE SESSIONE ===
-    @if(session('success'))
-        showNotification('{{ session('success') }}', 'success');
-    @endif
-    
-    @if(session('error'))
-        showNotification('{{ session('error') }}', 'error');
-    @endif
-    
-    @if(session('warning'))
-        showNotification('{{ session('warning') }}', 'warning');
-    @endif
+    // Per notifiche sessione, passare i messaggi da Blade a window.PageData (es: window.PageData.sessionSuccess)
+    if (window.PageData.sessionSuccess) {
+        showNotification(window.PageData.sessionSuccess, 'success');
+    }
+    if (window.PageData.sessionError) {
+        showNotification(window.PageData.sessionError, 'error');
+    }
+    if (window.PageData.sessionWarning) {
+        showNotification(window.PageData.sessionWarning, 'warning');
+    }
     
     function showNotification(message, type = 'info') {
         const alertClass = {
@@ -219,10 +217,10 @@ $(document).ready(function() {
     // === PERFORMANCE MONITORING ===
     const performanceData = {
         loadTime: Date.now(),
-        totalProducts: {{ $prodotti->total() }},
-        displayedProducts: {{ $prodotti->count() }},
-        searchActive: {{ request('search') ? 'true' : 'false' }},
-        filtersActive: {{ (request('categoria') || request('filter')) ? 'true' : 'false' }}
+        totalProducts: window.PageData.prodottiTotal,
+        displayedProducts: window.PageData.prodottiCount,
+        searchActive: window.PageData.searchActive,
+        filtersActive: window.PageData.filtersActive
     };
     
     console.log('📊 Performance Data:', performanceData);
@@ -332,7 +330,7 @@ $(document).on('submit', 'form', function() {
         trackUsage('search_performed', {
             search_term: searchTerm,
             category: categoria,
-            results_count: {{ $prodotti->total() }}
+            results_count: window.PageData.prodottiTotal
         });
     }
 });

@@ -14,7 +14,9 @@
  */
 
 // === VARIABILI GLOBALI ===
-let graficoGravita, graficoTrend, graficoCategorie;
+window.graficoGravita = window.graficoGravita || null;
+window.graficoTrend = window.graficoTrend || null;
+window.graficoCategorie = window.graficoCategorie || null;
 let isChartsInitialized = false;
 
 // === CONFIGURAZIONI ===
@@ -148,7 +150,7 @@ function initGravityChart() {
     }
     
     // Crea grafico doughnut
-    graficoGravita = new Chart(canvas, {
+    window.graficoGravita = new Chart(canvas, {
         type: 'doughnut',
         data: {
             labels: labels,
@@ -214,7 +216,7 @@ function initTrendChart() {
     }
     
     // Crea grafico a linee
-    graficoTrend = new Chart(canvas, {
+    window.graficoTrend = new Chart(canvas, {
         type: 'line',
         data: {
             labels: labels,
@@ -282,7 +284,7 @@ function initCategoryChart() {
     }
     
     // Crea grafico a barre
-    graficoCategorie = new Chart(canvas, {
+    window.graficoCategorie = new Chart(canvas, {
         type: 'bar',
         data: {
             labels: labels,
@@ -484,7 +486,7 @@ function formatNumber(num) {
 $(window).on('beforeunload', function() {
     // Distruggi grafici per liberare memoria
     if (isChartsInitialized) {
-        [graficoGravita, graficoTrend, graficoCategorie].forEach(chart => {
+    [window.graficoGravita, window.graficoTrend, window.graficoCategorie].forEach(chart => {
             if (chart && typeof chart.destroy === 'function') {
                 chart.destroy();
             }
@@ -505,9 +507,9 @@ window.showNotification = showNotification;
 // Oggetto debug per sviluppo
 window.TechnicianStats = {
     charts: {
-        graficoGravita,
-        graficoTrend,
-        graficoCategorie
+    window.graficoGravita,
+    window.graficoTrend,
+    window.graficoCategorie,
     },
     config: CONFIG,
     utils: {

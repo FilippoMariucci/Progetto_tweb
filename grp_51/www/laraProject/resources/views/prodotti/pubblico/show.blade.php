@@ -745,6 +745,11 @@ window.PageData.stats = @json($stats);
 window.PageData.user = @json($user);
 @endif
 
-// Aggiungi altri dati che potrebbero servire...
+// Dati di sessione e permessi per JS pubblico
+window.PageData.sessionSuccess = @json(session('success'));
+window.PageData.sessionError = @json(session('error'));
+window.PageData.sessionInfo = @json(session('info'));
+window.PageData.user_can_view_malfunctions = @json(Auth::check() && Auth::user()->canViewMalfunzionamenti());
+// ...
 </script>
 @endpush

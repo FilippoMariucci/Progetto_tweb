@@ -11,7 +11,6 @@ $(document).ready(function() {
     let selectedProducts = [];
     
     // Il tuo codice JavaScript qui...
-    $(document).ready(function() {
     // Log di debug per il caricamento della pagina
     console.log('Pagina centri di assistenza caricata');
     console.log('Centri trovati: {{ isset($centri) ? $centri->count() : 0 }}');
@@ -102,5 +101,4 @@ $(document).ready(function() {
     // Esegui al caricamento e al ridimensionamento
     handleResponsive();
     $(window).resize(handleResponsive);
-});
 });

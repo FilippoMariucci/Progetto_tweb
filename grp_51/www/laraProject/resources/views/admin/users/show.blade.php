@@ -463,6 +463,14 @@
         </div>
     </div>
 </div>
+<script>
+    window.canEditUser = {{ $user->id !== auth()->id() ? 'true' : 'false' }};
+    window.editUserUrl = "{{ route('admin.users.edit', $user) }}";
+    window.usersIndexUrl = "{{ route('admin.users.index') }}";
+
+  window.userData = @json($user);
+
+</script>
 @endsection
 
 @push('styles')
@@ -564,6 +572,11 @@
 @endpush
 
 @push('scripts')
+<script>
+  window.canEditUser = {{ $user->id !== auth()->id() ? 'true' : 'false' }};
+  window.editUserUrl = "{{ route('admin.users.edit', $user) }}";
+  window.usersIndexUrl = "{{ route('admin.users.index') }}";
+</script>
 <script>
 // Inizializza i dati della pagina se non esistono già
 window.PageData = window.PageData || {};

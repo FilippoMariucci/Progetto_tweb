@@ -1,3 +1,8 @@
+@push('scripts')
+<script>
+window.malfunzionamento = @json($malfunzionamento);
+</script>
+@endpush
 {{-- Vista per modificare malfunzionamento esistente (Staff) --}}
 @extends('layouts.app')
 

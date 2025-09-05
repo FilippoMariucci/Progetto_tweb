@@ -188,24 +188,8 @@
         </div>
     </div>
 
-    {{-- === ANDAMENTO CRESCITA COMPATTO === --}}
-    @if(isset($crescitaUtenti) && count($crescitaUtenti) > 0)
-        <div class="row mb-3">
-            <div class="col-12">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-success text-white py-2">
-                        <h6 class="mb-0 fw-semibold">
-                            <i class="bi bi-graph-up me-1"></i>
-                            Crescita Utenti e Soluzioni
-                        </h6>
-                    </div>
-                    <div class="card-body p-2">
-                        <canvas id="graficoCrescita" height="120"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
+    {{-- === ANDAMENTO CRESCITA COMPATTO RIMOSSO === --}}
+    {{-- Sezione crescita rimossa per richiesta utente --}}
 
     {{-- === SEZIONE DETTAGLI LINEARI === --}}
     <div class="row g-3 mb-3">
@@ -329,6 +313,13 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    {{-- === SEZIONE DETTAGLI LINEARI === --}}
+    <div class="row g-3 mb-3">
+        
+
+       
     </div>
 
     {{-- === METRICHE AGGIUNTIVE COMPATTE === --}}

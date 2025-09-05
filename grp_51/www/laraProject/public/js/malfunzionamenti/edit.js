@@ -26,14 +26,14 @@ $(document).ready(function() {
     function generatePreview() {
         // Dati originali per confronto
         const original = {
-            titolo: @json($malfunzionamento->titolo),
-            descrizione: @json($malfunzionamento->descrizione),
-            gravita: @json($malfunzionamento->gravita),
-            difficolta: @json($malfunzionamento->difficolta),
-            soluzione: @json($malfunzionamento->soluzione),
-            strumenti_necessari: @json($malfunzionamento->strumenti_necessari),
-            tempo_stimato: @json($malfunzionamento->tempo_stimato),
-            numero_segnalazioni: @json($malfunzionamento->numero_segnalazioni)
+            titolo: window.malfunzionamento.titolo,
+            descrizione: window.malfunzionamento.descrizione,
+            gravita: window.malfunzionamento.gravita,
+            difficolta: window.malfunzionamento.difficolta,
+            soluzione: window.malfunzionamento.soluzione,
+            strumenti_necessari: window.malfunzionamento.strumenti_necessari,
+            tempo_stimato: window.malfunzionamento.tempo_stimato,
+            numero_segnalazioni: window.malfunzionamento.numero_segnalazioni
         };
         
         // Dati correnti del form

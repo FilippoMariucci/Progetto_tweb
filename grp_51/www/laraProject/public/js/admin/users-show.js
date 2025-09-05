@@ -13,7 +13,7 @@ $(document).ready(function() {
     
     // Il tuo codice JavaScript qui...
 
-    onsole.log('Vista dettagli utente inizializzata - senza funzione sospendi');
+    console.log('Vista dettagli utente inizializzata - senza funzione sospendi');
     
     // === GESTIONE RESET PASSWORD ===
     $('form[action*="reset-password"]').on('submit', function(e) {
@@ -150,36 +150,25 @@ $(document).ready(function() {
     
     // === KEYBOARD SHORTCUTS ===
     $(document).on('keydown', function(e) {
-        // Ctrl+E per modificare utente
-        if ((e.ctrlKey || e.metaKey) && e.key === 'e' && {{ $user->id !== auth()->id() ? 'true' : 'false' }}) {
+        // Ctrl+E per modificare utente (solo se permesso)
+        if ((e.ctrlKey || e.metaKey) && e.key === 'e' && window.canEditUser) {
             e.preventDefault();
-            window.location.href = "{{ route('admin.users.edit', $user) }}";
+            window.location.href = window.editUserUrl;
         }
-        
         // Ctrl+Backspace per tornare alla lista
         if ((e.ctrlKey || e.metaKey) && e.key === 'Backspace') {
             e.preventDefault();
-            window.location.href = "{{ route('admin.users.index') }}";
+            window.location.href = window.usersIndexUrl;
         }
     });
     
     // === LOG INFORMAZIONI UTENTE (per debug) ===
-    console.log('Dettagli utente caricati:', {
-        id: {{ $user->id }},
-        nome: '{{ $user->nome_completo }}',
-        livello_accesso: {{ $user->livello_accesso }},
-        ruolo: '{{ $user->livello_descrizione }}',
-        is_current_user: {{ $user->id === auth()->id() ? 'true' : 'false' }},
-        is_tecnico: {{ $user->isTecnico() ? 'true' : 'false' }},
-        is_staff: {{ $user->isStaff() ? 'true' : 'false' }},
-        @if($user->isStaff())
-        prodotti_assegnati: {{ $user->prodottiAssegnati->count() ?? 0 }},
-        @endif
-        @if($user->isTecnico())
-        ha_centro: {{ $user->centroAssistenza ? 'true' : 'false' }},
-        @endif
-        ultimo_accesso: '{{ $user->last_login_at ? $user->last_login_at->format("d/m/Y H:i") : "Mai" }}'
-    });
+    // Per loggare dati utente, passarli dalla view Blade in una variabile JS globale, esempio:
+    // <script>
+    //   window.userData = @json($user);
+    // </script>
+    // Poi qui:
+    // console.log('Dettagli utente caricati:', window.userData);
     
     console.log('Vista dettagli utente inizializzata - funzionalità sospendi account rimossa');
 });

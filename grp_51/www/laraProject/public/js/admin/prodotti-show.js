@@ -18,16 +18,16 @@
     // ===== CONFIGURAZIONE GLOBALE =====
     const config = {
         prodotto: {
-            id: {{ $prodotto->id }},
-            nome: @json($prodotto->nome),
-            attivo: {{ $prodotto->attivo ? 'true' : 'false' }},
-            staffAssegnato: @json($prodotto->staffAssegnato ? $prodotto->staffAssegnato->nome_completo : null)
+            id: window.PageData?.prodotto?.id || null,
+            nome: window.PageData?.prodotto?.nome || '',
+            attivo: window.PageData?.prodotto?.attivo || false,
+            staffAssegnato: window.PageData?.prodotto?.staffAssegnato || null
         },
         routes: {
-            toggleStatus: @json(Route::has('admin.prodotti.toggle-status') ? route('admin.prodotti.toggle-status', $prodotto) : ''),
-            show: @json(route('admin.prodotti.show', $prodotto))
+            toggleStatus: window.PageData?.routes?.toggleStatus || '',
+            show: window.PageData?.routes?.show || ''
         },
-        debug: {{ config('app.debug') ? 'true' : 'false' }}
+        debug: window.LaravelApp?.debug || false
     };
     
     // ===== LOGGING E DEBUG =====
@@ -96,22 +96,23 @@
     });
     
     // ===== NOTIFICAZIONI =====
-    @if(session('success'))
-        showNotification('success', @json(session('success')));
-        log('Notifica success mostrata', 'success', @json(session('success')));
-    @endif
-    
-    @if(session('error'))
-        showNotification('error', @json(session('error')));
-        log('Notifica error mostrata', 'error', @json(session('error')));
-    @endif
-    
-    @if($errors->any())
-        @foreach($errors->all() as $error)
-            showNotification('error', @json($error));
-            log('Errore validazione', 'error', @json($error));
-        @endforeach
-    @endif
+    // Notifiche lato client (iniettate dal template Blade)
+    if (window.LaravelNotifications) {
+        if (window.LaravelNotifications.success) {
+            showNotification('success', window.LaravelNotifications.success);
+            log('Notifica success mostrata', 'success', window.LaravelNotifications.success);
+        }
+        if (window.LaravelNotifications.error) {
+            showNotification('error', window.LaravelNotifications.error);
+            log('Notifica error mostrata', 'error', window.LaravelNotifications.error);
+        }
+        if (Array.isArray(window.LaravelNotifications.errors)) {
+            window.LaravelNotifications.errors.forEach(function(error) {
+                showNotification('error', error);
+                log('Errore validazione', 'error', error);
+            });
+        }
+    }
 });
 
 // ===== FUNZIONI GLOBALI =====
@@ -134,7 +135,8 @@ function confirmToggleStatus(isActive) {
  * Gestione errori immagini
  */
 function handleImageError(img) {
-    const placeholderUrl = @json(asset('images/placeholder-product.png'));
+    // Sostituisci con il percorso assoluto o relativo corretto dell'immagine placeholder
+    const placeholderUrl = '/images/placeholder-product.png';
     
     if (img.src !== placeholderUrl) {
         console.warn('🖼️ Errore caricamento immagine:', img.src);
@@ -329,48 +331,48 @@ window.dispatchEvent(new CustomEvent('adminProductPageReady', {
     }
 }));
 
-@if(config('app.debug'))
-/**
- * Controllo performance pagina (solo debug)
- */
-window.addEventListener('load', function() {
-    if (performance && performance.timing) {
-        const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
-        console.log(`⏱️ Pagina admin prodotto caricata in: ${loadTime}ms`);
-        
-        if (loadTime > 3000) {
-            console.warn('🐌 Caricamento lento rilevato per pagina admin prodotto');
+if (config.debug) {
+    /**
+     * Controllo performance pagina (solo debug)
+     */
+    window.addEventListener('load', function() {
+        if (performance && performance.timing) {
+            const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
+            console.log(`⏱️ Pagina admin prodotto caricata in: ${loadTime}ms`);
+            
+            if (loadTime > 3000) {
+                console.warn('🐌 Caricamento lento rilevato per pagina admin prodotto');
+            }
         }
-    }
-});
+    });
 
-// Debug panel per sviluppo (versione ridotta)
-if (new URLSearchParams(window.location.search).get('debug') === '1') {
-    const panel = document.createElement('div');
-    panel.className = 'debug-panel';
-    panel.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        background: rgba(0, 0, 0, 0.9);
-        color: white;
-        padding: 10px 15px;
-        border-radius: 8px;
-        font-family: 'Courier New', monospace;
-        font-size: 11px;
-        z-index: 9998;
-        max-width: 300px;
-        line-height: 1.3;
-    `;
-    panel.innerHTML = `
-        <div style="font-weight: bold; margin-bottom: 5px; color: #ffc107;">🔧 DEBUG PANEL (Simplified)</div>
-        <div>Prodotto: <span style="color: #28a745;">${config.prodotto.id}</span></div>
-        <div>Staff: <span style="color: ${config.prodotto.staffAssegnato ? '#28a745' : '#dc3545'};">${config.prodotto.staffAssegnato || 'Non assegnato'}</span></div>
-        <div>Bootstrap: <span style="color: ${typeof bootstrap !== 'undefined' ? '#28a745' : '#dc3545'};">${typeof bootstrap !== 'undefined' ? 'Caricato' : 'Mancante'}</span></div>
-    `;
-    document.body.appendChild(panel);
+    // Debug panel per sviluppo (versione ridotta)
+    if (new URLSearchParams(window.location.search).get('debug') === '1') {
+        const panel = document.createElement('div');
+        panel.className = 'debug-panel';
+        panel.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            z-index: 9998;
+            max-width: 300px;
+            line-height: 1.3;
+        `;
+        panel.innerHTML = `
+            <div style="font-weight: bold; margin-bottom: 5px; color: #ffc107;">🔧 DEBUG PANEL (Simplified)</div>
+            <div>Prodotto: <span style="color: #28a745;">${config.prodotto.id}</span></div>
+            <div>Staff: <span style="color: ${config.prodotto.staffAssegnato ? '#28a745' : '#dc3545'};">${config.prodotto.staffAssegnato || 'Non assegnato'}</span></div>
+            <div>Bootstrap: <span style="color: ${typeof bootstrap !== 'undefined' ? '#28a745' : '#dc3545'};">${typeof bootstrap !== 'undefined' ? 'Caricato' : 'Mancante'}</span></div>
+        `;
+        document.body.appendChild(panel);
+    }
 }
-@endif
 
 // Prevenzione XSS nelle notificazioni
 function sanitizeMessage(message) {

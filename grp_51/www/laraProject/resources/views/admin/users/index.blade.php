@@ -348,9 +348,7 @@
                                                                     <i class="bi bi-person-check me-2"></i>Sei tu!
                                                                 </span></li>
                                                                 <li>
-                                                                    <a href="{{ route('profilo') }}" class="dropdown-item">
-                                                                        <i class="bi bi-gear me-2"></i>Vai al Profilo
-                                                                    </a>
+                                                                    
                                                                 </li>
                                                             @endif
                                                         </ul>

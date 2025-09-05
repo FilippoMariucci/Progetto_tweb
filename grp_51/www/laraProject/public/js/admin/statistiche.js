@@ -14,6 +14,7 @@
  * ===================================================================
  */
 
+
 // === VARIABILI GLOBALI ===
 let graficoUtenti, graficoProdotti, graficoGravita, graficoCrescita;
 let isChartsInitialized = false;

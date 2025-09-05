@@ -66,14 +66,14 @@ $(document).ready(function() {
         }
     );
 
-    // === NOTIFICHE ===
-    @if(session('success'))
-        showNotification('success', {!! json_encode(session('success')) !!});
-    @endif
 
-    @if(session('error'))
-        showNotification('error', {!! json_encode(session('error')) !!});
-    @endif
+    // === NOTIFICHE ===
+    if (window.PageData.sessionSuccess) {
+        showNotification('success', window.PageData.sessionSuccess);
+    }
+    if (window.PageData.sessionError) {
+        showNotification('error', window.PageData.sessionError);
+    }
 
     function showNotification(type, message) {
         const alertClass = type === 'error' ? 'danger' : type;

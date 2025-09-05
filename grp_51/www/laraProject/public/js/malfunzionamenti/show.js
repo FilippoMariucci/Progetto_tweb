@@ -12,7 +12,6 @@ $(document).ready(function() {
     let selectedProducts = [];
     
     // Il tuo codice JavaScript qui...
-    $(document).ready(function() {
     console.log('Pagina dettaglio malfunzionamento caricata');
     
     // === DEBUG INIZIALE ===
@@ -22,7 +21,7 @@ $(document).ready(function() {
     
     // === IMPLEMENTAZIONE SEGNALAZIONE MALFUNZIONAMENTO ===
     // Definisce la funzione globale chiamata dai bottoni onclick (STESSA IMPLEMENTAZIONE DI ricerca.blade.php)
-    window.segnalaMalfunzionamento = function(malfunzionamentoId) {
+    window.segnalaMalfunzionamento = function segnalaMalfunzionamento(malfunzionamentoId) {
     console.log('Funzione segnalaMalfunzionamento chiamata con ID:', malfunzionamentoId);
     
     if (!malfunzionamentoId) {
@@ -55,7 +54,7 @@ $(document).ready(function() {
     
     // Chiamata AJAX per segnalare il malfunzionamento
     $.ajax({
-        url: `{{ url('/api/malfunzionamenti') }}/${malfunzionamentoId}/segnala`,
+        url: `${window.apiMalfunzionamentiUrl}/${malfunzionamentoId}/segnala`,
         method: 'POST',
         headers: {
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),

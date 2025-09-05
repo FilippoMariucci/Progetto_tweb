@@ -456,6 +456,13 @@ window.PageData.stats = @json($stats);
 window.PageData.user = @json($user);
 @endif
 
+// Dati di ricerca pubblica per JS (usati in index.js)
+</script>
+<script>
+window.PageData.searchTerm = @json(request('search'));
+window.PageData.categoria = @json(request('categoria'));
+window.PageData.risultati = @json(isset($prodotti) ? $prodotti->total() : 0);
+// ...
 // Aggiungi altri dati che potrebbero servire...
 </script>
 @endpush

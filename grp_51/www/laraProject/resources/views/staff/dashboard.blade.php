@@ -868,6 +868,11 @@ window.PageData.stats = @json($stats);
 window.PageData.user = @json($user);
 @endif
 
-// Aggiungi altri dati che potrebbero servire...
+// Dati di sessione per notifiche JS
+window.PageData.sessionSuccess = @json(session('success'));
+window.PageData.sessionError = @json(session('error'));
+window.PageData.sessionWarning = @json(session('warning'));
+window.PageData.sessionInfo = @json(session('info'));
+// ...
 </script>
 @endpush

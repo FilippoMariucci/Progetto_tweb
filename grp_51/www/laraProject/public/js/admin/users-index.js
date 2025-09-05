@@ -138,5 +138,6 @@ $(document).ready(function() {
     }
     
     console.log('Gestione utenti inizializzata - versione senza selezione multipla');
-    console.log('Utenti caricati:', {{ $users->total() ?? 0 }});
+    // Sostituisci il valore 0 con il totale reale degli utenti tramite variabile JS o altro metodo
+    console.log('Utenti caricati:', window.PageData?.usersTotal ?? 0);
 });

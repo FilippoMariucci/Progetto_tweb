@@ -99,22 +99,20 @@ $(document).ready(function() {
         console.warn('Impossibile inizializzare tooltip:', e);
     }
 
+
     // === GESTIONE NOTIFICHE SICURA ===
-    @if(session('success'))
-        showNotification('success', {!! json_encode(session("success")) !!});
-    @endif
-
-    @if(session('error'))
-        showNotification('error', {!! json_encode(session("error")) !!});
-    @endif
-
-    @if(session('warning'))
-        showNotification('warning', {!! json_encode(session("warning")) !!});
-    @endif
-
-    @if(session('info'))
-        showNotification('info', {!! json_encode(session("info")) !!});
-    @endif
+    if (window.PageData.sessionSuccess) {
+        showNotification('success', window.PageData.sessionSuccess);
+    }
+    if (window.PageData.sessionError) {
+        showNotification('error', window.PageData.sessionError);
+    }
+    if (window.PageData.sessionWarning) {
+        showNotification('warning', window.PageData.sessionWarning);
+    }
+    if (window.PageData.sessionInfo) {
+        showNotification('info', window.PageData.sessionInfo);
+    }
 
     // === FUNZIONE NOTIFICA SICURA ===
     function showNotification(type, message) {
@@ -210,20 +208,20 @@ $(document).ready(function() {
     }
 
     // === DEBUG INFO SICURO (solo sviluppo) ===
-    @if(config('app.debug'))
+    if (window.PageData.debug) {
         try {
             console.group('🐛 Debug Dashboard Staff');
-            console.log('User:', {!! json_encode(auth()->user()->nome ?? auth()->user()->name ?? 'N/A') !!});
-            console.log('Stats Keys:', {!! json_encode(array_keys($stats ?? [])) !!});
-            console.log('Prodotti Count:', {{ $stats['prodotti_assegnati'] ?? 0 }});
-            console.log('Environment:', {!! json_encode(config("app.env")) !!});
+            console.log('User:', window.PageData.user ? (window.PageData.user.nome || window.PageData.user.name || 'N/A') : 'N/A');
+            console.log('Stats Keys:', window.PageData.stats ? Object.keys(window.PageData.stats) : []);
+            console.log('Prodotti Count:', window.PageData.stats ? (window.PageData.stats.prodotti_assegnati || window.PageData.stats.total_prodotti || 0) : 0);
+            console.log('Environment:', window.PageData.env || 'N/A');
             console.log('jQuery Version:', typeof $ !== 'undefined' ? $.fn.jquery : 'Non disponibile');
             console.log('Bootstrap:', typeof bootstrap !== 'undefined' ? 'Disponibile' : 'Non disponibile');
             console.groupEnd();
         } catch(e) {
             console.warn('Debug info parzialmente fallito:', e);
         }
-    @endif
+    }
 
     console.log('✅ Dashboard Staff completamente funzionale - versione sicura');
 });
@@ -234,30 +232,30 @@ $(document).ready(function() {
 window.exportStats = function() {
     try {
         const stats = {
-            prodotti_gestiti: {{ $stats['prodotti_assegnati'] ?? $stats['total_prodotti'] ?? 0 }},
-            soluzioni_create: {{ $stats['soluzioni_create'] ?? 0 }},
-            problemi_critici: {{ $stats['soluzioni_critiche'] ?? 0 }},
-            totale_database: {{ $stats['total_malfunzionamenti'] ?? 0 }},
+            prodotti_gestiti: window.PageData.stats ? (window.PageData.stats.prodotti_assegnati || window.PageData.stats.total_prodotti || 0) : 0,
+            soluzioni_create: window.PageData.stats ? (window.PageData.stats.soluzioni_create || 0) : 0,
+            problemi_critici: window.PageData.stats ? (window.PageData.stats.soluzioni_critiche || 0) : 0,
+            totale_database: window.PageData.stats ? (window.PageData.stats.total_malfunzionamenti || 0) : 0,
             exported_at: new Date().toISOString(),
-            user: {!! json_encode(auth()->user()->username ?? "staff") !!}
+            user: window.PageData.user ? (window.PageData.user.username || window.PageData.user.nome || 'staff') : 'staff'
         };
-        
+
         const dataStr = JSON.stringify(stats, null, 2);
         const dataBlob = new Blob([dataStr], {type: 'application/json'});
-        
+
         const link = document.createElement('a');
         link.href = URL.createObjectURL(dataBlob);
         link.download = `staff_report_${new Date().toISOString().split('T')[0]}.json`;
-        
+
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
+
         console.log('📄 Report esportato con successo');
         if (typeof showNotification === 'function') {
             showNotification('success', 'Report statistiche esportato con successo');
         }
-        
+
     } catch(e) {
         console.error('Errore durante l\'esportazione:', e);
         if (typeof showNotification === 'function') {
@@ -333,30 +331,7 @@ setTimeout(performIntegrityChecks, 1000);
 // === FUNZIONI GLOBALI ===
 
 // Esporta statistiche in formato JSON
-window.exportStats = function() {
-    const stats = {
-        prodotti_gestiti: {{ $stats['prodotti_assegnati'] ?? $stats['total_prodotti'] ?? 0 }},
-        soluzioni_create: {{ $stats['soluzioni_create'] ?? 0 }},
-        problemi_critici: {{ $stats['soluzioni_critiche'] ?? 0 }},
-        totale_database: {{ $stats['total_malfunzionamenti'] ?? 0 }},
-        exported_at: new Date().toISOString(),
-        user: '{{ auth()->user()->username ?? "staff" }}'
-    };
-    
-    const dataStr = JSON.stringify(stats, null, 2);
-    const dataBlob = new Blob([dataStr], {type: 'application/json'});
-    
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(dataBlob);
-    link.download = `staff_report_${new Date().toISOString().split('T')[0]}.json`;
-    
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    console.log('📄 Report esportato');
-    showNotification('success', 'Report statistiche esportato con successo');
-};
+// ...
 
 // Refresh manuale dashboard
 window.refreshDashboard = function() {

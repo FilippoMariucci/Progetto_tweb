@@ -842,6 +842,7 @@
 @push('scripts')
 <script>
 // Inizializza i dati della pagina se non esistono già
+window.apiMalfunzionamentiUrl = "{{ url('/api/malfunzionamenti') }}";
 window.PageData = window.PageData || {};
 
 // Aggiungi dati specifici solo se necessari per questa view

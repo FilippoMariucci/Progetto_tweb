@@ -1,3 +1,8 @@
+@push('scripts')
+<script>
+window.apiMalfunzionamentiUrl = "{{ url('/api/malfunzionamenti') }}";
+</script>
+@endpush
 {{-- 
     Vista per visualizzare un singolo malfunzionamento con la sua soluzione completa
     Accessibile solo a tecnici (livello 2+) e staff (livello 3+)

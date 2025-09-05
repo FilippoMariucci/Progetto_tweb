@@ -12,7 +12,6 @@ $(document).ready(function() {
     let selectedProducts = [];
     
     // Il tuo codice JavaScript qui...
-    $(document).ready(function() {
     console.log('Pagina malfunzionamenti caricata');
 
     // === IMPLEMENTAZIONE SEGNALAZIONE MALFUNZIONAMENTO ===
@@ -36,7 +35,7 @@ $(document).ready(function() {
         
         // Chiamata AJAX per segnalare il malfunzionamento
         $.ajax({
-            url: `{{ url('/api/malfunzionamenti') }}/${malfunzionamentoId}/segnala`,
+            url: `${window.apiMalfunzionamentiUrl}/${malfunzionamentoId}/segnala`,
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),

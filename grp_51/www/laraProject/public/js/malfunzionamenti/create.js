@@ -1,10 +1,10 @@
 
 
 
-    console.log('malfunzionamenti.create caricato');
+    console.log('staff.create.nuova.soluzione caricato');
     
     const currentRoute = window.LaravelApp?.route || '';
-    if (currentRoute !== 'staff.malfunzionamenti.create') {
+    if (currentRoute !== 'staff.create.nuova.soluzione') {
         return;
     }
     

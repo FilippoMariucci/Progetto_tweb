@@ -38,14 +38,15 @@ $(document).ready(function() {
     
     function generatePreview() {
         // Dati originali
+        // Assicurati che window.PageData.user sia valorizzato nel template Blade
         const original = {
-            nome: @json($user->nome),
-            cognome: @json($user->cognome),
-            username: @json($user->username),
-            livello_accesso: @json($user->livello_accesso),
-            specializzazione: @json($user->specializzazione),
-            data_nascita: @json($user->data_nascita?->format('Y-m-d')),
-            centro_assistenza_id: @json($user->centro_assistenza_id)
+            nome: window.PageData?.user?.nome || '',
+            cognome: window.PageData?.user?.cognome || '',
+            username: window.PageData?.user?.username || '',
+            livello_accesso: window.PageData?.user?.livello_accesso || '',
+            specializzazione: window.PageData?.user?.specializzazione || '',
+            data_nascita: window.PageData?.user?.data_nascita || '',
+            centro_assistenza_id: window.PageData?.user?.centro_assistenza_id || ''
         };
         
         // Dati correnti
@@ -197,7 +198,7 @@ $(document).ready(function() {
     $('#username').on('input', function() {
         clearTimeout(usernameTimeout);
         const username = $(this).val();
-        const originalUsername = @json($user->username);
+        const originalUsername = window.PageData?.user?.username || '';
         
         if (username && username !== originalUsername && username.length >= 3) {
             usernameTimeout = setTimeout(() => {

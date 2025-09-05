@@ -1,17 +1,13 @@
 
 $(document).ready(function() {
     console.log('prodotti.completo.show caricato');
-    
     const currentRoute = window.LaravelApp?.route || '';
     if (currentRoute !== 'prodotti.completo.show') {
         return;
     }
-    
     const pageData = window.PageData || {};
     let selectedProducts = [];
-    
     // Il tuo codice JavaScript qui...
-    $(document).ready(function() {
     console.log('🔧 Vista prodotto tecnico completo con immagini corrette caricata');
     
     // === MODAL IMMAGINE ===
@@ -93,7 +89,7 @@ $(document).ready(function() {
               .prop('disabled', true);
         
         $.ajax({
-            url: `{{ url('/api/malfunzionamenti') }}/${malfunzionamentoId}/segnala`,
+            url: `${window.apiMalfunzionamentiUrl}/${malfunzionamentoId}/segnala`,
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
@@ -189,22 +185,23 @@ $(document).ready(function() {
     });
     
     // === NOTIFICHE SESSIONE ===
-    @if(session('success'))
-        showAlert('{{ session('success') }}', 'success');
-    @endif
-    
-    @if(session('error'))
-        showAlert('{{ session('error') }}', 'danger');
-    @endif
+    if (window.PageData.sessionSuccess) {
+        showAlert(window.PageData.sessionSuccess, 'success');
+    }
+    if (window.PageData.sessionError) {
+        showAlert(window.PageData.sessionError, 'danger');
+    }
     
     // === ANALYTICS ===
-    console.log('📊 Vista prodotto:', {
-        prodotto_id: {{ $prodotto->id }},
-        nome: '{{ $prodotto->nome }}',
-        categoria: '{{ $prodotto->categoria }}',
-        malfunzionamenti: {{ ($prodotto->malfunzionamenti ?? collect())->count() }},
-        timestamp: new Date().toISOString()
-    });
+    if (window.PageData.prodotto) {
+        console.log('📊 Vista prodotto:', {
+            prodotto_id: window.PageData.prodotto.id,
+            nome: window.PageData.prodotto.nome,
+            categoria: window.PageData.prodotto.categoria,
+            malfunzionamenti: (window.PageData.prodotto.malfunzionamenti || []).length,
+            timestamp: new Date().toISOString()
+        });
+    }
     
     console.log('✅ Vista prodotto tecnico completo completamente caricata');
 });

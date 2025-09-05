@@ -103,35 +103,23 @@ $(document).ready(function() {
     });
     
     // === NOTIFICHE SESSIONE ===
-    @if(session('success'))
-        showAlert('{{ session('success') }}', 'success');
-    @endif
-    
-    @if(session('error'))
-        showAlert('{{ session('error') }}', 'danger');
-    @endif
-    
-    @if(session('info'))
-        showAlert('{{ session('info') }}', 'info');
-    @endif
-    
+    if (window.PageData.sessionSuccess) {
+        showAlert(window.PageData.sessionSuccess, 'success');
+    }
+    if (window.PageData.sessionError) {
+        showAlert(window.PageData.sessionError, 'danger');
+    }
+    if (window.PageData.sessionInfo) {
+        showAlert(window.PageData.sessionInfo, 'info');
+    }
+
     // === ANALYTICS E DEBUG ===
-    const prodottoData = {
-        prodotto_id: {{ $prodotto->id }},
-        nome: '{{ $prodotto->nome }}',
-        categoria: '{{ $prodotto->categoria }}',
-        modello: '{{ $prodotto->modello ?? "N/A" }}',
-        ha_foto: {{ $prodotto->foto ? 'true' : 'false' }},
-        ha_prezzo: {{ $prodotto->prezzo ? 'true' : 'false' }},
-        staff_assegnato: {{ $prodotto->staffAssegnato ? 'true' : 'false' }},
+    const prodottoData = Object.assign({}, window.PageData.prodotto || {}, {
         vista_tipo: 'pubblica',
-        user_authenticated: {{ auth()->check() ? 'true' : 'false' }},
-        @auth
-            user_can_view_malfunctions: {{ Auth::user()->canViewMalfunzionamenti() ? 'true' : 'false' }},
-        @endauth
+        user_authenticated: window.PageData.user ? true : false,
+        user_can_view_malfunctions: window.PageData.user_can_view_malfunctions || false,
         timestamp: new Date().toISOString()
-    };
-    
+    });
     console.log('📊 Vista prodotto pubblico:', prodottoData);
     
     // === PERFORMANCE MONITORING ===

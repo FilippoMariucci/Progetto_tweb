@@ -631,6 +631,17 @@ window.PageData.stats = @json($stats);
 window.PageData.user = @json($user);
 @endif
 
+window.PageData.prodottiCount = @json($prodotti->count());
+window.PageData.prodottiTotal = @json($prodotti->total());
+window.PageData.searchTerm = @json(request('search'));
+window.PageData.categoria = @json(request('categoria'));
+window.PageData.filtro = @json(request('filter'));
+window.PageData.staffFilter = @json(request('staff_filter'));
+window.PageData.searchActive = @json(request('search') ? true : false);
+window.PageData.filtersActive = @json((request('categoria') || request('filter')) ? true : false);
+window.PageData.sessionSuccess = @json(session('success'));
+window.PageData.sessionError = @json(session('error'));
+window.PageData.sessionWarning = @json(session('warning'));
 // Aggiungi altri dati che potrebbero servire...
 </script>
 @endpush

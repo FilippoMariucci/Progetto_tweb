@@ -359,8 +359,6 @@ window.LaravelApp.route = 'tecnico.statistiche.view';
 console.log('Dati statistiche tecnico inizializzati correttamente');
 </script>
 
-<!-- Carica il file JavaScript delle statistiche tecnico -->
-<script src="{{ asset('js/tecnico/statistiche.js') }}"></script>
 @endpush
 
 {{-- === STYLES SECTION === --}}

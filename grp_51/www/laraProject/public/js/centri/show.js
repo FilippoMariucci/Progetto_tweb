@@ -12,7 +12,6 @@ $(document).ready(function() {
     let selectedProducts = [];
     
     // Il tuo codice JavaScript qui...
-    $(document).ready(function() {
     console.log('Vista centro assistenza caricata:', '{{ $centro->nome }}');
     
     // Analytics per tracking delle interazioni
