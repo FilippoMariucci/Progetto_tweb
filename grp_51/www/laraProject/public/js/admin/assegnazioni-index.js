@@ -9,9 +9,6 @@ $(document).ready(function() {
     const pageData = window.PageData || {};
     let selectedProducts = [];
     
-     let selectedProducts = [];
-    
-    
     // === GESTIONE MODAL ASSEGNAZIONE SINGOLA ===
     
     /**
