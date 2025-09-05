@@ -303,26 +303,24 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // === NOTIFICAZIONI ===
-    @if(session('success'))
-        showNotification('success', '{{ session("success") }}');
-    @endif
-    
-    @if(session('error'))
-        showNotification('error', '{{ session("error") }}');
-    @endif
-    
-    @if($errors->any())
-        @foreach($errors->all() as $error)
-            showNotification('error', '{{ $error }}');
-        @endforeach
-    @endif
-    
-    // === PULIZIA AL SUBMIT RIUSCITO ===
-    
-    // Se il form è stato inviato con successo, pulisci auto-save
-    @if(session('success'))
-        sessionStorage.removeItem('editProdotto_{{ $prodotto->id }}');
-    @endif
+    // Gestisci le notifiche lato Blade e passa i dati a JavaScript tramite variabili globali, ad esempio:
+    // window.LaravelNotifications = { success: "...", error: "...", errors: ["..."] };
+
+    if (window.LaravelNotifications) {
+        if (window.LaravelNotifications.success) {
+            showNotification('success', window.LaravelNotifications.success);
+            // Pulisci auto-save se successo
+            sessionStorage.removeItem('editProdotto_' + window.LaravelApp.prodottoId);
+        }
+        if (window.LaravelNotifications.error) {
+            showNotification('error', window.LaravelNotifications.error);
+        }
+        if (Array.isArray(window.LaravelNotifications.errors)) {
+            window.LaravelNotifications.errors.forEach(function(error) {
+                showNotification('error', error);
+            });
+        }
+    }
     
     console.log('🎉 Form modifica prodotto inizializzato correttamente');
 });
@@ -485,21 +483,20 @@ function checkAccessibility() {
 }
 
 // Esegui controllo accessibilità in ambiente di sviluppo
-@if(config('app.debug'))
+if (window.LaravelApp && window.LaravelApp.debug) {
     setTimeout(checkAccessibility, 1000);
-@endif
+}
 
 /**
  * Debug informazioni form
  */
-@if(config('app.debug'))
 function debugFormInfo() {
     const form = document.getElementById('editProdottoForm');
     
     console.group('🔧 Debug Form Modifica Prodotto');
     console.log('Form element:', form);
-    console.log('Prodotto ID:', {{ $prodotto->id }});
-    console.log('Prodotto Nome:', '{{ $prodotto->nome }}');
+    console.log('Prodotto ID:', window.LaravelApp?.prodottoId);
+    console.log('Prodotto Nome:', window.LaravelApp?.prodottoNome);
     console.log('Action URL:', form.action);
     console.log('Method:', form.method);
     
@@ -515,7 +512,7 @@ function debugFormInfo() {
     console.log('Campi obbligatori:', required.length);
     
     // Auto-save status
-    const autoSaveData = sessionStorage.getItem('editProdotto_{{ $prodotto->id }}');
+    const autoSaveData = sessionStorage.getItem('editProdotto_' + (window.LaravelApp?.prodottoId || ''));
     console.log('Auto-save data presente:', !!autoSaveData);
     
     console.groupEnd();
@@ -528,5 +525,4 @@ document.addEventListener('keydown', function(e) {
         debugFormInfo();
     }
 });
-@endif
    
