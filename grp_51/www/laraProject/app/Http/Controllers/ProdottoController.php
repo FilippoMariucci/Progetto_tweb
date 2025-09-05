@@ -11,11 +11,11 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Controller per la gestione dei prodotti
- * VERSIONE COMPLETA - Sistema categorie unificato implementato
- * 
- * Gestisce tutte le operazioni CRUD sui prodotti con sistema di categorie coerente
- * tra frontend pubblico, area tecnici, area staff e pannello amministratore
+ * ProdottoController
+ * Controller per la gestione dei prodotti.
+ * - Gestisce tutte le operazioni CRUD sui prodotti.
+ * - Implementa un sistema di categorie unificato per frontend pubblico, tecnici, staff e admin.
+ * - Tutti i dati dinamici sono passati alle view tramite compact().
  */
 class ProdottoController extends Controller
 {
@@ -24,20 +24,20 @@ class ProdottoController extends Controller
     // ================================================
 
     /**
-     * Catalogo pubblico prodotti (senza malfunzionamenti)
-     * Accessibile a tutti senza autenticazione
+     * Catalogo pubblico prodotti (senza malfunzionamenti).
+     * Accessibile a tutti senza autenticazione.
+     * Esegue query base e ricerca testuale con supporto wildcard.
      */
     public function indexPubblico(Request $request)
-{
-    // Query base per prodotti attivi
-    $query = Prodotto::where('attivo', true);
+    {
+        // Query base per prodotti attivi
+        $query = Prodotto::where('attivo', true);
 
-    // === RICERCA TESTUALE CON WILDCARD ===
-    if ($request->filled('search')) {
-        $searchTerm = $request->input('search');
-        
-        // Supporto wildcard * alla fine del termine
-        if (str_ends_with($searchTerm, '*')) {
+        // === RICERCA TESTUALE CON WILDCARD ===
+        if ($request->filled('search')) {
+            $searchTerm = $request->input('search');
+            // Supporto wildcard * alla fine del termine
+            if (str_ends_with($searchTerm, '*')) {
             $searchTerm = rtrim($searchTerm, '*');
             $query->where(function($q) use ($searchTerm) {
                 $q->where('descrizione', 'LIKE', $searchTerm . '%')

@@ -1,5 +1,4 @@
 
-
 $(document).ready(function() {
     console.log('staff.dashboard caricato');
     
@@ -19,6 +18,49 @@ $(document).ready(function() {
     $('input[name="prodotti-view"]').on('change', function() {
         const viewType = $(this).attr('id');
         
+        if (viewType === 'view-grid') {
+            $('#grid-view').fadeIn(300);
+            $('#list-view').fadeOut(200);
+            if (typeof(Storage) !== "undefined") {
+                localStorage.setItem('staff_products_view', 'grid');
+            }
+        } else if (viewType === 'view-list') {
+            $('#grid-view').fadeOut(200);
+            $('#list-view').fadeIn(300);
+            if (typeof(Storage) !== "undefined") {
+                localStorage.setItem('staff_products_view', 'list');
+            }
+        }
+    });
+
+    // Ripristina vista salvata - CON CONTROLLO SICUREZZA
+    try {
+        if (typeof(Storage) !== "undefined") {
+            const savedView = localStorage.getItem('staff_products_view');
+/**
+ * staff/dashboard.js - Script per la dashboard dello staff.
+ * Gestisce la visualizzazione dei prodotti (griglia/lista), il salvataggio preferenze utente e altre interazioni della dashboard staff.
+ * Tutti i dati dinamici sono passati tramite window.PageData.
+ */
+
+$(document).ready(function() {
+    // Inizializzazione dashboard staff: verifica route e imposta variabili globali.
+    console.log('staff.dashboard caricato');
+
+    const currentRoute = window.LaravelApp?.route || '';
+    if (currentRoute !== 'staff.dashboard') {
+        return;
+    }
+
+    const pageData = window.PageData || {};
+    let selectedProducts = [];
+
+    // Gestione toggle tra vista griglia e lista prodotti, con salvataggio preferenza in localStorage.
+    console.log('680 Dashboard Staff inizializzata - versione sicura');
+
+    // === GESTIONE SICURA TOGGLE VISTA PRODOTTI ===
+    $('input[name="prodotti-view"]').on('change', function() {
+        const viewType = $(this).attr('id');
         if (viewType === 'view-grid') {
             $('#grid-view').fadeIn(300);
             $('#list-view').fadeOut(200);

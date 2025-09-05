@@ -1,4 +1,8 @@
-
+/**
+ * Pagina Contatti - JS
+ * Gestione validazione form contatti, auto-resize textarea e tracciamento interazioni.
+ * TechSupport Pro - Gruppo 51
+ */
 
 $(document).ready(function() {
     console.log('contatti caricato');

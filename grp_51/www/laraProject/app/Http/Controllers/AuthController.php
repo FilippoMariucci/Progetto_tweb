@@ -14,8 +14,14 @@ use App\Models\CentroAssistenza;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Controller per la gestione dell'autenticazione e delle dashboard
- * VERSIONE PULITA - Eliminati tutti i duplicati di metodi
+ * AuthController - Controller per la gestione dell'autenticazione e delle dashboard
+ *
+ * Questo controller gestisce:
+ * - Login/logout utenti
+ * - Reindirizzamento alle dashboard in base al ruolo
+ * - Validazione credenziali e sessione
+ * - Log accessi e tentativi
+ * Tutti i metodi sono documentati e organizzati per chiarezza.
  */
 class AuthController extends Controller
 {

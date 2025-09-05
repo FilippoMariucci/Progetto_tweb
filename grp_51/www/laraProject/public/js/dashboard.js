@@ -1,6 +1,12 @@
 /**
- * Gestione Dashboard
+ * DashboardManager - Gestione Dashboard
  * TechSupport Pro - Gruppo 51
+ *
+ * Questa classe gestisce tutte le funzionalità della dashboard:
+ * - Aggiornamento automatico delle statistiche
+ * - Animazioni e shortcut
+ * - Inizializzazione grafici
+ * Tutte le dashboard specifiche (admin, staff, tecnico) possono estendere o utilizzare questa classe.
  */
 
 class DashboardManager {
@@ -10,6 +16,7 @@ class DashboardManager {
 
     /**
      * Inizializza dashboard
+     * Avvia refresh statistiche, animazioni, shortcut e grafici.
      */
     initializeDashboard() {
         this.setupStatisticsRefresh();
@@ -22,6 +29,7 @@ class DashboardManager {
 
     /**
      * Aggiornamento automatico statistiche
+     * Imposta un timer per aggiornare le statistiche ogni 5 minuti.
      */
     setupStatisticsRefresh() {
         // Aggiorna ogni 5 minuti
@@ -32,6 +40,7 @@ class DashboardManager {
 
     /**
      * Refresh delle statistiche via AJAX
+     * Recupera i dati dal backend e aggiorna la dashboard.
      */
     refreshStats() {
         $.get('/api/stats/dashboard')
@@ -47,6 +56,7 @@ class DashboardManager {
 
     /**
      * Aggiorna display delle statistiche
+     * Aggiorna i contatori dei prodotti e malfunzionamenti.
      */
     updateStatsDisplay(data) {
         // Aggiorna contatori

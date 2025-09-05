@@ -13,7 +13,11 @@ use Carbon\Carbon;
 
 /**
  * Controller completo per la gestione dei Centri di Assistenza
- * Include TUTTI i metodi Web e API necessari per il funzionamento del sistema
+ * 
+ * Questo controller gestisce tutte le operazioni relative ai centri di assistenza,
+ * sia per la parte pubblica (visibile a tutti) che per la parte amministrativa (staff/admin).
+ * Comprende metodi per la visualizzazione, la ricerca, la gestione dei tecnici, API per AJAX,
+ * e utility varie. Ogni sezione è documentata per facilitare la manutenzione.
  * 
  * STRUTTURA COMPLETA:
  * 1. Metodi pubblici (Livello 1 - accesso libero)
@@ -33,6 +37,9 @@ class CentroAssistenzaController extends Controller
      * Vista pubblica: Lista centri di assistenza
      * Route: GET /centri-assistenza
      * Accessibile a tutti gli utenti senza autenticazione
+     * 
+     * Questo metodo restituisce la lista dei centri di assistenza, con possibilità di filtrare
+     * per termine di ricerca, provincia e città. Utilizzato nella pagina pubblica dei centri.
      */
     public function index(Request $request)
     {

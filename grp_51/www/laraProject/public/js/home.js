@@ -1,5 +1,4 @@
 
-
 $(document).ready(function() {
     console.log('Home caricato');
 
@@ -37,6 +36,53 @@ $(document).ready(function() {
     /**
      * Effettua la ricerca prodotti via AJAX
      * @param {string} query - Termine di ricerca
+     */
+/**
+ * home.js - Script della homepage pubblica.
+ * Gestisce la ricerca dinamica dei prodotti, la visualizzazione dei risultati e l'interazione utente.
+ * Tutti i dati dinamici sono passati tramite window.PageData.
+ */
+
+$(document).ready(function() {
+    // Inizializzazione della homepage: verifica che la route sia 'home' e imposta variabili globali.
+    console.log('Home caricato');
+
+    const currentRoute = window.LaravelApp?.route || '';
+    if (currentRoute !== 'home') {
+        return;
+    }
+
+    const pageData = window.PageData || {};
+    let selectedProducts = [];
+
+    // Gestione ricerca prodotti con debounce per evitare chiamate eccessive.
+    console.log('3e0 Homepage inizializzata');
+
+    // === RICERCA DINAMICA PRODOTTI ===
+    let searchTimeout;
+    let isSearching = false;
+
+    // Listener input ricerca: avvia ricerca AJAX dopo 300ms di pausa.
+    $('#search-input').on('input', function() {
+        const query = $(this).val().trim();
+
+        // Cancella il timeout precedente
+        clearTimeout(searchTimeout);
+
+        if (query.length >= 2) {
+            // Debounce di 300ms per evitare troppe chiamate
+            searchTimeout = setTimeout(() => {
+                searchProdotti(query);
+            }, 300);
+        } else {
+            hideSearchResults();
+        }
+    });
+
+    /**
+     * Effettua la ricerca prodotti via AJAX.
+     * @param {string} query - Termine di ricerca inserito dall'utente.
+     * Mostra i risultati tramite displaySearchResults().
      */
     function searchProdotti(query) {
         if (isSearching) return;
@@ -371,7 +417,6 @@ $(document).ready(function() {
 });
 
 /**
- * Funzione globale per refresh statistiche (se necessario)
  */
 window.refreshHomeStats = function() {
     console.log('🔄 Refresh statistiche homepage...');
@@ -394,3 +439,28 @@ window.refreshHomeStats = function() {
         }
 });
     };
+/**
+ * Funzione globale per refresh delle statistiche della homepage.
+ * Esegue una chiamata AJAX per aggiornare i dati statistici mostrati nella pagina.
+ * Può essere richiamata da altri script o da eventi custom.
+ */
+window.refreshHomeStats = function() {
+    console.log('🔄 Refresh statistiche homepage...');
+    $.ajax({
+        url: '{{ route("api.stats.dashboard") }}',
+        method: 'GET',
+        success: function(response) {
+            if (response.success && response.data) {
+                // Aggiorna i valori statistici
+                $('.stat-item h3').each(function() {
+                    const $this = $(this);
+                    // Logica per aggiornare le statistiche
+                });
+                console.log('✅ Statistiche aggiornate');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('❌ Errore aggiornamento statistiche:', error);
+        }
+    });
+};

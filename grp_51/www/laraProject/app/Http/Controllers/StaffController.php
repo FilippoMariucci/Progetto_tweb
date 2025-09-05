@@ -14,15 +14,14 @@ use App\Models\User;
 use Carbon\Carbon;
 
 /**
- * Controller per le funzionalità specifiche dello staff aziendale (Livello 3)
- * 
- * Lo staff aziendale può:
- * - Gestire malfunzionamenti e soluzioni (CRUD completo)
- * - Visualizzare prodotti assegnati (funzionalità opzionale)
- * - Accedere a statistiche personali e report attività
- * - Utilizzare API per aggiornamenti dinamici via AJAX
- * 
- * Route protette da middleware: auth, check.level:3
+ * StaffController - Controller per le funzionalità dello staff aziendale (Livello 3)
+ *
+ * Questo controller gestisce tutte le operazioni riservate allo staff:
+ * - Gestione malfunzionamenti e soluzioni (CRUD)
+ * - Visualizzazione prodotti assegnati
+ * - Accesso a statistiche e report
+ * - API AJAX per aggiornamenti dinamici
+ * Tutte le route sono protette da middleware di autenticazione e livello.
  */
 class StaffController extends Controller
 {

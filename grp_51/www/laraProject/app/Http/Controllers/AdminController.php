@@ -15,9 +15,14 @@ use App\Models\CentroAssistenza;
 use Carbon\Carbon;
 
 /**
- * Controller dedicato alle funzionalità amministrative avanzate
- * Gestisce assegnazioni, statistiche, manutenzione e export dati
- * CORREZIONE: Fix del calcolo prodotti non assegnati
+ * AdminController - Controller per le funzionalità amministrative avanzate
+ *
+ * Questo controller gestisce:
+ * - Assegnazioni prodotti a staff
+ * - Statistiche e report amministrativi
+ * - Manutenzione e operazioni di sistema
+ * - Esportazione dati
+ * Tutte le funzioni sono riservate agli amministratori (livello 4).
  */
 class AdminController extends Controller
 {

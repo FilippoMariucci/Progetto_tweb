@@ -1,16 +1,3 @@
-{{-- 
-    Homepage Sistema Assistenza Tecnica
-    File: resources/views/home.blade.php
-    
-    Pagina principale del sistema con:
-    - Hero section con statistiche principali
-    - Ricerca rapida prodotti
-    - Informazioni azienda
-    - Categorie prodotti
-    - Accesso per operatori
-    - Centri assistenza
-    - Call to action
---}}
 @extends('layouts.app')
 
 @section('title', 'Home - Sistema Assistenza Tecnica')
@@ -38,6 +25,13 @@
                         <a href="{{ route('centri.index') }}" class="btn btn-outline-light btn-lg">
                             <i class="bi bi-geo-alt me-2"></i>Trova Centro Assistenza
                         </a>
+{{--
+    home.blade.php
+    Pagina principale del sistema di assistenza tecnica.
+    - Mostra statistiche generali, ricerca rapida prodotti, informazioni azienda, categorie, accesso operatori e centri assistenza.
+    - Ogni sezione è separata e commentata per facilitare la manutenzione.
+    - I dati dinamici sono passati dal controller tramite compact().
+--}}
                     </div>
                 </div>
                 <div class="col-lg-6 text-center">

@@ -1,4 +1,18 @@
-{{-- Dashboard generale - Solo per utenti pubblici o come fallback --}}
+{{--
+    ===================================================================
+    DASHBOARD GENERALE - Vista Blade
+    ===================================================================
+    Sistema Assistenza Tecnica - Gruppo 51
+    File: resources/views/dashboard.blade.php
+
+    FUNZIONALITÀ:
+    - Mostra la dashboard generica per tutti gli utenti
+    - Benvenuto personalizzato con nome e livello
+    - Messaggio di reindirizzamento a dashboard specifica per staff/admin/tecnico
+    - Layout responsive con Bootstrap 5
+    ===================================================================
+--}}
+
 @extends('layouts.app')
 
 @section('title', 'Dashboard')
@@ -7,12 +21,13 @@
 <div class="container mt-4">
     <div class="row">
         <div class="col-12">
+            {{-- Titolo dashboard --}}
             <h1 class="h2 mb-4">
                 <i class="bi bi-speedometer2 text-primary me-2"></i>
                 Dashboard Generale
             </h1>
             
-            {{-- Benvenuto personalizzato --}}
+            {{-- Benvenuto personalizzato con nome e livello utente --}}
             <div class="alert alert-info border-start border-primary border-4">
                 <div class="d-flex align-items-center">
                     <i class="bi bi-person-circle display-6 text-primary me-3"></i>
@@ -33,7 +48,7 @@
                 </div>
             </div>
 
-            {{-- Messaggio di reindirizzamento --}}
+            {{-- Messaggio di reindirizzamento a dashboard specifica se livello >= 2 --}}
             @if($user->livello_accesso >= 2)
                 <div class="alert alert-light border-start border-secondary border-4">
                     <div class="d-flex align-items-center justify-content-between">

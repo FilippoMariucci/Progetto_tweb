@@ -1,3 +1,4 @@
+
 <?php
 
 namespace App\Http\Controllers;
@@ -13,15 +14,19 @@ use App\Models\Malfunzionamento;
 use App\Models\User;
 
 /**
- * Controller per la gestione della homepage e pagine informative
- * Gestisce statistiche, informazioni azienda e funzionalità pubbliche
+ * HomeController
+ * Controller per la gestione della homepage e delle pagine informative pubbliche.
+ * - Mostra statistiche generali, prodotti recenti, centri principali e categorie.
+ * - Gestisce la pagina "Chi Siamo" e altre pagine pubbliche.
+ * - Tutti i dati dinamici sono passati alle view tramite compact().
  */
 class HomeController extends Controller
 {
     /**
-     * Mostra la homepage con statistiche e informazioni generali
-     * Accessibile a tutti (livello 1 - pubblico)
-     * 
+     * Mostra la homepage con statistiche e informazioni generali.
+     * Accessibile a tutti (livello 1 - pubblico).
+     * Raccoglie dati tramite metodi helper e li passa alla view 'home'.
+     *
      * @return \Illuminate\View\View
      */
     public function index()
@@ -33,10 +38,8 @@ class HomeController extends Controller
             $stats = [
                 // Conteggio prodotti attivi nel catalogo
                 'prodotti_totali' => $this->safeCount(Prodotto::class, ['attivo' => true]),
-                
                 // Conteggio centri di assistenza
                 'centri_totali' => $this->safeCount(CentroAssistenza::class),
-                
                 // Conteggio soluzioni disponibili (malfunzionamenti con soluzione)
                 'soluzioni_totali' => $this->safeCountWithCondition(
                     Malfunzionamento::class, 

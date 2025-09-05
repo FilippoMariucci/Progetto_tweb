@@ -1,6 +1,14 @@
 /**
- * Gestione Autenticazione e Login
+ * AuthManager - Gestione Autenticazione e Login
  * TechSupport Pro - Gruppo 51
+ *
+ * Questa classe gestisce tutte le funzionalità di autenticazione lato client:
+ * - Gestione form di login
+ * - Toggle visibilità password
+ * - Helper per credenziali di test
+ * - Validazione e shortcut tastiera
+ * - Rilevamento CapsLock
+ * Tutte le pagine di login fanno riferimento a questa classe per la logica JS.
  */
 
 class AuthManager {
@@ -10,6 +18,7 @@ class AuthManager {
 
     /**
      * Inizializza gestione autenticazione
+     * Avvia setup form, toggle password, helper, validazione e shortcut.
      */
     initializeAuth() {
         this.setupLoginForm();
@@ -24,6 +33,7 @@ class AuthManager {
 
     /**
      * Gestione form di login
+     * Valida i campi, previene doppio submit e mostra spinner.
      */
     setupLoginForm() {
         const loginForm = $('#loginForm');
