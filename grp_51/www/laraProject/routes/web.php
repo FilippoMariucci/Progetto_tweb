@@ -171,8 +171,8 @@ Route::prefix('api')->name('api.')->group(function () {
                 // === GESTIONE CENTRI ASSISTENZA VIA API ===
                 
                // Tutti i tecnici del sistema
-                Route::get('/tecnici-disponibili', [CentroAssistenzaController::class, 'getTecniciDisponibili'])->name('tecnici.disponibili');
-
+                Route::get('/tecnici-disponibili', [CentroAssistenzaController::class, 'getTecniciDisponibili'])
+                ->name('tecnici.disponibili');
                 // QUESTA ERA LA ROUTE MANCANTE!
                 Route::get('/centri/{centro}/tecnici-disponibili', [CentroAssistenzaController::class, 'getAvailableTecnici'])->name('centri.tecnici.disponibili');
                 
@@ -445,7 +445,8 @@ Route::get('/storico-interventi', [AuthController::class, 'storicoInterventi'])
                 // === GESTIONE TECNICI NEI CENTRI ===
                 
                 // Assegnazione tecnico a centro
-                Route::post('/{centro}/assegna-tecnico', [CentroAssistenzaController::class, 'assegnaTecnico'])->name('assegna-tecnico');
+               Route::post('/{centro}/assegna-tecnico', [CentroAssistenzaController::class, 'assegnaTecnico'])
+                ->name('assegna-tecnico');
                 
                 // Rimozione tecnico da centro
                 Route::delete('/{centro}/rimuovi-tecnico', [CentroAssistenzaController::class, 'rimuoviTecnico'])->name('rimuovi-tecnico');

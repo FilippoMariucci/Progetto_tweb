@@ -288,4 +288,3 @@
     console.log('✅ Form creazione centro inizializzato - Validazione completa attiva');
 
 }); // <-- chiude addEventListener
-}   

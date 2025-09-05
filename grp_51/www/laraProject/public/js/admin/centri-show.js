@@ -1,221 +1,277 @@
+/**
+ * ===================================================================
+ * File: public/js/admin/centri-show.js
+ * Descrizione: Gestione interfaccia amministrativa centro assistenza
+ * Funzionalità: Assegnazione tecnici, notifiche, Google Maps
+ * Versione: 1.0
+ * ===================================================================
+ */
 
-    document.addEventListener('DOMContentLoaded', function() {
-    console.log('admin.centri.show caricato');
-
-    const currentRoute = window.LaravelApp?.route || '';
-    if (currentRoute !== 'admin.centri.show') {
-        return;
-    }
-
-    const pageData = window.PageData || {};
-    let selectedProducts = [];
-
-    console.log('🔧 Inizializzazione pagina admin centro assistenza');
-    
-    // === VARIABILI GLOBALI ===
-    // Queste variabili vengono utilizzate in tutto lo script per gestire le operazioni
-    const CENTRO_ID = {{ $centro->id }};  // ID del centro corrente
-    const BASE_URL = '{{ url("/") }}';    // URL base dell'applicazione
-    const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'); // Token CSRF per sicurezza
-    
-    // Elementi del DOM per la gestione dell'assegnazione tecnici
-    const modalAssegnazione = document.getElementById('modalAssegnaTecnico');
-    const selectTecnico = document.getElementById('tecnico_id');
-    const btnAssegnaTecnico = document.getElementById('btnAssegnaTecnico');
-    const formAssegnazione = document.getElementById('formAssegnaTecnico');
-    
-    // === INIZIALIZZAZIONE EVENT LISTENERS ===
-    // Configura gli eventi per i vari elementi della pagina
-    
-    // Event listener per apertura modal assegnazione
-    if (modalAssegnazione) {
-        modalAssegnazione.addEventListener('shown.bs.modal', caricaTecniciDisponibili);
-    }
-    
-    // Event listener per invio form assegnazione
-    if (formAssegnazione) {
-        formAssegnazione.addEventListener('submit', gestisciAssegnazioneTecnico);
-    }
-    
-    // === GESTIONE RIMOZIONE TECNICI ===
-    // Event listener per i form di rimozione tecnici
-    document.querySelectorAll('.rimuovi-tecnico-form').forEach(form => {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault(); // Ferma l'invio del form
-            
-            const tecnicoNome = this.getAttribute('data-tecnico-nome');
-            const confermaMsg = `Sei sicuro di voler rimuovere "${tecnicoNome}" da questo centro?\n\n` +
-                               `Il tecnico rimarrà nel sistema ma non sarà più assegnato a questo centro.`;
-            
-            // Mostra conferma personalizzata
-            if (confirm(confermaMsg)) {
-                console.log('Rimozione confermata per tecnico:', tecnicoNome);
-                
-                // Disabilita il pulsante per evitare doppi click
-                const btn = this.querySelector('button');
-                const originalHtml = btn.innerHTML;
-                btn.disabled = true;
-                btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
-                
-                // Invia il form
-                this.submit();
-            } else {
-                console.log('Rimozione annullata per tecnico:', tecnicoNome);
-            }
-        });
-    });
-    
-    // === FUNZIONE COPIA IN CLIPBOARD ===
-    // Questa funzione permette di copiare testo (ID centro, telefono, email) negli appunti
-    window.copiaInClipboard = function(testo) {
-        // Usa l'API moderna del browser per copiare negli appunti
-        navigator.clipboard.writeText(testo).then(function() {
-            // Mostra conferma di successo
-            mostraNotifica('Copiato: ' + testo, 'success');
-        }).catch(function(err) {
-            // Gestisce errori di copia (es. browser non supportato)
-            console.error('Errore copia clipboard:', err);
-            mostraNotifica('Errore nella copia', 'danger');
-        });
-    };
-    
-    // === FUNZIONE APERTURA GOOGLE MAPS ===
-    // Funzione globale per aprire Google Maps con l'indirizzo del centro
-    window.apriGoogleMaps = function() {
-        // Costruisce l'indirizzo completo del centro per la ricerca
-        const indirizzo = encodeURIComponent('{{ $centro->indirizzo }}, {{ $centro->citta }}, {{ $centro->provincia }}');
-        const url = `https://www.google.com/maps/search/?api=1&query=${indirizzo}`;
-        
-        // Apre Google Maps in una nuova finestra
-        window.open(url, '_blank');
-        console.log('Aperta mappa per:', '{{ $centro->nome }}');
-    };
+/**
+ * Modulo principale per la gestione del centro assistenza
+ */
+const AdminCentroShow = {
     
     /**
-     * Carica tecnici disponibili quando si apre il modal di assegnazione
-     * Questa funzione viene chiamata ogni volta che si apre il modal per assegnare un tecnico
+     * Configurazione del modulo
      */
-    function caricaTecniciDisponibili() {
-        console.log('Caricamento tecnici disponibili per centro ID:', CENTRO_ID);
+    config: {
+        centroId: null,
+        baseUrl: null,
+        csrfToken: null,
+        debugMode: false
+    },
+    
+    /**
+     * Elementi DOM cachati
+     */
+    elements: {
+        modal: null,
+        select: null,
+        button: null,
+        form: null
+    },
+    
+    /**
+     * Inizializzazione del modulo
+     * @param {Object} options - Opzioni di configurazione
+     */
+    init(options = {}) {
+        console.log('📍 Inizializzazione AdminCentroShow');
         
-        // Reset della select e disabilitazione durante caricamento
-        selectTecnico.innerHTML = '<option value="">Caricamento tecnici...</option>';
-        selectTecnico.disabled = true;
-        btnAssegnaTecnico.disabled = true;
+        // Imposta configurazione
+        this.config = {
+            ...this.config,
+            ...options
+        };
         
-        // Costruisce l'URL dell'API per ottenere i tecnici disponibili
-        const apiUrl = `${BASE_URL}/api/admin/centri/${CENTRO_ID}/tecnici-disponibili`;
+        // Carica elementi DOM
+        this.loadElements();
         
-        // Chiamata AJAX all'API per ottenere la lista tecnici
-        fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': CSRF_TOKEN
-            }
-        })
-        .then(response => {
-            // Controlla se la risposta è valida
+        // Verifica prerequisiti
+        if (!this.validatePrerequisites()) {
+            console.error('❌ Prerequisiti mancanti per AdminCentroShow');
+            return false;
+        }
+        
+        // Configura event listeners
+        this.setupEventListeners();
+        
+        // Modalità debug
+        if (this.config.debugMode) {
+            this.enableDebugMode();
+        }
+        
+        console.log('✅ AdminCentroShow inizializzato correttamente');
+        return true;
+    },
+    
+    /**
+     * Carica e cача gli elementi DOM
+     */
+    loadElements() {
+        this.elements = {
+            modal: document.getElementById('modalAssegnaTecnico'),
+            select: document.getElementById('tecnico_id'),
+            button: document.getElementById('btnAssegnaTecnico'),
+            form: document.getElementById('formAssegnaTecnico')
+        };
+    },
+    
+    /**
+     * Valida che tutti i prerequisiti siano presenti
+     * @returns {boolean}
+     */
+    validatePrerequisites() {
+        // Verifica configurazione
+        if (!this.config.centroId || !this.config.baseUrl || !this.config.csrfToken) {
+            console.error('❌ Configurazione mancante:', this.config);
+            return false;
+        }
+        
+        // Verifica elementi DOM
+        const missingElements = Object.entries(this.elements)
+            .filter(([key, element]) => !element)
+            .map(([key]) => key);
+            
+        if (missingElements.length > 0) {
+            console.error('❌ Elementi DOM mancanti:', missingElements);
+            return false;
+        }
+        
+        return true;
+    },
+    
+    /**
+     * Configura gli event listeners
+     */
+    setupEventListeners() {
+        // Event listener per apertura modal
+        this.elements.modal.addEventListener('shown.bs.modal', () => {
+            this.handleModalOpen();
+        });
+        
+        // Event listener per submit form
+        this.elements.form.addEventListener('submit', (e) => {
+            this.handleFormSubmit(e);
+        });
+        
+        // Event listener per cambio selezione tecnico
+        this.elements.select.addEventListener('change', () => {
+            this.handleTecnicoChange();
+        });
+    },
+    
+    /**
+     * Gestisce l'apertura del modal
+     */
+    handleModalOpen() {
+        console.log('📂 Modal aperto - Caricamento tecnici');
+        this.loadTecniciDisponibili();
+    },
+    
+    /**
+     * Gestisce il submit del form
+     * @param {Event} e - Evento submit
+     */
+    handleFormSubmit(e) {
+        e.preventDefault();
+        console.log('📤 Submit form - Avvio assegnazione');
+        this.processAssegnazioneTecnico();
+    },
+    
+    /**
+     * Gestisce il cambio di selezione del tecnico
+     */
+    handleTecnicoChange() {
+        this.showTransferInfo();
+    },
+    
+    /**
+     * Carica la lista dei tecnici disponibili
+     */
+    async loadTecniciDisponibili() {
+        console.log('🔄 Caricamento tecnici disponibili...');
+        
+        // Reset UI
+        this.resetSelectUI();
+        this.disableButton();
+        
+        try {
+            // Costruisci URL API
+            const apiUrl = `${this.config.baseUrl}/api/admin/centri/${this.config.centroId}/tecnici-disponibili`;
+            
+            // Esegui chiamata API
+            const response = await fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': this.config.csrfToken
+                },
+                credentials: 'same-origin'
+            });
+            
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
-            return response.json();
-        })
-        .then(data => {
-            console.log('Dati tecnici ricevuti:', data);
             
-            if (data.success) {
-                // Popola la select con i tecnici disponibili
-                popolaSelectTecnici(data.tecnici || []);
+            const data = await response.json();
+            
+            if (data.success && Array.isArray(data.tecnici)) {
+                this.populateSelectTecnici(data.tecnici);
             } else {
-                throw new Error(data.message || 'Errore nel caricamento tecnici');
+                throw new Error(data.message || 'Formato dati non valido');
             }
-        })
-        .catch(error => {
-            console.error('Errore caricamento tecnici:', error);
-            selectTecnico.innerHTML = '<option value="">Errore nel caricamento</option>';
-            mostraNotifica('Errore caricamento tecnici: ' + error.message, 'danger');
-        })
-        .finally(() => {
-            // Riabilita la select alla fine dell'operazione
-            selectTecnico.disabled = false;
-        });
-    }
+            
+        } catch (error) {
+            console.error('❌ Errore caricamento tecnici:', error);
+            this.showSelectError('Errore: ' + error.message);
+            this.showNotification('Errore nel caricamento tecnici: ' + error.message, 'danger');
+        } finally {
+            this.enableSelect();
+        }
+    },
     
     /**
-     * Popola la select con i tecnici disponibili, separando liberi da trasferibili
-     * @param {Array} tecnici - Array dei tecnici disponibili dall'API
+     * Popola la select con i tecnici disponibili
+     * @param {Array} tecnici - Lista tecnici
      */
-    function popolaSelectTecnici(tecnici) {
-        // Reset della select
-        selectTecnico.innerHTML = '<option value="">-- Seleziona un tecnico --</option>';
+    populateSelectTecnici(tecnici) {
+        console.log(`📋 Popolamento select con ${tecnici.length} tecnici`);
+        
+        // Reset select
+        this.elements.select.innerHTML = '<option value="">-- Seleziona un tecnico --</option>';
         
         if (tecnici.length === 0) {
-            selectTecnico.innerHTML += '<option value="">Nessun tecnico disponibile</option>';
+            this.elements.select.innerHTML += '<option value="">Nessun tecnico disponibile</option>';
             return;
         }
         
-        console.log(`Processando ${tecnici.length} tecnici disponibili`);
+        // Separa tecnici per categoria
+        const tecniciLiberi = tecnici.filter(t => 
+            t.centro_attuale && t.centro_attuale.status === 'unassigned'
+        );
+        const tecniciAssegnati = tecnici.filter(t => 
+            t.centro_attuale && t.centro_attuale.status === 'assigned'
+        );
         
-        // Separa tecnici liberi da quelli già assegnati ad altri centri
-        const tecniciLiberi = tecnici.filter(t => t.centro_attuale?.status === 'unassigned');
-        const tecniciAssegnati = tecnici.filter(t => t.centro_attuale?.status === 'assigned');
-        
-        // Aggiungi gruppo per tecnici liberi (non assegnati)
+        // Aggiungi tecnici liberi
         if (tecniciLiberi.length > 0) {
-            const gruppo = document.createElement('optgroup');
-            gruppo.label = `Tecnici Disponibili (${tecniciLiberi.length})`;
-            
-            tecniciLiberi.forEach(tecnico => {
-                const option = new Option(
-                    `${tecnico.nome_completo} - ${tecnico.specializzazione || 'N/A'}`, 
-                    tecnico.id
-                );
-                gruppo.appendChild(option);
-            });
-            selectTecnico.appendChild(gruppo);
+            this.addOptGroup('Tecnici Disponibili', tecniciLiberi, 'libero');
         }
         
-        // Aggiungi gruppo per tecnici da trasferire (assegnati ad altri centri)
+        // Aggiungi tecnici trasferibili
         if (tecniciAssegnati.length > 0) {
-            const gruppo = document.createElement('optgroup');
-            gruppo.label = `Trasferimento da Altri Centri (${tecniciAssegnati.length})`;
-            
-            tecniciAssegnati.forEach(tecnico => {
-                const option = new Option(
-                    `${tecnico.nome_completo} (da: ${tecnico.centro_attuale.nome})`, 
-                    tecnico.id
-                );
-                // Salva informazioni del centro attuale come attributo
-                option.setAttribute('data-centro-attuale', tecnico.centro_attuale.nome);
-                gruppo.appendChild(option);
-            });
-            selectTecnico.appendChild(gruppo);
+            this.addOptGroup('Trasferimento da Altri Centri', tecniciAssegnati, 'trasferimento');
         }
         
-        // Abilita il pulsante di assegnazione
-        btnAssegnaTecnico.disabled = false;
+        // Abilita pulsante
+        this.enableButton();
         
-        // Aggiungi event listener per mostrare info sui trasferimenti
-        selectTecnico.addEventListener('change', mostraInfoTrasferimento);
-    }
+        console.log('✅ Select popolata con successo');
+    },
     
     /**
-     * Mostra informazioni sui trasferimenti quando si seleziona un tecnico già assegnato
+     * Aggiunge un gruppo di opzioni alla select
+     * @param {string} label - Etichetta del gruppo
+     * @param {Array} tecnici - Lista tecnici
+     * @param {string} tipo - Tipo di tecnico (libero/trasferimento)
      */
-    function mostraInfoTrasferimento() {
-        const opzioneSelezionata = selectTecnico.options[selectTecnico.selectedIndex];
+    addOptGroup(label, tecnici, tipo) {
+        const gruppo = document.createElement('optgroup');
+        gruppo.label = label;
+        
+        tecnici.forEach(tecnico => {
+            const option = document.createElement('option');
+            option.value = tecnico.id;
+            option.setAttribute('data-tipo', tipo);
+            
+            if (tipo === 'libero') {
+                option.textContent = `${tecnico.nome_completo} - ${tecnico.specializzazione || 'N/A'}`;
+            } else {
+                option.textContent = `${tecnico.nome_completo} (da: ${tecnico.centro_attuale.nome})`;
+                option.setAttribute('data-centro-attuale', tecnico.centro_attuale.nome);
+            }
+            
+            gruppo.appendChild(option);
+        });
+        
+        this.elements.select.appendChild(gruppo);
+    },
+    
+    /**
+     * Mostra informazioni sui trasferimenti
+     */
+    showTransferInfo() {
+        const opzioneSelezionata = this.elements.select.options[this.elements.select.selectedIndex];
         const centroAttuale = opzioneSelezionata?.getAttribute('data-centro-attuale');
         
-        // Rimuovi eventuali info precedenti
-        const infoEsistente = document.getElementById('infoTrasferimento');
-        if (infoEsistente) {
-            infoEsistente.remove();
-        }
+        // Rimuovi info precedenti
+        this.removeTransferInfo();
         
-        // Se è un trasferimento, mostra avviso informativo
-        if (centroAttuale && selectTecnico.value) {
+        // Mostra info trasferimento se necessario
+        if (centroAttuale && this.elements.select.value) {
             const infoDiv = document.createElement('div');
             infoDiv.id = 'infoTrasferimento';
             infoDiv.className = 'alert alert-warning mt-2';
@@ -224,183 +280,284 @@
                 <strong>Trasferimento:</strong> Il tecnico sarà automaticamente rimosso da "${centroAttuale}"
             `;
             
-            // Inserisce l'avviso dopo la select
-            selectTecnico.parentNode.appendChild(infoDiv);
+            this.elements.select.parentNode.appendChild(infoDiv);
         }
-    }
+    },
     
     /**
-     * Gestisce l'invio del form di assegnazione tecnico
-     * Controlla validazioni, conferme e invia la richiesta al server
-     * @param {Event} e - Evento submit del form
+     * Rimuove le informazioni sui trasferimenti
      */
-    function gestisciAssegnazioneTecnico(e) {
-        e.preventDefault(); // Previene invio form tradizionale
+    removeTransferInfo() {
+        const infoEsistente = document.getElementById('infoTrasferimento');
+        if (infoEsistente) {
+            infoEsistente.remove();
+        }
+    },
+    
+    /**
+     * Processa l'assegnazione del tecnico
+     */
+    async processAssegnazioneTecnico() {
+        console.log('🎯 Inizio processo assegnazione tecnico');
         
-        const tecnicoId = selectTecnico.value;
+        const tecnicoId = this.elements.select.value;
         if (!tecnicoId) {
-            mostraNotifica('Seleziona un tecnico da assegnare', 'warning');
+            this.showNotification('Seleziona un tecnico da assegnare', 'warning');
             return;
         }
         
-        // Ottiene informazioni sul tecnico selezionato
-        const opzioneSelezionata = selectTecnico.options[selectTecnico.selectedIndex];
-        const centroAttuale = opzioneSelezionata.getAttribute('data-centro-attuale');
-        const nomeTecnico = opzioneSelezionata.text.split(' - ')[0].split(' (')[0];
+        // Ottieni informazioni tecnico selezionato
+        const tecnicoInfo = this.getSelectedTecnicoInfo();
         
-        // Se è un trasferimento, chiede conferma esplicita
-        if (centroAttuale) {
-            const confermaMsg = `TRASFERIMENTO TECNICO\n\n` +
-                               `Tecnico: ${nomeTecnico}\n` +
-                               `Da: ${centroAttuale}\n` +
-                               `A: {{ $centro->nome }}\n\n` +
-                               `Il tecnico sarà automaticamente rimosso dal centro precedente.\n\n` +
-                               `Confermi il trasferimento?`;
-                               
-            if (!confirm(confermaMsg)) {
-                return; // Annulla operazione se non confermata
+        // Chiedi conferma per trasferimenti
+        if (tecnicoInfo.isTransfer && !await this.confirmTransfer(tecnicoInfo)) {
+            return;
+        }
+        
+        // Disabilita UI durante operazione
+        this.setLoadingState(tecnicoInfo.isTransfer);
+        
+        try {
+            // Prepara e invia richiesta
+            const response = await this.sendAssignmentRequest(tecnicoId);
+            
+            if (response.success) {
+                await this.handleAssignmentSuccess(response);
+            } else {
+                throw new Error(response.message || 'Errore nell\'operazione');
             }
+            
+        } catch (error) {
+            console.error('❌ Errore assegnazione:', error);
+            this.handleAssignmentError(error);
+        } finally {
+            this.resetLoadingState();
         }
+    },
+    
+    /**
+     * Ottiene informazioni sul tecnico selezionato
+     * @returns {Object}
+     */
+    getSelectedTecnicoInfo() {
+        const opzioneSelezionata = this.elements.select.options[this.elements.select.selectedIndex];
+        const tipo = opzioneSelezionata.getAttribute('data-tipo');
+        const nomeTecnico = opzioneSelezionata.text.split(' - ')[0].split(' (')[0];
+        const centroAttuale = opzioneSelezionata.getAttribute('data-centro-attuale');
         
-        // Disabilita pulsante e mostra stato di caricamento
-        btnAssegnaTecnico.disabled = true;
-        const originalText = btnAssegnaTecnico.innerHTML;
+        return {
+            id: this.elements.select.value,
+            nome: nomeTecnico,
+            tipo: tipo,
+            centroAttuale: centroAttuale,
+            isTransfer: tipo === 'trasferimento' && centroAttuale
+        };
+    },
+    
+    /**
+     * Chiede conferma per i trasferimenti
+     * @param {Object} tecnicoInfo - Informazioni tecnico
+     * @returns {Promise<boolean>}
+     */
+    async confirmTransfer(tecnicoInfo) {
+        const confermaMsg = `TRASFERIMENTO TECNICO\n\n` +
+                           `Tecnico: ${tecnicoInfo.nome}\n` +
+                           `Da: ${tecnicoInfo.centroAttuale}\n` +
+                           `Al centro corrente\n\n` +
+                           `Il tecnico sarà automaticamente rimosso dal centro precedente.\n\n` +
+                           `Confermi il trasferimento?`;
         
-        // Cambia testo del pulsante in base al tipo di operazione
-        if (centroAttuale) {
-            btnAssegnaTecnico.innerHTML = '<i class="bi bi-arrow-right me-1"></i> Trasferimento...';
-        } else {
-            btnAssegnaTecnico.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Assegnazione...';
-        }
-        
-        // Prepara i dati per l'invio
+        return confirm(confermaMsg);
+    },
+    
+    /**
+     * Invia la richiesta di assegnazione
+     * @param {string} tecnicoId - ID del tecnico
+     * @returns {Promise<Object>}
+     */
+    async sendAssignmentRequest(tecnicoId) {
         const formData = new FormData();
         formData.append('tecnico_id', tecnicoId);
-        formData.append('_token', CSRF_TOKEN);
+        formData.append('_token', this.config.csrfToken);
         
-        console.log('Invio richiesta assegnazione tecnico:', {
-            tecnico_id: tecnicoId,
-            centro_id: CENTRO_ID,
-            is_transfer: !!centroAttuale
-        });
-        
-        // Invia richiesta AJAX al server
-        fetch(formAssegnazione.getAttribute('action'), {
+        const response = await fetch(this.elements.form.getAttribute('action'), {
             method: 'POST',
             body: formData,
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json'
-            }
-        })
-        .then(response => {
-            console.log('Risposta server:', response.status);
-            
-            if (!response.ok) {
+            },
+            credentials: 'same-origin'
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            let errorData;
+            try {
+                errorData = JSON.parse(errorText);
+            } catch {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
-            return response.json();
-        })
-        .then(data => {
-            console.log('Dati ricevuti:', data);
-            
-            if (data.success) {
-                // Determina il tipo di operazione completata
-                const tipologiaOperazione = data.is_transfer ? 'trasferito' : 'assegnato';
-                let messaggioSuccesso = data.message || `Tecnico ${tipologiaOperazione} con successo`;
-                
-                // Mostra notifica di successo
-                mostraNotifica(messaggioSuccesso, 'success');
-                
-                // Se è un trasferimento, mostra info aggiuntive
-                if (data.is_transfer && data.previous_center) {
-                    setTimeout(() => {
-                        mostraNotifica(
-                            `Il tecnico è stato automaticamente rimosso da "${data.previous_center}"`, 
-                            'info'
-                        );
-                    }, 1000);
-                }
-                
-                console.log(`Tecnico ${tipologiaOperazione} con successo`);
-                
-                // Chiudi modal e ricarica pagina per aggiornare i dati
-                setTimeout(() => {
-                    const modalInstance = bootstrap.Modal.getInstance(modalAssegnazione);
-                    if (modalInstance) {
-                        modalInstance.hide();
-                    }
-                    location.reload(); // Ricarica per mostrare il tecnico assegnato
-                }, 2000);
-                
-            } else {
-                throw new Error(data.message || 'Errore nell\'operazione di assegnazione');
-            }
-        })
-        .catch(error => {
-            console.error('Errore operazione:', error);
-            
-            // Messaggi di errore specifici basati sul tipo di errore
-            let messaggioErrore = 'Errore nell\'operazione';
-            
-            if (error.message.includes('già assegnato a questo centro')) {
-                messaggioErrore = 'Il tecnico è già assegnato a questo centro';
-            } else if (error.message.includes('403') || error.message.includes('Forbidden')) {
-                messaggioErrore = 'Non hai i permessi per questa operazione';
-            } else if (error.message.includes('422') || error.message.includes('Unprocessable')) {
-                messaggioErrore = 'Dati non validi o tecnico non disponibile';
-            } else if (error.message.includes('500') || error.message.includes('Internal Server Error')) {
-                messaggioErrore = 'Errore del server. Riprova tra qualche momento';
-            } else if (error.message.includes('404') || error.message.includes('Not Found')) {
-                messaggioErrore = 'Tecnico o centro non trovato';
-            }
-            
-            mostraNotifica(messaggioErrore + ': ' + error.message, 'danger');
-        })
-        .finally(() => {
-            // Ripristina sempre il pulsante alla fine dell'operazione
-            btnAssegnaTecnico.disabled = false;
-            btnAssegnaTecnico.innerHTML = originalText;
-        });
-    }
+            throw new Error(errorData.message || `HTTP ${response.status}`);
+        }
+        
+        return await response.json();
+    },
     
     /**
-     * Mostra notifica temporanea con animazione
-     * @param {string} messaggio - Testo da mostrare
-     * @param {string} tipo - Tipo di alert (success, danger, warning, info)
+     * Gestisce il successo dell'assegnazione
+     * @param {Object} response - Risposta del server
      */
-    function mostraNotifica(messaggio, tipo = 'info') {
-        // Mappa tipi di alert ai CSS Bootstrap
+    async handleAssignmentSuccess(response) {
+        console.log('✅ Assegnazione completata:', response);
+        
+        // Mostra messaggio principale
+        this.showNotification(response.message || 'Operazione completata con successo', 'success');
+        
+        // Info aggiuntive per trasferimenti
+        if (response.is_transfer && response.previous_center) {
+            setTimeout(() => {
+                this.showNotification(
+                    `Tecnico rimosso automaticamente da "${response.previous_center}"`, 
+                    'info'
+                );
+            }, 1500);
+        }
+        
+        // Chiudi modal e ricarica pagina
+        setTimeout(() => {
+            this.closeModal();
+            window.location.reload();
+        }, 3000);
+    },
+    
+    /**
+     * Gestisce gli errori di assegnazione
+     * @param {Error} error - Errore
+     */
+    handleAssignmentError(error) {
+        let messaggioErrore = 'Errore nell\'operazione';
+        const errorMsg = error.message.toLowerCase();
+        
+        if (errorMsg.includes('già assegnato')) {
+            messaggioErrore = 'Tecnico già assegnato a questo centro';
+        } else if (errorMsg.includes('403') || errorMsg.includes('non autorizzato')) {
+            messaggioErrore = 'Non hai i permessi per questa operazione';
+        } else if (errorMsg.includes('422') || errorMsg.includes('non validi')) {
+            messaggioErrore = 'Dati non validi';
+        } else if (errorMsg.includes('500')) {
+            messaggioErrore = 'Errore del server';
+        }
+        
+        this.showNotification(messaggioErrore + ': ' + error.message, 'danger');
+    },
+    
+    /**
+     * Imposta lo stato di caricamento
+     * @param {boolean} isTransfer - Se è un trasferimento
+     */
+    setLoadingState(isTransfer) {
+        this.elements.select.disabled = true;
+        this.elements.button.disabled = true;
+        this.elements.button.originalText = this.elements.button.innerHTML;
+        
+        if (isTransfer) {
+            this.elements.button.innerHTML = '<i class="bi bi-arrow-right me-1"></i> Trasferimento...';
+        } else {
+            this.elements.button.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Assegnazione...';
+        }
+    },
+    
+    /**
+     * Ripristina lo stato dopo caricamento
+     */
+    resetLoadingState() {
+        this.elements.select.disabled = false;
+        this.elements.button.disabled = false;
+        if (this.elements.button.originalText) {
+            this.elements.button.innerHTML = this.elements.button.originalText;
+        }
+    },
+    
+    /**
+     * Reset dell'interfaccia select
+     */
+    resetSelectUI() {
+        this.elements.select.innerHTML = '<option value="">⏳ Caricamento...</option>';
+        this.elements.select.disabled = true;
+    },
+    
+    /**
+     * Mostra errore nella select
+     * @param {string} messaggio - Messaggio di errore
+     */
+    showSelectError(messaggio) {
+        this.elements.select.innerHTML = `<option value="">❌ ${messaggio}</option>`;
+    },
+    
+    /**
+     * Abilita la select
+     */
+    enableSelect() {
+        this.elements.select.disabled = false;
+    },
+    
+    /**
+     * Disabilita il pulsante
+     */
+    disableButton() {
+        this.elements.button.disabled = true;
+    },
+    
+    /**
+     * Abilita il pulsante
+     */
+    enableButton() {
+        this.elements.button.disabled = false;
+    },
+    
+    /**
+     * Chiude il modal
+     */
+    closeModal() {
+        const modalInstance = bootstrap.Modal.getInstance(this.elements.modal);
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+    },
+    
+    /**
+     * Mostra notifica temporanea
+     * @param {string} messaggio - Messaggio da mostrare
+     * @param {string} tipo - Tipo di notifica (success, danger, warning, info)
+     */
+    showNotification(messaggio, tipo = 'info') {
+        console.log(`📢 Notifica ${tipo.toUpperCase()}: ${messaggio}`);
+        
         const tipiAlert = {
             'success': 'alert-success',
-            'danger': 'alert-danger', 
+            'danger': 'alert-danger',
             'warning': 'alert-warning',
             'info': 'alert-info'
         };
         
-        // Mappa icone per ogni tipo
         const icone = {
             'success': 'bi-check-circle',
             'danger': 'bi-exclamation-triangle',
-            'warning': 'bi-exclamation-circle', 
+            'warning': 'bi-exclamation-circle',
             'info': 'bi-info-circle'
         };
         
-        // Crea elemento notifica
         const notifica = document.createElement('div');
-        notifica.className = `alert ${tipiAlert[tipo]} alert-dismissible fade show notifica-temp`;
+        notifica.className = `alert ${tipiAlert[tipo]} alert-dismissible fade show`;
         notifica.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 500px;';
         notifica.innerHTML = `
             <i class="bi ${icone[tipo]} me-2"></i>
             ${messaggio}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Chiudi"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
         
-        // Aggiungi al DOM
         document.body.appendChild(notifica);
-        
-        // Log per debugging
-        console.log(`Notifica ${tipo}:`, messaggio);
         
         // Auto-rimuovi dopo 5 secondi
         setTimeout(() => {
@@ -408,8 +565,66 @@
                 notifica.remove();
             }
         }, 5000);
+    },
+    
+    /**
+     * Abilita modalità debug
+     */
+    enableDebugMode() {
+        console.log('🔧 Modalità debug abilitata');
+        
+        // Aggiungi funzioni globali per debug
+        window.AdminCentroShow = this;
+        
+        window.debugCentroShow = () => {
+            console.log('🔧 DEBUG AdminCentroShow:');
+            console.log('Config:', this.config);
+            console.log('Elements:', this.elements);
+            console.log('API URL:', `${this.config.baseUrl}/api/admin/centri/${this.config.centroId}/tecnici-disponibili`);
+        };
+        
+        window.testModalOpen = () => {
+            const modalInstance = new bootstrap.Modal(this.elements.modal);
+            modalInstance.show();
+        };
+        
+        console.log('💡 Funzioni debug disponibili: debugCentroShow(), testModalOpen()');
     }
+};
 
+/**
+ * Utility per Google Maps
+ */
+const GoogleMapsUtil = {
+    /**
+     * Apre Google Maps con un indirizzo
+     * @param {string} indirizzo - Indirizzo da cercare
+     */
+    openMaps(indirizzo) {
+        const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(indirizzo)}`;
+        window.open(url, '_blank');
+        console.log('🗺️ Apertura Google Maps per:', indirizzo);
+    }
+};
 
-console.log('JavaScript admin centro assistenza caricato con stile migliorato - Versione completa');
-    }); 
+/**
+ * Inizializzazione automatica quando il DOM è pronto
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    // Verifica se siamo nella pagina corretta
+    if (!window.AdminCentroShowConfig) {
+        console.log('⏭️ AdminCentroShowConfig non trovato, skip inizializzazione');
+        return;
+    }
+    
+    // Inizializza il modulo
+    const success = AdminCentroShow.init(window.AdminCentroShowConfig);
+    
+    if (success) {
+        console.log('🎉 AdminCentroShow caricato con successo');
+    }
+});
+
+// Esporta per uso globale
+window.AdminCentroShow = AdminCentroShow;
+window.GoogleMapsUtil = GoogleMapsUtil;

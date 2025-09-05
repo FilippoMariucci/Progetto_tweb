@@ -793,8 +793,9 @@ public function adminIndex(Request $request)
      * Assegna tecnico a centro
      * Route: POST /admin/centri/{centro}/assegna-tecnico
      */
-    public function assegnaTecnico(Request $request, CentroAssistenza $centro)
+   public function assegnaTecnico(Request $request, CentroAssistenza $centro)
 {
+    // Verifica autorizzazioni
     if (!Auth::check() || !Auth::user()->isAdmin()) {
         return response()->json([
             'success' => false,
@@ -802,14 +803,25 @@ public function adminIndex(Request $request)
         ], 403);
     }
 
+    Log::info('Tentativo assegnazione tecnico', [
+        'centro_id' => $centro->id,
+        'centro_nome' => $centro->nome,
+        'request_data' => $request->all(),
+        'admin_id' => Auth::id()
+    ]);
+
+    // Validazione input
     $validator = Validator::make($request->all(), [
-        'tecnico_id' => 'required|exists:users,id'
+        'tecnico_id' => 'required|integer|exists:users,id'
+    ], [
+        'tecnico_id.required' => 'ID tecnico obbligatorio',
+        'tecnico_id.exists' => 'Tecnico non trovato nel sistema'
     ]);
 
     if ($validator->fails()) {
         return response()->json([
             'success' => false,
-            'message' => 'Tecnico non valido',
+            'message' => 'Dati non validi',
             'errors' => $validator->errors()
         ], 422);
     }
@@ -820,7 +832,7 @@ public function adminIndex(Request $request)
         $tecnico = User::findOrFail($request->tecnico_id);
 
         // Verifica che sia effettivamente un tecnico
-        if ($tecnico->livello_accesso != '2') {
+        if ($tecnico->livello_accesso != 2) {
             return response()->json([
                 'success' => false,
                 'message' => 'L\'utente selezionato non è un tecnico'
@@ -835,7 +847,7 @@ public function adminIndex(Request $request)
             ], 422);
         }
 
-        // Rileva se è un trasferimento
+        // Controlla se è un trasferimento
         $centroAttuale = null;
         $isTransfer = false;
         
@@ -844,66 +856,69 @@ public function adminIndex(Request $request)
             $isTransfer = true;
         }
 
-        // Esegui l'assegnazione (o trasferimento)
+        // Esegui l'assegnazione
         $tecnico->centro_assistenza_id = $centro->id;
         $tecnico->save();
 
         DB::commit();
 
-        // Log dettagliato dell'operazione
-        if ($isTransfer) {
-            Log::info('Tecnico trasferito tra centri', [
-                'tecnico_id' => $tecnico->id,
-                'tecnico_nome' => $tecnico->nome_completo,
-                'centro_precedente_id' => $centroAttuale->id,
-                'centro_precedente_nome' => $centroAttuale->nome,
-                'centro_nuovo_id' => $centro->id,
-                'centro_nuovo_nome' => $centro->nome,
-                'admin_id' => Auth::id()
-            ]);
-            
+        // Prepara messaggio di successo
+        if ($isTransfer && $centroAttuale) {
             $message = "Tecnico {$tecnico->nome_completo} trasferito da \"{$centroAttuale->nome}\" a \"{$centro->nome}\"";
-        } else {
-            Log::info('Tecnico assegnato a centro', [
+            
+            Log::info('Tecnico trasferito', [
                 'tecnico_id' => $tecnico->id,
                 'tecnico_nome' => $tecnico->nome_completo,
-                'centro_id' => $centro->id,
-                'centro_nome' => $centro->nome,
+                'centro_precedente' => $centroAttuale->nome,
+                'centro_nuovo' => $centro->nome,
                 'admin_id' => Auth::id()
             ]);
-            
+        } else {
             $message = "Tecnico {$tecnico->nome_completo} assegnato al centro \"{$centro->nome}\"";
+            
+            Log::info('Tecnico assegnato', [
+                'tecnico_id' => $tecnico->id,
+                'tecnico_nome' => $tecnico->nome_completo,
+                'centro' => $centro->nome,
+                'admin_id' => Auth::id()
+            ]);
         }
 
         return response()->json([
             'success' => true,
             'message' => $message,
             'is_transfer' => $isTransfer,
-            'previous_center' => $isTransfer ? $centroAttuale->nome : null,
+            'previous_center' => $isTransfer && $centroAttuale ? $centroAttuale->nome : null,
             'tecnico' => [
                 'id' => $tecnico->id,
                 'nome_completo' => $tecnico->nome_completo,
-                'specializzazione' => $tecnico->specializzazione
+                'specializzazione' => $tecnico->specializzazione ?? 'Generale'
+            ],
+            'centro' => [
+                'id' => $centro->id,
+                'nome' => $centro->nome
             ]
         ]);
 
     } catch (\Exception $e) {
         DB::rollback();
 
-        Log::error('Errore assegnazione/trasferimento tecnico', [
+        Log::error('Errore assegnazione tecnico', [
             'tecnico_id' => $request->tecnico_id,
             'centro_id' => $centro->id,
-            'admin_id' => Auth::id(),
             'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
+            'trace' => $e->getTraceAsString(),
+            'admin_id' => Auth::id()
         ]);
 
         return response()->json([
             'success' => false,
-            'message' => 'Errore nell\'operazione: ' . $e->getMessage()
+            'message' => 'Errore nell\'assegnazione del tecnico',
+            'error_detail' => app()->environment('local') ? $e->getMessage() : 'Errore interno del server'
         ], 500);
     }
 }
+
 
     /**
  * Rimuovi tecnico da centro
@@ -1039,39 +1054,45 @@ public function rimuoviTecnico(Request $request, CentroAssistenza $centro)
      * Route: GET /api/admin/tecnici-disponibili
      * Utilizzata nelle interfacce di gestione centri
      */
-    public function getTecniciDisponibili(Request $request, CentroAssistenza $centro = null)
+    public function getTecniciDisponibili(Request $request)
 {
-    try {
-        // Verifica autorizzazioni admin
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Non autorizzato'
-            ], 403);
-        }
+    // Verifica autorizzazioni admin
+    if (!Auth::check() || !Auth::user()->isAdmin()) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Non autorizzato'
+        ], 403);
+    }
 
-        Log::info('Caricamento tecnici disponibili', [
-            'centro_id' => $centro ? $centro->id : 'all',
-            'admin_id' => Auth::id()
+    try {
+        // Estrai centro_id dalla query string
+        $centroId = $request->get('centro_id');
+        
+        Log::info('API tecnici disponibili chiamata', [
+            'centro_id' => $centroId,
+            'admin_id' => Auth::id(),
+            'request_url' => $request->fullUrl()
         ]);
 
-        // Query base per tecnici (livello 2)
-        $query = User::where('livello_accesso', 2)
+        // Query base per tecnici (livello accesso 2)
+        $query = User::where('livello_accesso', '2')
             ->select([
                 'id', 
                 'nome', 
                 'cognome', 
+                'username',
                 'specializzazione', 
                 'data_nascita',
-                'centro_assistenza_id'
+                'centro_assistenza_id',
+                'created_at'
             ])
             ->with(['centroAssistenza:id,nome,citta,provincia']);
 
-        // Se è per un centro specifico, escludi i tecnici già assegnati
-        if ($centro) {
-            $query->where(function($q) use ($centro) {
+        // Se specificato centro_id, escludi tecnici già assegnati a quel centro
+        if ($centroId) {
+            $query->where(function($q) use ($centroId) {
                 $q->whereNull('centro_assistenza_id') // Tecnici liberi
-                  ->orWhere('centro_assistenza_id', '!=', $centro->id); // Trasferibili
+                  ->orWhere('centro_assistenza_id', '!=', $centroId); // Trasferibili da altri centri
             });
         }
 
@@ -1079,44 +1100,73 @@ public function rimuoviTecnico(Request $request, CentroAssistenza $centro)
             ->orderBy('cognome')
             ->get()
             ->map(function($tecnico) {
-                return [
-                    'id' => $tecnico->id,
-                    'nome_completo' => $tecnico->nome_completo,
-                    'specializzazione' => $tecnico->specializzazione ?? 'Non specificata',
-                    'eta' => $tecnico->eta,
-                    'centro_attuale' => $tecnico->centro_assistenza_id ? [
+                // Determina stato centro attuale
+                $centroAttuale = null;
+                if ($tecnico->centroAssistenza) {
+                    $centroAttuale = [
                         'id' => $tecnico->centroAssistenza->id,
                         'nome' => $tecnico->centroAssistenza->nome,
                         'citta' => $tecnico->centroAssistenza->citta,
+                        'provincia' => $tecnico->centroAssistenza->provincia,
                         'status' => 'assigned' // Tecnico già assegnato
-                    ] : [
+                    ];
+                } else {
+                    $centroAttuale = [
                         'status' => 'unassigned' // Tecnico libero
-                    ]
+                    ];
+                }
+
+                return [
+                    'id' => $tecnico->id,
+                    'nome_completo' => trim($tecnico->nome . ' ' . $tecnico->cognome),
+                    'username' => $tecnico->username,
+                    'specializzazione' => $tecnico->specializzazione ?? 'Generale',
+                    'data_nascita' => $tecnico->data_nascita ? $tecnico->data_nascita->format('d/m/Y') : null,
+                    'eta' => $tecnico->data_nascita ? $tecnico->data_nascita->age : null,
+                    'centro_attuale' => $centroAttuale,
+                    'creato_il' => $tecnico->created_at->format('d/m/Y'),
+                    'disponibile' => !$tecnico->centro_assistenza_id // true se libero
                 ];
             });
 
-        return response()->json([
+        // Separa tecnici liberi da quelli assegnati per statistiche
+        $tecniciLiberi = $tecnici->where('disponibile', true);
+        $tecniciAssegnati = $tecnici->where('disponibile', false);
+
+        $response = [
             'success' => true,
-            'tecnici' => $tecnici,
+            'tecnici' => $tecnici->values(), // Re-indicizza array
             'count' => $tecnici->count(),
-            'centro_target' => $centro ? [
-                'id' => $centro->id,
-                'nome' => $centro->nome,
-                'citta' => $centro->citta
-            ] : null
+            'statistiche' => [
+                'totali' => $tecnici->count(),
+                'liberi' => $tecniciLiberi->count(),
+                'trasferibili' => $tecniciAssegnati->count()
+            ],
+            'centro_id' => $centroId,
+            'generato_il' => now()->toISOString()
+        ];
+
+        Log::info('Tecnici disponibili caricati con successo', [
+            'centro_id' => $centroId,
+            'tecnici_trovati' => $tecnici->count(),
+            'liberi' => $tecniciLiberi->count(),
+            'trasferibili' => $tecniciAssegnati->count()
         ]);
+
+        return response()->json($response);
 
     } catch (\Exception $e) {
         Log::error('Errore caricamento tecnici disponibili', [
+            'centro_id' => $request->get('centro_id'),
             'error' => $e->getMessage(),
-            'centro_id' => $centro ? $centro->id : null,
+            'trace' => $e->getTraceAsString(),
             'admin_id' => Auth::id()
         ]);
 
         return response()->json([
             'success' => false,
             'message' => 'Errore nel caricamento dei tecnici disponibili',
-            'error' => app()->environment('local') ? $e->getMessage() : null
+            'error_detail' => app()->environment('local') ? $e->getMessage() : 'Errore interno'
         ], 500);
     }
 }
