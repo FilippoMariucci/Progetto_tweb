@@ -38,86 +38,81 @@ class AdminController extends Controller
  * Metodo assegnazioni CORRETTO - AdminController
  * Fix per il problema della variabile $stats non definita
  */
-public function assegnazioni(Request $request)
-{
-    // Carica tutti i membri dello staff (livello 3)
-    $staffMembers = User::where('livello_accesso', '3')
-        ->orderBy('nome')
-        ->orderBy('cognome')
-        ->get();
+ public function assegnazioni(Request $request)
+    {
+        // Carica tutti i membri dello staff (livello 3)
+        $staffMembers = User::where('livello_accesso', '3')
+            ->orderBy('nome')
+            ->orderBy('cognome')
+            ->get();
 
-    // Query prodotti con possibilità di filtri
-    $query = Prodotto::with(['staffAssegnato', 'malfunzionamenti']);
+        // Query prodotti con possibilità di filtri
+        $query = Prodotto::with('staffAssegnato');
 
-    // === APPLICAZIONE FILTRI ===
-    
-    // Filtro per ricerca per nome/modello
-    if ($request->filled('search')) {
-        $searchTerm = $request->input('search');
-        $query->where(function($q) use ($searchTerm) {
-            $q->where('nome', 'LIKE', "%{$searchTerm}%")
-              ->orWhere('modello', 'LIKE', "%{$searchTerm}%");
-        });
-    }
-
-    // Filtro per staff specifico
-    if ($request->filled('staff_id')) {
-        if ($request->input('staff_id') === 'null') {
-            // Prodotti non assegnati
+        // Filtro per prodotti non assegnati
+        if ($request->boolean('non_assegnati')) {
             $query->whereNull('staff_assegnato_id');
-        } else {
-            $query->where('staff_assegnato_id', $request->input('staff_id'));
         }
+
+        // Filtro per staff specifico
+        if ($request->filled('staff_id')) {
+            $staffId = $request->input('staff_id');
+            if ($staffId === 'null') {
+                // Filtra prodotti non assegnati
+                $query->whereNull('staff_assegnato_id');
+            } else {
+                // Filtra prodotti assegnati a staff specifico
+                $query->where('staff_assegnato_id', $staffId);
+            }
+        }
+
+        // Filtro per categoria
+        if ($request->filled('categoria')) {
+            $query->where('categoria', $request->input('categoria'));
+        }
+
+        // Ricerca per nome/modello
+        if ($request->filled('search')) {
+            $searchTerm = $request->input('search');
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('nome', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('modello', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+
+        // Carica prodotti con paginazione e conteggio malfunzionamenti
+        $prodotti = $query->withCount([
+                'malfunzionamenti',
+                'malfunzionamenti as critici_count' => function($query) {
+                    $query->where('gravita', 'critica');
+                }
+            ])
+            ->paginate(20);
+
+        // Statistiche assegnazioni
+        $stats = [
+            'totale_prodotti' => Prodotto::count(),
+            'prodotti_assegnati' => Prodotto::whereNotNull('staff_assegnato_id')->count(),
+            'prodotti_non_assegnati' => Prodotto::whereNull('staff_assegnato_id')->count(),
+            'staff_attivi' => $staffMembers->count(),
+        ];
+
+        // Categorie disponibili per filtro
+        $categorie = Prodotto::getCategorieUnifico();
+
+        // Log per debug
+        Log::info('Pagina assegnazioni caricata', [
+            'admin_id' => Auth::id(),
+            'filtri_applicati' => $request->only(['search', 'staff_id', 'categoria', 'non_assegnati']),
+            'prodotti_trovati' => $prodotti->total(),
+            'staff_disponibili' => $staffMembers->count()
+        ]);
+
+        return view('admin.assegnazioni', compact(
+            'prodotti', 'staffMembers', 'stats', 'categorie'
+        ));
     }
 
-    // Filtro per categoria
-    if ($request->filled('categoria')) {
-        $query->where('categoria', $request->input('categoria'));
-    }
-
-    // Filtro solo non assegnati
-    if ($request->boolean('non_assegnati')) {
-        $query->whereNull('staff_assegnato_id');
-    }
-
-    // Ordinamento e paginazione
-    $prodotti = $query->orderBy('nome')
-        ->paginate(15)
-        ->withQueryString();
-
-    // === STATISTICHE CORRETTE ===
-    $stats = [
-        'totale_prodotti' => Prodotto::count(),
-        'prodotti_assegnati' => Prodotto::whereNotNull('staff_assegnato_id')->count(),
-        'prodotti_non_assegnati' => Prodotto::whereNull('staff_assegnato_id')->count(),
-        'staff_attivi' => User::where('livello_accesso', '3')->count(),
-    ];
-
-    // === CATEGORIE PER I FILTRI ===
-    $categorie = [
-        'elettrodomestici' => 'Elettrodomestici',
-        'climatizzazione' => 'Climatizzazione',
-        'cucina' => 'Cucina',
-        'lavanderia' => 'Lavanderia',
-        'riscaldamento' => 'Riscaldamento',
-        'altro' => 'Altro'
-    ];
-
-    // Log per debug
-    Log::info('Caricamento pagina assegnazioni', [
-        'total_prodotti' => $stats['totale_prodotti'],
-        'staff_members' => $staffMembers->count(),
-        'filtri_applicati' => $request->except('_token'),
-        'admin_id' => Auth::id()
-    ]);
-
-    return view('admin.assegnazioni.index', compact(
-        'staffMembers',
-        'prodotti', 
-        'stats',        // ← QUESTA È LA VARIABILE CORRETTA
-        'categorie'     // ← AGGIUNTA PER I FILTRI
-    ));
-}
 
 
 
@@ -126,71 +121,79 @@ public function assegnazioni(Request $request)
 /**
  * Assegna un prodotto a un membro dello staff
  */
-public function assegnaProdotto(Request $request)
-{
-        $request->validate([
-            'prodotto_id' => 'required|exists:prodotti,id',
-            'staff_id' => 'nullable|exists:users,id',
-        ]);
-
-        $prodotto = Prodotto::findOrFail($request->prodotto_id);
-        $staffId = $request->staff_id ?: null;
-
-        // Verifica che lo staff sia di livello 3 se specificato
-        if ($staffId) {
-            $staff = User::findOrFail($staffId);
-            if ($staff->livello_accesso !== '3') {
-                return back()->withErrors(['staff_id' => 'L\'utente selezionato non è un membro dello staff']);
-            }
-        }
-
-        $prodotto->update(['staff_assegnato_id' => $staffId]);
-
-        $message = $staffId 
-            ? "Prodotto assegnato a {$staff->nome_completo} con successo"
-            : "Assegnazione prodotto rimossa con successo";
-
-        Log::info('Assegnazione prodotto modificata', [
-            'prodotto_id' => $prodotto->id,
-            'staff_id' => $staffId,
-            'admin_id' => Auth::id()
-        ]);
-
-        return back()->with('success', $message);
-    }
 
     /**
      * Assegnazione multipla di prodotti
      */
-    public function assegnazioneMultipla(Request $request)
+   public function assegnaProdotto(Request $request)
     {
+        // Validazione input
         $request->validate([
-            'prodotti' => 'required|array|min:1',
-            'prodotti.*' => 'exists:prodotti,id',
+            'prodotto_id' => 'required|exists:prodotti,id',
             'staff_id' => 'nullable|exists:users,id',
+        ], [
+            'prodotto_id.required' => 'ID prodotto non specificato',
+            'prodotto_id.exists' => 'Il prodotto selezionato non esiste',
+            'staff_id.exists' => 'Il membro dello staff selezionato non esiste'
         ]);
 
-        if ($request->staff_id) {
-            $staff = User::findOrFail($request->staff_id);
-            if ($staff->livello_accesso !== '3') {
-                return back()->withErrors(['staff_id' => 'L\'utente selezionato non è un membro dello staff']);
+        try {
+            // Trova il prodotto
+            $prodotto = Prodotto::findOrFail($request->prodotto_id);
+            $staffId = $request->staff_id ?: null;
+
+            // Se è specificato uno staff, verifica che sia di livello 3
+            if ($staffId) {
+                $staff = User::findOrFail($staffId);
+                if ($staff->livello_accesso !== '3') {
+                    return back()->withErrors([
+                        'staff_id' => 'L\'utente selezionato non è un membro dello staff aziendale'
+                    ]);
+                }
             }
+
+            // Salva lo staff precedente per il log
+            $staffPrecedente = $prodotto->staffAssegnato;
+
+            // Aggiorna l'assegnazione
+            $prodotto->update(['staff_assegnato_id' => $staffId]);
+
+            // Prepara messaggio di successo
+            if ($staffId) {
+                $nuovoStaff = User::find($staffId);
+                $message = "Prodotto \"{$prodotto->nome}\" assegnato a {$nuovoStaff->nome_completo} con successo";
+            } else {
+                $message = "Assegnazione rimossa dal prodotto \"{$prodotto->nome}\" con successo";
+            }
+
+            // Log dell'operazione per audit
+            Log::info('Assegnazione prodotto modificata', [
+                'prodotto_id' => $prodotto->id,
+                'prodotto_nome' => $prodotto->nome,
+                'staff_precedente_id' => $staffPrecedente?->id,
+                'staff_precedente_nome' => $staffPrecedente?->nome_completo,
+                'nuovo_staff_id' => $staffId,
+                'nuovo_staff_nome' => $staffId ? $nuovoStaff->nome_completo : null,
+                'admin_id' => Auth::id(),
+                'admin_username' => Auth::user()->username,
+                'timestamp' => now()
+            ]);
+
+            return back()->with('success', $message);
+
+        } catch (\Exception $e) {
+            // Log dell'errore
+            Log::error('Errore nell\'assegnazione prodotto', [
+                'prodotto_id' => $request->prodotto_id,
+                'staff_id' => $request->staff_id,
+                'error_message' => $e->getMessage(),
+                'admin_id' => Auth::id()
+            ]);
+
+            return back()->withErrors([
+                'assegnazione' => 'Errore durante l\'assegnazione. Riprova o contatta l\'amministratore.'
+            ]);
         }
-
-        $count = Prodotto::whereIn('id', $request->prodotti)
-            ->update(['staff_assegnato_id' => $request->staff_id]);
-
-        $message = $request->staff_id
-            ? "Assegnati {$count} prodotti a {$staff->nome_completo}"
-            : "Rimossa assegnazione da {$count} prodotti";
-
-        Log::info('Assegnazione multipla prodotti', [
-            'prodotti_count' => $count,
-            'staff_id' => $request->staff_id,
-            'admin_id' => Auth::id()
-        ]);
-
-        return back()->with('success', $message);
     }
 
     // ================================================

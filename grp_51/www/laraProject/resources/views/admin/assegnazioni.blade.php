@@ -1,4 +1,4 @@
-{{-- Vista per gestione assegnazioni prodotti a staff --}}
+{{-- Vista per gestione assegnazioni prodotti a staff senza selezione multipla --}}
 @extends('layouts.app')
 
 @section('title', 'Gestione Assegnazioni Prodotti')
@@ -6,6 +6,14 @@
 @section('content')
 <div class="container mt-4">
     
+    <!-- === BREADCRUMB === -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ route('home') }}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard Admin</a></li>
+            <li class="breadcrumb-item active">Assegnazioni Prodotti</li>
+        </ol>
+    </nav>
 
     <!-- === HEADER === -->
     <div class="row mb-4">
@@ -19,11 +27,6 @@
                     <p class="text-muted mb-0">
                         Assegna prodotti ai membri dello staff per la gestione dei malfunzionamenti
                     </p>
-                </div>
-                <div>
-                    <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#bulkAssignModal">
-                        <i class="bi bi-collection me-1"></i>Assegnazione Multipla
-                    </button>
                 </div>
             </div>
             
@@ -94,9 +97,10 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    <form method="GET" action="{{ route('admin.assegnazioni') }}" id="filterForm">
+                    <!-- Form per applicare i filtri di ricerca e selezione -->
+                    <form method="GET" action="{{ route('admin.assegnazioni.index') }}" id="filterForm">
                         
-                        <!-- Ricerca -->
+                        <!-- Campo ricerca per nome/modello del prodotto -->
                         <div class="mb-3">
                             <label for="search" class="form-label">
                                 <i class="bi bi-search me-1"></i>Ricerca
@@ -109,7 +113,7 @@
                                    placeholder="Nome o modello prodotto">
                         </div>
                         
-                        <!-- Staff -->
+                        <!-- Selezione del membro staff per filtro -->
                         <div class="mb-3">
                             <label for="staff_id" class="form-label">
                                 <i class="bi bi-person me-1"></i>Membro Staff
@@ -119,6 +123,7 @@
                                 <option value="null" {{ request('staff_id') === 'null' ? 'selected' : '' }}>
                                     Non Assegnati
                                 </option>
+                                <!-- Ciclo foreach per popolare la lista dei membri staff -->
                                 @foreach($staffMembers as $staff)
                                     <option value="{{ $staff->id }}" {{ request('staff_id') == $staff->id ? 'selected' : '' }}>
                                         {{ $staff->nome_completo }}
@@ -127,7 +132,7 @@
                             </select>
                         </div>
                         
-                        <!-- Categoria -->
+                        <!-- Filtro per categoria prodotto -->
                         <div class="mb-3">
                             <label for="categoria" class="form-label">
                                 <i class="bi bi-tag me-1"></i>Categoria
@@ -142,7 +147,7 @@
                             </select>
                         </div>
                         
-                        <!-- Solo non assegnati -->
+                        <!-- Checkbox per mostrare solo prodotti non assegnati -->
                         <div class="mb-3">
                             <div class="form-check">
                                 <input class="form-check-input" 
@@ -157,11 +162,12 @@
                             </div>
                         </div>
                         
+                        <!-- Pulsanti per applicare/reset filtri -->
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary">
                                 <i class="bi bi-search me-1"></i>Applica Filtri
                             </button>
-                            <a href="{{ route('admin.assegnazioni') }}" class="btn btn-outline-secondary">
+                            <a href="{{ route('admin.assegnazioni.index') }}" class="btn btn-outline-secondary">
                                 <i class="bi bi-x-circle me-1"></i>Reset
                             </a>
                         </div>
@@ -178,6 +184,7 @@
                     </h5>
                 </div>
                 <div class="card-body">
+                    <!-- Lista membri staff con conteggio prodotti assegnati -->
                     @forelse($staffMembers as $staff)
                         <div class="d-flex justify-content-between align-items-center mb-2 p-2 rounded bg-light">
                             <div>
@@ -185,11 +192,13 @@
                                 <small class="text-muted">{{ $staff->username }}</small>
                             </div>
                             <div class="text-end">
+                                <!-- Badge con numero di prodotti assegnati -->
                                 <span class="badge bg-primary">
                                     {{ $staff->prodottiAssegnati()->count() }}
                                 </span>
                                 <div>
-                                    <a href="{{ route('admin.assegnazioni', ['staff_id' => $staff->id]) }}" 
+                                    <!-- Link per filtrare prodotti di questo staff -->
+                                    <a href="{{ route('admin.assegnazioni.index', ['staff_id' => $staff->id]) }}" 
                                        class="btn btn-outline-primary btn-sm">
                                         <i class="bi bi-eye"></i>
                                     </a>
@@ -206,20 +215,12 @@
         <!-- === LISTA PRODOTTI === -->
         <div class="col-lg-9">
             <div class="card card-custom">
-                <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="card-header">
                     <h5 class="mb-0">
                         <i class="bi bi-box-seam text-primary me-2"></i>
                         Prodotti 
                         <span class="badge bg-secondary">{{ $prodotti->total() }}</span>
                     </h5>
-                    <div>
-                        <button type="button" class="btn btn-outline-primary btn-sm" id="selectAllBtn">
-                            <i class="bi bi-check-all me-1"></i>Seleziona Tutti
-                        </button>
-                        <button type="button" class="btn btn-outline-warning btn-sm" id="bulkAssignBtn" disabled>
-                            <i class="bi bi-person-plus me-1"></i>Assegna Selezionati
-                        </button>
-                    </div>
                 </div>
                 <div class="card-body">
                     @if($prodotti->count() > 0)
@@ -227,9 +228,6 @@
                             <table class="table table-hover">
                                 <thead class="table-light">
                                     <tr>
-                                        <th width="40">
-                                            <input type="checkbox" id="checkAll" class="form-check-input">
-                                        </th>
                                         <th>Prodotto</th>
                                         <th>Categoria</th>
                                         <th>Staff Assegnato</th>
@@ -238,14 +236,11 @@
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    <!-- Ciclo per ogni prodotto della pagina -->
                                     @foreach($prodotti as $prodotto)
                                         <tr>
                                             <td>
-                                                <input type="checkbox" 
-                                                       class="form-check-input product-checkbox" 
-                                                       value="{{ $prodotto->id }}">
-                                            </td>
-                                            <td>
+                                                <!-- Informazioni prodotto con immagine -->
                                                 <div class="d-flex align-items-center">
                                                     <img src="{{ $prodotto->foto_url }}" 
                                                          class="rounded me-3" 
@@ -258,11 +253,13 @@
                                                 </div>
                                             </td>
                                             <td>
+                                                <!-- Badge categoria prodotto -->
                                                 <span class="badge bg-secondary">
                                                     {{ $prodotto->categoria_label }}
                                                 </span>
                                             </td>
                                             <td>
+                                                <!-- Informazioni staff assegnato o stato non assegnato -->
                                                 @if($prodotto->staffAssegnato)
                                                     <div class="d-flex align-items-center">
                                                         <i class="bi bi-person-check text-success me-2"></i>
@@ -280,6 +277,7 @@
                                                 @endif
                                             </td>
                                             <td>
+                                                <!-- Conteggio malfunzionamenti con criticità -->
                                                 @php
                                                     $problemiCount = $prodotto->malfunzionamenti->count();
                                                     $criticiCount = $prodotto->malfunzionamenti->where('gravita', 'critica')->count();
@@ -297,27 +295,30 @@
                                                 </div>
                                             </td>
                                             <td>
+                                                <!-- Azioni per il prodotto -->
                                                 <div class="btn-group" role="group">
-                                                    <!-- Assegna -->
+                                                    <!-- Pulsante assegna/modifica assegnazione -->
                                                     <button type="button" 
                                                             class="btn btn-outline-warning btn-sm assign-btn"
                                                             data-product-id="{{ $prodotto->id }}"
                                                             data-product-name="{{ $prodotto->nome }}"
                                                             data-current-staff="{{ $prodotto->staff_assegnato_id }}"
                                                             data-bs-toggle="modal" 
-                                                            data-bs-target="#assignModal">
+                                                            data-bs-target="#assignModal"
+                                                            title="Assegna/Modifica Staff">
                                                         <i class="bi bi-person-plus"></i>
                                                     </button>
                                                     
-                                                    <!-- Visualizza -->
+                                                    <!-- Pulsante visualizza dettagli prodotto -->
                                                     <a href="{{ route('admin.prodotti.show', $prodotto) }}" 
-                                                       class="btn btn-outline-primary btn-sm">
+                                                       class="btn btn-outline-primary btn-sm"
+                                                       title="Visualizza Prodotto">
                                                         <i class="bi bi-eye"></i>
                                                     </a>
                                                     
-                                                    <!-- Rimuovi assegnazione se assegnato -->
+                                                    <!-- Pulsante rimuovi assegnazione (solo se assegnato) -->
                                                     @if($prodotto->staffAssegnato)
-                                                        <form action="{{ route('admin.assegna.prodotto') }}" 
+                                                        <form action="{{ route('admin.assegnazioni.prodotto') }}" 
                                                               method="POST" 
                                                               style="display: inline;">
                                                             @csrf
@@ -325,7 +326,8 @@
                                                             <input type="hidden" name="staff_id" value="">
                                                             <button type="submit" 
                                                                     class="btn btn-outline-danger btn-sm"
-                                                                    onclick="return confirm('Rimuovere l\'assegnazione?')">
+                                                                    onclick="return confirm('Rimuovere l\'assegnazione?')"
+                                                                    title="Rimuovi Assegnazione">
                                                                 <i class="bi bi-x-circle"></i>
                                                             </button>
                                                         </form>
@@ -351,6 +353,7 @@
                             </div>
                         </div>
                     @else
+                        <!-- Messaggio quando non ci sono prodotti -->
                         <div class="text-center py-5">
                             <i class="bi bi-box display-1 text-muted"></i>
                             <h5 class="text-muted mt-3">Nessun prodotto trovato</h5>
@@ -373,11 +376,14 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ route('admin.assegna.prodotto') }}" method="POST">
+            <!-- Form per assegnare un prodotto a un membro dello staff -->
+            <form action="{{ route('admin.assegnazioni.prodotto') }}" method="POST">
                 @csrf
                 <div class="modal-body">
+                    <!-- Campo nascosto con ID del prodotto -->
                     <input type="hidden" id="assign-product-id" name="prodotto_id">
                     
+                    <!-- Mostra nome del prodotto selezionato -->
                     <div class="mb-3">
                         <label class="form-label">Prodotto:</label>
                         <div class="p-2 bg-light rounded">
@@ -385,6 +391,7 @@
                         </div>
                     </div>
                     
+                    <!-- Selezione del membro staff per l'assegnazione -->
                     <div class="mb-3">
                         <label for="assign-staff-id" class="form-label">
                             <i class="bi bi-person me-1"></i>Assegna a Staff:
@@ -413,133 +420,45 @@
     </div>
 </div>
 
-<!-- === MODAL ASSEGNAZIONE MULTIPLA === -->
-<div class="modal fade" id="bulkAssignModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="bi bi-collection me-2"></i>Assegnazione Multipla
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form action="{{ route('admin.assegnazione.multipla') }}" method="POST" id="bulkAssignForm">
-                @csrf
-                <div class="modal-body">
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle me-2"></i>
-                        Seleziona i prodotti dalla lista e scegli il membro dello staff per l'assegnazione.
-                    </div>
-                    
-                    <!-- Lista prodotti selezionati -->
-                    <div class="mb-3">
-                        <label class="form-label">Prodotti Selezionati:</label>
-                        <div id="selected-products" class="border rounded p-3 bg-light">
-                            <em class="text-muted">Nessun prodotto selezionato</em>
-                        </div>
-                    </div>
-                    
-                    <!-- Staff selection -->
-                    <div class="mb-3">
-                        <label for="bulk-staff-id" class="form-label">
-                            <i class="bi bi-person me-1"></i>Assegna a Staff:
-                        </label>
-                        <select class="form-select" id="bulk-staff-id" name="staff_id" required>
-                            <option value="">Seleziona membro staff</option>
-                            <option value="">-- Rimuovi assegnazione --</option>
-                            @foreach($staffMembers as $staff)
-                                <option value="{{ $staff->id }}">
-                                    {{ $staff->nome_completo }} 
-                                    ({{ $staff->prodottiAssegnati()->count() }} prodotti attuali)
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    
-                    <!-- Riepilogo staff -->
-                    <div class="row">
-                        @foreach($staffMembers as $staff)
-                            <div class="col-md-6 mb-2">
-                                <div class="card card-body py-2">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="mb-0">{{ $staff->nome_completo }}</h6>
-                                            <small class="text-muted">{{ $staff->username }}</small>
-                                        </div>
-                                        <span class="badge bg-primary">
-                                            {{ $staff->prodottiAssegnati()->count() }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                    <button type="submit" class="btn btn-warning" id="confirmBulkAssign" disabled>
-                        <i class="bi bi-check me-1"></i>Conferma Assegnazioni
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 @endsection
 
 @push('styles')
 <style>
+/* Stili personalizzati per le card */
 .card-custom {
     border: none;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     transition: all 0.3s ease;
 }
 
+/* Stili per l'intestazione della tabella */
 .table th {
     border-top: none;
     font-weight: 600;
     color: #495057;
 }
 
+/* Dimensioni badge */
 .badge {
     font-size: 0.75rem;
 }
 
-/* Checkbox styling */
-.form-check-input:checked {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-}
-
-/* Product selection highlighting */
-tr.selected {
-    background-color: #e3f2fd !important;
-}
-
-/* Staff overview cards */
+/* Effetto hover per le card dello staff overview */
 .bg-light:hover {
     background-color: #e9ecef !important;
     transition: background-color 0.2s ease;
 }
 
-/* Selected products styling */
-#selected-products .product-item {
-    display: inline-block;
-    background-color: #fff;
-    border: 1px solid #dee2e6;
-    border-radius: 0.375rem;
-    padding: 0.5rem;
-    margin: 0.25rem;
-    font-size: 0.875rem;
-}
-
-#selected-products .product-item .remove-btn {
-    background: none;
-    border: none;
-    color: #dc3545;
-    padding: 0;
-    margin-left: 0.5rem;
+/* Stili responsive per dispositivi mobili */
+@media (max-width: 768px) {
+    .btn-group .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.875rem;
+    }
 }
 </style>
 @endpush
@@ -547,198 +466,101 @@ tr.selected {
 @push('scripts')
 <script>
 $(document).ready(function() {
-    let selectedProducts = [];
-    
-    // === GESTIONE SELEZIONE PRODOTTI ===
-    
-    // Select All checkbox
-    $('#checkAll').on('change', function() {
-        const isChecked = $(this).is(':checked');
-        $('.product-checkbox').prop('checked', isChecked);
-        updateSelectedProducts();
-        updateBulkActions();
-    });
-    
-    // Singola checkbox prodotto
-    $('.product-checkbox').on('change', function() {
-        updateSelectedProducts();
-        updateBulkActions();
-        updateSelectAllState();
-    });
-    
-    // Aggiorna stato "Select All"
-    function updateSelectAllState() {
-        const total = $('.product-checkbox').length;
-        const checked = $('.product-checkbox:checked').length;
-        
-        $('#checkAll').prop('indeterminate', checked > 0 && checked < total);
-        $('#checkAll').prop('checked', checked === total && total > 0);
-    }
-    
-    // Aggiorna lista prodotti selezionati
-    function updateSelectedProducts() {
-        selectedProducts = [];
-        $('.product-checkbox:checked').each(function() {
-            const productId = $(this).val();
-            const productName = $(this).closest('tr').find('h6').text().trim();
-            selectedProducts.push({
-                id: productId,
-                name: productName
-            });
-            
-            // Evidenzia riga selezionata
-            $(this).closest('tr').addClass('selected');
-        });
-        
-        // Rimuovi evidenziazione da righe non selezionate
-        $('.product-checkbox:not(:checked)').closest('tr').removeClass('selected');
-        
-        updateSelectedProductsDisplay();
-    }
-    
-    // Aggiorna display prodotti selezionati nel modal
-    function updateSelectedProductsDisplay() {
-        const container = $('#selected-products');
-        
-        if (selectedProducts.length === 0) {
-            container.html('<em class="text-muted">Nessun prodotto selezionato</em>');
-        } else {
-            let html = '';
-            selectedProducts.forEach(function(product) {
-                html += `
-                    <span class="product-item">
-                        ${product.name}
-                        <input type="hidden" name="prodotti[]" value="${product.id}">
-                        <button type="button" class="remove-btn" data-product-id="${product.id}">
-                            <i class="bi bi-x"></i>
-                        </button>
-                    </span>
-                `;
-            });
-            container.html(html);
-        }
-    }
-    
-    // Rimuovi prodotto dalla selezione nel modal
-    $(document).on('click', '.remove-btn', function() {
-        const productId = $(this).data('product-id');
-        $(`.product-checkbox[value="${productId}"]`).prop('checked', false);
-        updateSelectedProducts();
-        updateBulkActions();
-        updateSelectAllState();
-    });
-    
-    // Aggiorna stato pulsanti azioni multiple
-    function updateBulkActions() {
-        const hasSelection = selectedProducts.length > 0;
-        $('#bulkAssignBtn').prop('disabled', !hasSelection);
-        $('#confirmBulkAssign').prop('disabled', !hasSelection);
-        
-        // Aggiorna contatore nel pulsante
-        if (hasSelection) {
-            $('#bulkAssignBtn').html(`<i class="bi bi-person-plus me-1"></i>Assegna Selezionati (${selectedProducts.length})`);
-        } else {
-            $('#bulkAssignBtn').html('<i class="bi bi-person-plus me-1"></i>Assegna Selezionati');
-        }
-    }
     
     // === GESTIONE MODAL ASSEGNAZIONE SINGOLA ===
     
+    /**
+     * Gestisce il click sui pulsanti di assegnazione
+     * Popola il modal con i dati del prodotto selezionato
+     */
     $('.assign-btn').on('click', function() {
+        // Estrae i dati del prodotto dal pulsante cliccato
         const productId = $(this).data('product-id');
         const productName = $(this).data('product-name');
         const currentStaff = $(this).data('current-staff');
         
+        // Popola i campi del modal con i dati estratti
         $('#assign-product-id').val(productId);
         $('#assign-product-name').text(productName);
         $('#assign-staff-id').val(currentStaff || '');
-    });
-    
-    // === GESTIONE MODAL ASSEGNAZIONE MULTIPLA ===
-    
-    $('#bulkAssignBtn').on('click', function() {
-        if (selectedProducts.length === 0) {
-            showAlert('warning', 'Seleziona almeno un prodotto per l\'assegnazione multipla');
-            return;
-        }
-        $('#bulkAssignModal').modal('show');
-    });
-    
-    // Abilita pulsante conferma quando staff selezionato
-    $('#bulk-staff-id').on('change', function() {
-        const hasStaff = $(this).val() !== '';
-        const hasProducts = selectedProducts.length > 0;
-        $('#confirmBulkAssign').prop('disabled', !(hasStaff && hasProducts));
-    });
-    
-    // === SELECT ALL BUTTON ===
-    
-    $('#selectAllBtn').on('click', function() {
-        const allChecked = $('.product-checkbox:checked').length === $('.product-checkbox').length;
         
-        if (allChecked) {
-            // Deseleziona tutti
-            $('.product-checkbox').prop('checked', false);
-            $('#checkAll').prop('checked', false);
-            $(this).html('<i class="bi bi-check-all me-1"></i>Seleziona Tutti');
-        } else {
-            // Seleziona tutti
-            $('.product-checkbox').prop('checked', true);
-            $('#checkAll').prop('checked', true);
-            $(this).html('<i class="bi bi-square me-1"></i>Deseleziona Tutti');
-        }
-        
-        updateSelectedProducts();
-        updateBulkActions();
+        console.log('Modal assegnazione aperto per prodotto:', productName);
     });
     
     // === FILTRI DINAMICI ===
     
-    // Auto-submit filtri quando cambiano
+    /**
+     * Auto-submit del form quando cambiano i filtri dropdown
+     * Migliora l'esperienza utente evitando di dover cliccare "Applica"
+     */
     $('#staff_id, #categoria').on('change', function() {
         $(this).closest('form').submit();
     });
     
-    // Checkbox non_assegnati
+    /**
+     * Gestisce il checkbox "Solo prodotti non assegnati"
+     * Quando attivato, seleziona automaticamente "Non Assegnati" nel filtro staff
+     */
     $('#non_assegnati').on('change', function() {
         if ($(this).is(':checked')) {
+            // Se il checkbox è selezionato, filtra per prodotti non assegnati
             $('#staff_id').val('null');
         } else {
+            // Se deselezionato, resetta il filtro staff
             $('#staff_id').val('');
         }
+        // Applica automaticamente i filtri
         $(this).closest('form').submit();
     });
     
     // === VALIDAZIONE FORM ===
     
-    $('#bulkAssignForm').on('submit', function(e) {
-        if (selectedProducts.length === 0) {
-            e.preventDefault();
-            showAlert('error', 'Seleziona almeno un prodotto per l\'assegnazione');
-            return false;
-        }
+    /**
+     * Validazione del form di assegnazione prima dell'invio
+     */
+    $('form[action*="assegna.prodotto"]').on('submit', function(e) {
+        const staffId = $(this).find('select[name="staff_id"]').val();
+        const productName = $('#assign-product-name').text();
         
-        // Conferma azione
-        const staffName = $('#bulk-staff-id option:selected').text();
-        const message = `Confermi l'assegnazione di ${selectedProducts.length} prodotti a ${staffName}?`;
-        
-        if (!confirm(message)) {
-            e.preventDefault();
-            return false;
+        // Se viene selezionato uno staff, chiede conferma
+        if (staffId) {
+            const staffName = $(this).find('select[name="staff_id"] option:selected').text();
+            const message = `Confermi l'assegnazione del prodotto "${productName}" a ${staffName}?`;
+            
+            if (!confirm(message)) {
+                e.preventDefault();
+                return false;
+            }
+        } else {
+            // Se viene rimossa l'assegnazione, chiede conferma
+            const message = `Confermi la rimozione dell'assegnazione per "${productName}"?`;
+            
+            if (!confirm(message)) {
+                e.preventDefault();
+                return false;
+            }
         }
     });
     
     // === FUNZIONI HELPER ===
     
+    /**
+     * Mostra alert temporanei per feedback all'utente
+     * @param {string} type - Tipo di alert (success, warning, error, info)
+     * @param {string} message - Messaggio da mostrare
+     */
     function showAlert(type, message) {
+        // Determina la classe CSS in base al tipo
         const alertClass = type === 'error' ? 'alert-danger' : 
                           type === 'warning' ? 'alert-warning' : 
                           type === 'success' ? 'alert-success' : 'alert-info';
         
+        // Determina l'icona in base al tipo
         const icon = type === 'error' ? 'exclamation-triangle' : 
                     type === 'warning' ? 'exclamation-triangle' : 
                     type === 'success' ? 'check-circle' : 'info-circle';
         
+        // Crea l'elemento alert
         const alert = $(`
             <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
                  style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
@@ -748,35 +570,43 @@ $(document).ready(function() {
             </div>
         `);
         
+        // Aggiunge l'alert al documento
         $('body').append(alert);
         
-        // Rimuovi automaticamente dopo 5 secondi
+        // Rimuove automaticamente l'alert dopo 5 secondi
         setTimeout(() => {
             alert.fadeOut(() => alert.remove());
         }, 5000);
     }
     
     // === KEYBOARD SHORTCUTS ===
+    
+    /**
+     * Gestisce le scorciatoie da tastiera
+     */
     $(document).on('keydown', function(e) {
-        // Ctrl+A per selezionare tutti
-        if (e.ctrlKey && e.key === 'a' && !$(e.target).is('input, textarea')) {
-            e.preventDefault();
-            $('#selectAllBtn').click();
-        }
-        
-        // Escape per chiudere modal
+        // Escape per chiudere il modal
         if (e.key === 'Escape') {
             $('.modal.show').modal('hide');
         }
+        
+        // F5 per ricaricare la pagina (comportamento standard del browser)
+        // Ctrl+F per cercare (comportamento standard del browser)
     });
     
     // === INIZIALIZZAZIONE ===
-    updateBulkActions();
-    updateSelectAllState();
     
+    /**
+     * Log di inizializzazione per debug
+     */
     console.log('Gestione assegnazioni inizializzata');
-    console.log(`Staff disponibili: ${$('#staff_id option').length - 1}`);
-    console.log(`Prodotti totali: {{ $prodotti->total() }}`);
+    console.log(`Staff disponibili: ${$('#staff_id option').length - 2}`); // -2 per "Tutti" e "Non Assegnati"
+    console.log(`Prodotti totali: {{ $prodotti->total() ?? 0 }}`);
+    
+    // Evidenzia il campo di ricerca se è stato utilizzato
+    if ($('#search').val()) {
+        $('#search').addClass('border-primary');
+    }
 });
 </script>
 @endpush

@@ -11,196 +11,101 @@ $(document).ready(function() {
     
      let selectedProducts = [];
     
-    // === GESTIONE SELEZIONE PRODOTTI ===
-    
-    // Select All checkbox
-    $('#checkAll').on('change', function() {
-        const isChecked = $(this).is(':checked');
-        $('.product-checkbox').prop('checked', isChecked);
-        updateSelectedProducts();
-        updateBulkActions();
-    });
-    
-    // Singola checkbox prodotto
-    $('.product-checkbox').on('change', function() {
-        updateSelectedProducts();
-        updateBulkActions();
-        updateSelectAllState();
-    });
-    
-    // Aggiorna stato "Select All"
-    function updateSelectAllState() {
-        const total = $('.product-checkbox').length;
-        const checked = $('.product-checkbox:checked').length;
-        
-        $('#checkAll').prop('indeterminate', checked > 0 && checked < total);
-        $('#checkAll').prop('checked', checked === total && total > 0);
-    }
-    
-    // Aggiorna lista prodotti selezionati
-    function updateSelectedProducts() {
-        selectedProducts = [];
-        $('.product-checkbox:checked').each(function() {
-            const productId = $(this).val();
-            const productName = $(this).closest('tr').find('h6').text().trim();
-            selectedProducts.push({
-                id: productId,
-                name: productName
-            });
-            
-            // Evidenzia riga selezionata
-            $(this).closest('tr').addClass('selected');
-        });
-        
-        // Rimuovi evidenziazione da righe non selezionate
-        $('.product-checkbox:not(:checked)').closest('tr').removeClass('selected');
-        
-        updateSelectedProductsDisplay();
-    }
-    
-    // Aggiorna display prodotti selezionati nel modal
-    function updateSelectedProductsDisplay() {
-        const container = $('#selected-products');
-        
-        if (selectedProducts.length === 0) {
-            container.html('<em class="text-muted">Nessun prodotto selezionato</em>');
-        } else {
-            let html = '';
-            selectedProducts.forEach(function(product) {
-                html += `
-                    <span class="product-item">
-                        ${product.name}
-                        <input type="hidden" name="prodotti[]" value="${product.id}">
-                        <button type="button" class="remove-btn" data-product-id="${product.id}">
-                            <i class="bi bi-x"></i>
-                        </button>
-                    </span>
-                `;
-            });
-            container.html(html);
-        }
-    }
-    
-    // Rimuovi prodotto dalla selezione nel modal
-    $(document).on('click', '.remove-btn', function() {
-        const productId = $(this).data('product-id');
-        $(`.product-checkbox[value="${productId}"]`).prop('checked', false);
-        updateSelectedProducts();
-        updateBulkActions();
-        updateSelectAllState();
-    });
-    
-    // Aggiorna stato pulsanti azioni multiple
-    function updateBulkActions() {
-        const hasSelection = selectedProducts.length > 0;
-        $('#bulkAssignBtn').prop('disabled', !hasSelection);
-        $('#confirmBulkAssign').prop('disabled', !hasSelection);
-        
-        // Aggiorna contatore nel pulsante
-        if (hasSelection) {
-            $('#bulkAssignBtn').html(`<i class="bi bi-person-plus me-1"></i>Assegna Selezionati (${selectedProducts.length})`);
-        } else {
-            $('#bulkAssignBtn').html('<i class="bi bi-person-plus me-1"></i>Assegna Selezionati');
-        }
-    }
     
     // === GESTIONE MODAL ASSEGNAZIONE SINGOLA ===
     
+    /**
+     * Gestisce il click sui pulsanti di assegnazione
+     * Popola il modal con i dati del prodotto selezionato
+     */
     $('.assign-btn').on('click', function() {
+        // Estrae i dati del prodotto dal pulsante cliccato
         const productId = $(this).data('product-id');
         const productName = $(this).data('product-name');
         const currentStaff = $(this).data('current-staff');
         
+        // Popola i campi del modal con i dati estratti
         $('#assign-product-id').val(productId);
         $('#assign-product-name').text(productName);
         $('#assign-staff-id').val(currentStaff || '');
-    });
-    
-    // === GESTIONE MODAL ASSEGNAZIONE MULTIPLA ===
-    
-    $('#bulkAssignBtn').on('click', function() {
-        if (selectedProducts.length === 0) {
-            showAlert('warning', 'Seleziona almeno un prodotto per l\'assegnazione multipla');
-            return;
-        }
-        $('#bulkAssignModal').modal('show');
-    });
-    
-    // Abilita pulsante conferma quando staff selezionato
-    $('#bulk-staff-id').on('change', function() {
-        const hasStaff = $(this).val() !== '';
-        const hasProducts = selectedProducts.length > 0;
-        $('#confirmBulkAssign').prop('disabled', !(hasStaff && hasProducts));
-    });
-    
-    // === SELECT ALL BUTTON ===
-    
-    $('#selectAllBtn').on('click', function() {
-        const allChecked = $('.product-checkbox:checked').length === $('.product-checkbox').length;
         
-        if (allChecked) {
-            // Deseleziona tutti
-            $('.product-checkbox').prop('checked', false);
-            $('#checkAll').prop('checked', false);
-            $(this).html('<i class="bi bi-check-all me-1"></i>Seleziona Tutti');
-        } else {
-            // Seleziona tutti
-            $('.product-checkbox').prop('checked', true);
-            $('#checkAll').prop('checked', true);
-            $(this).html('<i class="bi bi-square me-1"></i>Deseleziona Tutti');
-        }
-        
-        updateSelectedProducts();
-        updateBulkActions();
+        console.log('Modal assegnazione aperto per prodotto:', productName);
     });
     
     // === FILTRI DINAMICI ===
     
-    // Auto-submit filtri quando cambiano
+    /**
+     * Auto-submit del form quando cambiano i filtri dropdown
+     * Migliora l'esperienza utente evitando di dover cliccare "Applica"
+     */
     $('#staff_id, #categoria').on('change', function() {
         $(this).closest('form').submit();
     });
     
-    // Checkbox non_assegnati
+    /**
+     * Gestisce il checkbox "Solo prodotti non assegnati"
+     * Quando attivato, seleziona automaticamente "Non Assegnati" nel filtro staff
+     */
     $('#non_assegnati').on('change', function() {
         if ($(this).is(':checked')) {
+            // Se il checkbox è selezionato, filtra per prodotti non assegnati
             $('#staff_id').val('null');
         } else {
+            // Se deselezionato, resetta il filtro staff
             $('#staff_id').val('');
         }
+        // Applica automaticamente i filtri
         $(this).closest('form').submit();
     });
     
     // === VALIDAZIONE FORM ===
     
-    $('#bulkAssignForm').on('submit', function(e) {
-        if (selectedProducts.length === 0) {
-            e.preventDefault();
-            showAlert('error', 'Seleziona almeno un prodotto per l\'assegnazione');
-            return false;
-        }
+    /**
+     * Validazione del form di assegnazione prima dell'invio
+     */
+    $('form[action*="assegna.prodotto"]').on('submit', function(e) {
+        const staffId = $(this).find('select[name="staff_id"]').val();
+        const productName = $('#assign-product-name').text();
         
-        // Conferma azione
-        const staffName = $('#bulk-staff-id option:selected').text();
-        const message = `Confermi l'assegnazione di ${selectedProducts.length} prodotti a ${staffName}?`;
-        
-        if (!confirm(message)) {
-            e.preventDefault();
-            return false;
+        // Se viene selezionato uno staff, chiede conferma
+        if (staffId) {
+            const staffName = $(this).find('select[name="staff_id"] option:selected').text();
+            const message = `Confermi l'assegnazione del prodotto "${productName}" a ${staffName}?`;
+            
+            if (!confirm(message)) {
+                e.preventDefault();
+                return false;
+            }
+        } else {
+            // Se viene rimossa l'assegnazione, chiede conferma
+            const message = `Confermi la rimozione dell'assegnazione per "${productName}"?`;
+            
+            if (!confirm(message)) {
+                e.preventDefault();
+                return false;
+            }
         }
     });
     
     // === FUNZIONI HELPER ===
     
+    /**
+     * Mostra alert temporanei per feedback all'utente
+     * @param {string} type - Tipo di alert (success, warning, error, info)
+     * @param {string} message - Messaggio da mostrare
+     */
     function showAlert(type, message) {
+        // Determina la classe CSS in base al tipo
         const alertClass = type === 'error' ? 'alert-danger' : 
                           type === 'warning' ? 'alert-warning' : 
                           type === 'success' ? 'alert-success' : 'alert-info';
         
+        // Determina l'icona in base al tipo
         const icon = type === 'error' ? 'exclamation-triangle' : 
                     type === 'warning' ? 'exclamation-triangle' : 
                     type === 'success' ? 'check-circle' : 'info-circle';
         
+        // Crea l'elemento alert
         const alert = $(`
             <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
                  style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
@@ -210,33 +115,41 @@ $(document).ready(function() {
             </div>
         `);
         
+        // Aggiunge l'alert al documento
         $('body').append(alert);
         
-        // Rimuovi automaticamente dopo 5 secondi
+        // Rimuove automaticamente l'alert dopo 5 secondi
         setTimeout(() => {
             alert.fadeOut(() => alert.remove());
         }, 5000);
     }
     
     // === KEYBOARD SHORTCUTS ===
+    
+    /**
+     * Gestisce le scorciatoie da tastiera
+     */
     $(document).on('keydown', function(e) {
-        // Ctrl+A per selezionare tutti
-        if (e.ctrlKey && e.key === 'a' && !$(e.target).is('input, textarea')) {
-            e.preventDefault();
-            $('#selectAllBtn').click();
-        }
-        
-        // Escape per chiudere modal
+        // Escape per chiudere il modal
         if (e.key === 'Escape') {
             $('.modal.show').modal('hide');
         }
+        
+        // F5 per ricaricare la pagina (comportamento standard del browser)
+        // Ctrl+F per cercare (comportamento standard del browser)
     });
     
     // === INIZIALIZZAZIONE ===
-    updateBulkActions();
-    updateSelectAllState();
     
+    /**
+     * Log di inizializzazione per debug
+     */
     console.log('Gestione assegnazioni inizializzata');
-    console.log(`Staff disponibili: ${$('#staff_id option').length - 1}`);
-    console.log(`Prodotti totali: {{ $prodotti->total() }}`);
+    console.log(`Staff disponibili: ${$('#staff_id option').length - 2}`); // -2 per "Tutti" e "Non Assegnati"
+    console.log(`Prodotti totali: {{ $prodotti->total() ?? 0 }}`);
+    
+    // Evidenzia il campo di ricerca se è stato utilizzato
+    if ($('#search').val()) {
+        $('#search').addClass('border-primary');
+    }
 });
