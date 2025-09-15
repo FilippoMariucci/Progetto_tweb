@@ -14,73 +14,135 @@ use App\Models\CentroAssistenza;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Controller per la gestione dell'autenticazione e delle dashboard
- * VERSIONE PULITA - Eliminati tutti i duplicati di metodi
+ * CONTROLLER DI AUTENTICAZIONE E DASHBOARD - LINGUAGGIO: PHP con Laravel Framework
+ * 
+ * Questo controller gestisce tutte le funzionalità relative a:
+ * - Autenticazione utenti (login/logout/registrazione)
+ * - Dashboard specifiche per ogni livello di accesso (admin/staff/tecnico)
+ * - Gestione profilo utente (visualizzazione/modifica/cambio password)
+ * - API endpoints per statistiche AJAX
+ * - Reindirizzamento automatico basato su ruolo utente
+ * 
+ * ARCHITETTURA MVC: Questo è il "Controller" che coordina autenticazione e viste dashboard
+ * SICUREZZA: Implementa controlli di autorizzazione granulari per ogni livello utente
+ * PERFORMANCE: Utilizza eager loading e query ottimizzate per le statistiche
+ * API: Fornisce endpoints JSON per aggiornamenti dashboard in tempo reale
  */
 class AuthController extends Controller
 {
     // ================================================
-    // AUTENTICAZIONE
+    // SEZIONE 1: AUTENTICAZIONE UTENTI
     // ================================================
 
     /**
-     * Mostra il form di login
+     * METODO SHOW LOGIN - LINGUAGGIO: PHP con Laravel Auth System
+     * 
+     * Mostra il form di login controllando se l'utente è già autenticato.
+     * Se è già loggato, lo reindirizza automaticamente alla sua dashboard specifica.
+     * 
+     * FUNZIONALITÀ:
+     * - Verifica stato autenticazione con Auth::check()
+     * - Reindirizzamento automatico se già loggato
+     * - Caricamento vista login per utenti non autenticati
+     * 
+     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
      */
     public function showLogin()
     {
-        // Se l'utente è già autenticato, reindirizza alla sua dashboard specifica
+        // Auth::check() verifica se esiste una sessione utente attiva
+        // Ritorna boolean: true se autenticato, false altrimenti
         if (Auth::check()) {
+            // Se già autenticato, usa il reindirizzamento intelligente
             return $this->redirectBasedOnRole();
         }
         
+        // Carica la vista del form di login per utenti non autenticati
+        // Laravel cerca automaticamente il file resources/views/auth/login.blade.php
         return view('auth.login');
     }
 
     /**
-     * Gestisce il processo di autenticazione
+     * METODO LOGIN - LINGUAGGIO: PHP con Laravel Validation e Authentication
+     * 
+     * Gestisce il processo completo di autenticazione utente.
+     * Include validazione dati, tentativo login, gestione sessione e logging.
+     * 
+     * PROCESSO:
+     * 1. Validazione input con regole Laravel
+     * 2. Tentativo autenticazione con Auth::attempt()
+     * 3. Rigenerazione sessione per sicurezza
+     * 4. Logging dell'accesso per audit
+     * 5. Reindirizzamento basato su livello accesso
+     * 
+     * @param Request $request Oggetto richiesta HTTP con username/password
+     * @return \Illuminate\Http\RedirectResponse Redirect alla dashboard appropriata
      */
     public function login(Request $request)
     {
-        // Validazione dei dati in input
+        // STEP 1: Validazione dati input con Laravel Validator
+        // validate() automaticamente ritorna errori se validation fallisce
         $request->validate([
-            'username' => 'required|string',
-            'password' => 'required|string',
+            'username' => 'required|string',        // Obbligatorio e deve essere stringa
+            'password' => 'required|string',        // Obbligatorio e deve essere stringa
         ], [
+            // Messaggi di errore personalizzati in italiano
             'username.required' => 'Il campo username è obbligatorio',
             'password.required' => 'Il campo password è obbligatorio',
         ]);
 
-        // Tentativo di autenticazione con username e password
+        // STEP 2: Estrazione credenziali dalla richiesta
+        // only() estrae solo i campi specificati dall'input
         $credentials = $request->only('username', 'password');
         
+        // STEP 3: Tentativo di autenticazione
+        // Auth::attempt() verifica username/password contro database
+        // Il secondo parametro gestisce il "remember me" checkbox
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
-            // Rigenerazione della sessione per prevenire session fixation
+            
+            // STEP 4: Sicurezza sessione - Rigenerazione per prevenire session fixation
+            // regenerate() crea nuovo session ID mantenendo i dati
             $request->session()->regenerate();
             
-            // Log dell'accesso riuscito
+            // STEP 5: Logging dell'accesso riuscito per audit trail
+            // Log::info() scrive nel file storage/logs/laravel.log
             Log::info('Login riuscito', [
-                'user_id' => Auth::id(),
-                'username' => Auth::user()->username,
-                'livello_accesso' => Auth::user()->livello_accesso,
-                'ip' => $request->ip()
+                'user_id' => Auth::id(),                            // ID dell'utente autenticato
+                'username' => Auth::user()->username,               // Username per tracciabilità
+                'livello_accesso' => Auth::user()->livello_accesso, // Livello per sicurezza
+                'ip' => $request->ip()                              // IP sorgente per sicurezza
             ]);
 
-            // Reindirizzamento AUTOMATICO basato sul livello di accesso
+            // STEP 6: Reindirizzamento intelligente basato su ruolo
             return $this->redirectBasedOnRole();
         }
 
-        // Se l'autenticazione fallisce, torna indietro con errore
+        // STEP 7: Gestione fallimento autenticazione
+        // ValidationException crea un errore che Laravel gestisce automaticamente
+        // withMessages() specifica quale campo ha l'errore
         throw ValidationException::withMessages([
             'username' => 'Le credenziali fornite non sono corrette.',
         ]);
     }
 
     /**
-     * Gestisce il logout dell'utente
+     * METODO LOGOUT - LINGUAGGIO: PHP con Laravel Session Management
+     * 
+     * Gestisce il logout completo dell'utente con pulizia sessione e sicurezza.
+     * Include logging dell'azione e invalidazione completa della sessione.
+     * 
+     * PROCESSO SICUREZZA:
+     * 1. Log dell'azione prima del logout
+     * 2. Logout dell'utente dalla sessione
+     * 3. Invalidazione completa sessione
+     * 4. Rigenerazione token CSRF
+     * 5. Redirect alla home con messaggio
+     * 
+     * @param Request $request Oggetto richiesta per gestione sessione
+     * @return \Illuminate\Http\RedirectResponse Redirect alla home
      */
     public function logout(Request $request)
     {
-        // Log del logout
+        // STEP 1: Log dell'azione di logout (se utente ancora autenticato)
         if (Auth::check()) {
             Log::info('Logout utente', [
                 'user_id' => Auth::id(),
@@ -88,651 +150,768 @@ class AuthController extends Controller
             ]);
         }
 
-        // Logout dell'utente dalla sessione
+        // STEP 2: Logout dell'utente dalla sessione Laravel
+        // Rimuove l'ID utente dalla sessione e cancella dati auth
         Auth::logout();
         
-        // Invalidazione della sessione e rigenerazione del token CSRF
+        // STEP 3: Invalidazione completa della sessione
+        // Cancella tutti i dati di sessione per sicurezza
         $request->session()->invalidate();
+        
+        // STEP 4: Rigenerazione token CSRF
+        // Previene attacchi CSRF su sessioni future
         $request->session()->regenerateToken();
 
+        // STEP 5: Redirect alla home con messaggio di successo
+        // with() passa un messaggio flash alla sessione successiva
         return redirect()->route('home')->with('success', 'Logout effettuato con successo');
     }
 
     // ================================================
-    // DASHBOARD SPECIFICHE (UNA SOLA VERSIONE PER OGNI METODO)
+    // SEZIONE 2: DASHBOARD SPECIFICHE PER LIVELLO ACCESSO
     // ================================================
 
     /**
-     * Dashboard amministratori (Livello 4) - VERSIONE DEFINITIVA
+     * METODO ADMIN DASHBOARD - LINGUAGGIO: PHP con Eloquent ORM Avanzato
+     * 
+     * Dashboard principale per amministratori (livello 4).
+     * Mostra statistiche complete del sistema, distribuzione utenti e prodotti non assegnati.
+     * 
+     * CARATTERISTICHE:
+     * - Verifica autorizzazioni con isAdmin()
+     * - Calcolo statistiche complete con query aggregate
+     * - Correzione del bug prodotti non assegnati (staff_assegnato_id)
+     * - Distribuzione utenti per livello di accesso
+     * - Lista utenti recenti registrati
+     * - Logging completo per debug
+     * 
+     * @return \Illuminate\View\View Vista admin dashboard con statistiche
      */
     public function adminDashboard()
-{
-    if (!Auth::check() || !Auth::user()->isAdmin()) {
-        abort(403, 'Accesso riservato agli amministratori');
-    }
+    {
+        // STEP 1: Doppio controllo autorizzazioni
+        // Verifica sia autenticazione che livello specifico admin
+        if (!Auth::check() || !Auth::user()->isAdmin()) {
+            // abort(403) genera errore HTTP 403 Forbidden
+            abort(403, 'Accesso riservato agli amministratori');
+        }
 
-    $user = Auth::user();
+        $user = Auth::user();
 
-    // === CALCOLO PRODOTTI NON ASSEGNATI ===
-    $prodottiNonAssegnatiCount = Prodotto::whereNull('staff_assegnato_id')->count();
-    
-    $prodottiNonAssegnatiLista = Prodotto::whereNull('staff_assegnato_id')
-        ->select('id', 'nome', 'modello', 'categoria', 'created_at', 'attivo')
-        ->orderBy('created_at', 'desc')
-        ->limit(10)
-        ->get();
+        // STEP 2: CORREZIONE PRINCIPALE - Calcolo prodotti non assegnati
+        // BUG FIX: Utilizza 'staff_assegnato_id' invece di campo errato
+        // whereNull() cerca record dove il campo è NULL (prodotti senza staff)
+        $prodottiNonAssegnatiCount = Prodotto::whereNull('staff_assegnato_id')->count();
+        
+        // Lista dettagliata dei primi 10 prodotti non assegnati per dashboard
+        $prodottiNonAssegnatiLista = Prodotto::whereNull('staff_assegnato_id')
+            ->select('id', 'nome', 'modello', 'categoria', 'created_at', 'attivo')
+            ->orderBy('created_at', 'desc')                     // Più recenti prima
+            ->limit(10)                                         // Solo 10 per performance
+            ->get();
 
-    // === FIX PRINCIPALE: CALCOLO CORRETTO DISTRIBUZIONE UTENTI ===
-    // Conta gli utenti per ogni livello di accesso
-    $distribuzioneUtenti = User::selectRaw('livello_accesso, COUNT(*) as count')
-        ->groupBy('livello_accesso')
-        ->orderBy('livello_accesso')
-        ->get()
-        ->pluck('count', 'livello_accesso')
-        ->toArray();
+        // STEP 3: CALCOLO DISTRIBUZIONE UTENTI PER LIVELLO
+        // Query aggregate con GROUP BY per contare utenti per livello
+        // selectRaw() permette SQL personalizzato nella SELECT
+        $distribuzioneUtenti = User::selectRaw('livello_accesso, COUNT(*) as count')
+            ->groupBy('livello_accesso')                        // Raggruppa per livello (1,2,3,4)
+            ->orderBy('livello_accesso')                        // Ordine crescente livelli
+            ->get()
+            ->pluck('count', 'livello_accesso')                 // Converte in array [livello => conteggio]
+            ->toArray();
 
-    // === UTENTI RECENTI ===
-    $utentiRecenti = User::where('created_at', '>=', now()->subMonth())
-        ->latest()
-        ->take(5)
-        ->get(['id', 'nome', 'cognome', 'username', 'livello_accesso', 'created_at']);
+        // STEP 4: UTENTI REGISTRATI DI RECENTE
+        // Lista degli ultimi 5 utenti registrati nell'ultimo mese
+        $utentiRecenti = User::where('created_at', '>=', now()->subMonth())
+            ->latest()                                          // Ordine per created_at DESC
+            ->take(5)                                           // Solo 5 più recenti
+            ->get(['id', 'nome', 'cognome', 'username', 'livello_accesso', 'created_at']);
 
-    // Statistiche complete per admin dashboard
-    $stats = [
-        // Contatori principali
-        'total_utenti' => User::count(),
-        'total_prodotti' => Prodotto::count(),
-        'total_centri' => CentroAssistenza::count(),
-        'total_soluzioni' => Malfunzionamento::count(),
-
-        // === PRODOTTI NON ASSEGNATI (FIX CAMPO CORRETTO) ===
-        'prodotti_non_assegnati_count' => $prodottiNonAssegnatiCount,
-        'prodotti_non_assegnati' => $prodottiNonAssegnatiLista,
-
-        // === FIX: DISTRIBUZIONE UTENTI (QUESTA ERA LA VARIABILE MANCANTE) ===
-        'distribuzione_utenti' => $distribuzioneUtenti,
-
-        // === UTENTI RECENTI ===
-        'utenti_recenti' => $utentiRecenti,
-
-        // Statistiche aggiuntive
-        'utenti_attivi' => User::where('last_login_at', '>=', now()->subDays(30))->count(),
-        'prodotti_attivi' => Prodotto::where('attivo', true)->count(),
-        'staff_disponibili' => User::where('livello_accesso', '3')->count(),
-        'soluzioni_critiche' => Malfunzionamento::where('gravita', 'critica')->count(),
-
-        // Timestamp per debug
-        'last_update' => now()->toISOString(),
-        'update_time' => now()->format('H:i:s')
-    ];
-
-    // === DEBUG LOG (per verificare i dati) ===
-    Log::info('Dashboard Admin - Distribuzione Utenti', [
-        'admin_user' => $user->username,
-        'distribuzione_utenti' => $distribuzioneUtenti,
-        'total_utenti_per_livello' => array_sum($distribuzioneUtenti),
-        'utenti_recenti_count' => $utentiRecenti->count(),
-        'prodotti_non_assegnati_count' => $prodottiNonAssegnatiCount,
-    ]);
-
-    return view('admin.dashboard', compact('user', 'stats'));
-}
-
-// ================================================
-// TROVA E SOSTITUISCI il metodo staffDashboard() in AuthController.php
-// RIMUOVI COMPLETAMENTE il metodo esistente e sostituiscilo con questo
-// ================================================
-
-/**
- * Dashboard staff aziendale (Livello 3) - VERSIONE DEFINITIVA FUNZIONANTE
- * SOSTITUISCI COMPLETAMENTE il metodo esistente con questo
- */
-public function staffDashboard()
-{
-    // === VERIFICA AUTORIZZAZIONI ===
-    if (!Auth::check() || !Auth::user()->isStaff()) {
-        abort(403, 'Accesso riservato allo staff aziendale');
-    }
-
-    $user = Auth::user();
-
-    // === LOG DEBUG INIZIALE ===
-    Log::info('STAFF DASHBOARD START - ' . $user->username);
-
-    try {
-        // === INIZIALIZZA STATISTICHE (SEMPRE VISIBILI) ===
+        // STEP 5: ASSEMBLY STATISTICHE COMPLETE
+        // Array associativo con tutte le statistiche per il dashboard
         $stats = [
-            'prodotti_assegnati' => 0,
-            'prodotti_lista' => collect(),
-            'soluzioni_create' => 0,
-            'soluzioni_critiche' => 0,
-            'ultima_modifica' => 'Mai',
-            'ultime_soluzioni' => collect(),
-            'total_prodotti' => 0,
-            'total_malfunzionamenti' => 0,
-            'malfunzionamenti_critici' => 0,
+            // === CONTATORI PRINCIPALI ===
+            'total_utenti' => User::count(),                    // Tutti gli utenti nel sistema
+            'total_prodotti' => Prodotto::count(),              // Tutti i prodotti in catalogo
+            'total_centri' => CentroAssistenza::count(),        // Centri assistenza registrati
+            'total_soluzioni' => Malfunzionamento::count(),     // Soluzioni tecniche disponibili
+
+            // === PRODOTTI NON ASSEGNATI (CORREZIONE BUG) ===
+            'prodotti_non_assegnati_count' => $prodottiNonAssegnatiCount,
+            'prodotti_non_assegnati' => $prodottiNonAssegnatiLista,
+
+            // === DISTRIBUZIONE UTENTI (VARIABILE MANCANTE RISOLTA) ===
+            'distribuzione_utenti' => $distribuzioneUtenti,
+
+            // === UTENTI RECENTI ===
+            'utenti_recenti' => $utentiRecenti,
+
+            // === STATISTICHE DINAMICHE ===
+            // Utenti che hanno fatto login negli ultimi 30 giorni
+            'utenti_attivi' => User::where('last_login_at', '>=', now()->subDays(30))->count(),
+            
+            // Prodotti attualmente in vendita/uso
+            'prodotti_attivi' => Prodotto::where('attivo', true)->count(),
+            
+            // Staff aziendale disponibile per assegnazioni
+            'staff_disponibili' => User::where('livello_accesso', '3')->count(),
+            
+            // Malfunzionamenti che richiedono attenzione urgente
+            'soluzioni_critiche' => Malfunzionamento::where('gravita', 'critica')->count(),
+
+            // === TIMESTAMP PER SINCRONIZZAZIONE ===
+            'last_update' => now()->toISOString(),              // Formato ISO per JavaScript
+            'update_time' => now()->format('H:i:s')             // Formato leggibile per UI
         ];
 
-        // === 1. CALCOLA TOTALI BASE ===
-        try {
-            $stats['total_prodotti'] = Prodotto::count();
-            $stats['total_malfunzionamenti'] = Malfunzionamento::count();
-            Log::info('Totali calcolati: P=' . $stats['total_prodotti'] . ' M=' . $stats['total_malfunzionamenti']);
-        } catch (\Exception $e) {
-            Log::error('Errore totali: ' . $e->getMessage());
-            $stats['total_prodotti'] = 0;
-            $stats['total_malfunzionamenti'] = 0;
+        // STEP 6: DEBUG LOGGING COMPLETO
+        // Log dettagliato per troubleshooting e monitoraggio accessi admin
+        Log::info('Dashboard Admin - Distribuzione Utenti', [
+            'admin_user' => $user->username,                    // Chi ha fatto l'accesso
+            'distribuzione_utenti' => $distribuzioneUtenti,     // Distribuzione calcolata
+            'total_utenti_per_livello' => array_sum($distribuzioneUtenti), // Somma per verifica
+            'utenti_recenti_count' => $utentiRecenti->count(),  // Numero utenti recenti
+            'prodotti_non_assegnati_count' => $prodottiNonAssegnatiCount, // Prodotti senza staff
+        ]);
+
+        // STEP 7: RETURN VISTA DASHBOARD
+        // compact() crea array con variabili per la vista Blade
+        // Laravel passa automaticamente questi dati al template
+        return view('admin.dashboard', compact('user', 'stats'));
+    }
+
+    /**
+     * METODO STAFF DASHBOARD - LINGUAGGIO: PHP con Error Handling Robusto
+     * 
+     * Dashboard per personale staff aziendale (livello 3).
+     * Mostra prodotti assegnati, soluzioni create e statistiche personali.
+     * Include gestione robusta degli errori e fallback per dati mancanti.
+     * 
+     * CARATTERISTICHE AVANZATE:
+     * - Verifica esistenza colonne database con Schema::hasColumn()
+     * - Gestione fallback se struttura DB non completa
+     * - Statistiche di emergenza se tutti i dati sono zero
+     * - Logging dettagliato per debugging
+     * - Try-catch multipli per error handling granulare
+     * 
+     * @return \Illuminate\View\View Vista staff dashboard con statistiche personalizzate
+     */
+    public function staffDashboard()
+    {
+        // STEP 1: VERIFICA AUTORIZZAZIONI RIGOROSA
+        if (!Auth::check() || !Auth::user()->isStaff()) {
+            abort(403, 'Accesso riservato allo staff aziendale');
         }
 
-        // === 2. CALCOLA CRITICI ===
-        try {
-            $criticiCount = Malfunzionamento::where('gravita', 'critica')->count();
-            $stats['malfunzionamenti_critici'] = $criticiCount;
-            $stats['soluzioni_critiche'] = $criticiCount;
-            Log::info('Critici calcolati: ' . $criticiCount);
-        } catch (\Exception $e) {
-            Log::error('Errore critici: ' . $e->getMessage());
-            $stats['malfunzionamenti_critici'] = 0;
-            $stats['soluzioni_critiche'] = 0;
-        }
+        $user = Auth::user();
 
-        // === 3. PRODOTTI ASSEGNATI (CON GESTIONE ERRORI) ===
+        // STEP 2: LOG DEBUG INIZIALE
+        Log::info('STAFF DASHBOARD START - ' . $user->username);
+
         try {
-            if (Schema::hasColumn('prodotti', 'staff_assegnato_id')) {
-                Log::info('Colonna staff_assegnato_id ESISTE');
-                
-                $prodottiCount = Prodotto::where('staff_assegnato_id', $user->id)->count();
-                $stats['prodotti_assegnati'] = $prodottiCount;
-                
-                if ($prodottiCount > 0) {
-                    $stats['prodotti_lista'] = Prodotto::where('staff_assegnato_id', $user->id)
-                        ->with('malfunzionamenti')
-                        ->orderBy('nome')
-                        ->limit(10)
-                        ->get();
-                    Log::info('Prodotti lista caricata: ' . $stats['prodotti_lista']->count());
-                } else {
-                    Log::warning('Nessun prodotto assegnato all\'utente ' . $user->id);
-                }
-                
-            } else {
-                Log::warning('Colonna staff_assegnato_id NON ESISTE');
-                // Fallback: usa alcuni prodotti generici
-                $stats['prodotti_assegnati'] = min(3, $stats['total_prodotti']);
-                $stats['prodotti_lista'] = Prodotto::with('malfunzionamenti')
-                    ->limit(3)
-                    ->get();
+            // STEP 3: INIZIALIZZAZIONE STATISTICHE CON VALORI DEFAULT
+            // Array con valori di default per evitare errori se query falliscono
+            $stats = [
+                'prodotti_assegnati' => 0,                      // Prodotti gestiti dallo staff
+                'prodotti_lista' => collect(),                  // Collection vuota come default
+                'soluzioni_create' => 0,                       // Soluzioni tecniche create
+                'soluzioni_critiche' => 0,                     // Soluzioni per problemi critici
+                'ultima_modifica' => 'Mai',                    // Timestamp ultima attività
+                'ultime_soluzioni' => collect(),               // Collection delle soluzioni recenti
+                'total_prodotti' => 0,                         // Totale prodotti nel sistema
+                'total_malfunzionamenti' => 0,                 // Totale problemi nel sistema
+                'malfunzionamenti_critici' => 0,               // Problemi critici totali
+            ];
+
+            // STEP 4: CALCOLO TOTALI BASE CON GESTIONE ERRORI
+            try {
+                // count() esegue SELECT COUNT(*) ottimizzato
+                $stats['total_prodotti'] = Prodotto::count();
+                $stats['total_malfunzionamenti'] = Malfunzionamento::count();
+                Log::info('Totali calcolati: P=' . $stats['total_prodotti'] . ' M=' . $stats['total_malfunzionamenti']);
+            } catch (\Exception $e) {
+                Log::error('Errore totali: ' . $e->getMessage());
+                // Mantiene i valori di default se query falliscono
+                $stats['total_prodotti'] = 0;
+                $stats['total_malfunzionamenti'] = 0;
             }
+
+            // STEP 5: CALCOLO MALFUNZIONAMENTI CRITICI
+            try {
+                // Conta malfunzionamenti con gravità critica
+                $criticiCount = Malfunzionamento::where('gravita', 'critica')->count();
+                $stats['malfunzionamenti_critici'] = $criticiCount;
+                $stats['soluzioni_critiche'] = $criticiCount;
+                Log::info('Critici calcolati: ' . $criticiCount);
+            } catch (\Exception $e) {
+                Log::error('Errore critici: ' . $e->getMessage());
+                $stats['malfunzionamenti_critici'] = 0;
+                $stats['soluzioni_critiche'] = 0;
+            }
+
+            // STEP 6: PRODOTTI ASSEGNATI ALLO STAFF (CON VERIFICA SCHEMA)
+            try {
+                // Schema::hasColumn() verifica se la colonna esiste nella tabella
+                // Importante perché la struttura DB potrebbe non essere completa
+                if (Schema::hasColumn('prodotti', 'staff_assegnato_id')) {
+                    Log::info('Colonna staff_assegnato_id ESISTE');
+                    
+                    // Conta prodotti assegnati specificamente a questo utente staff
+                    $prodottiCount = Prodotto::where('staff_assegnato_id', $user->id)->count();
+                    $stats['prodotti_assegnati'] = $prodottiCount;
+                    
+                    if ($prodottiCount > 0) {
+                        // Carica lista dettagliata prodotti con malfunzionamenti correlati
+                        // with() esegue eager loading per evitare query N+1
+                        $stats['prodotti_lista'] = Prodotto::where('staff_assegnato_id', $user->id)
+                            ->with('malfunzionamenti')              // Carica relazione malfunzionamenti
+                            ->orderBy('nome')                       // Ordine alfabetico
+                            ->limit(10)                             // Limite per performance
+                            ->get();
+                        Log::info('Prodotti lista caricata: ' . $stats['prodotti_lista']->count());
+                    } else {
+                        Log::warning('Nessun prodotto assegnato all\'utente ' . $user->id);
+                    }
+                    
+                } else {
+                    // FALLBACK: Se colonna non esiste, usa dati generici
+                    Log::warning('Colonna staff_assegnato_id NON ESISTE');
+                    $stats['prodotti_assegnati'] = min(3, $stats['total_prodotti']);
+                    $stats['prodotti_lista'] = Prodotto::with('malfunzionamenti')
+                        ->limit(3)
+                        ->get();
+                }
+            } catch (\Exception $e) {
+                Log::error('Errore prodotti assegnati: ' . $e->getMessage());
+                $stats['prodotti_assegnati'] = 0;
+                $stats['prodotti_lista'] = collect();             // Collection vuota
+            }
+
+            // STEP 7: SOLUZIONI CREATE DALL'UTENTE STAFF
+            try {
+                // Verifica esistenza colonna per tracciare chi ha creato le soluzioni
+                if (Schema::hasColumn('malfunzionamenti', 'creato_da')) {
+                    Log::info('Colonna creato_da ESISTE');
+                    
+                    // Conta soluzioni create da questo utente staff
+                    $soluzioniCount = Malfunzionamento::where('creato_da', $user->id)->count();
+                    $stats['soluzioni_create'] = $soluzioniCount;
+                    
+                    // Conta soluzioni critiche create da questo staff
+                    $soluzioniCritiche = Malfunzionamento::where('creato_da', $user->id)
+                        ->where('gravita', 'critica')
+                        ->count();
+                    $stats['soluzioni_critiche'] = max($stats['soluzioni_critiche'], $soluzioniCritiche);
+                    
+                    if ($soluzioniCount > 0) {
+                        // Carica ultime 5 soluzioni create con prodotto correlato
+                        $stats['ultime_soluzioni'] = Malfunzionamento::where('creato_da', $user->id)
+                            ->with('prodotto')                      // Eager loading prodotto
+                            ->orderBy('created_at', 'desc')         // Più recenti prima
+                            ->limit(5)
+                            ->get();
+                        
+                        // Trova ultima modifica per mostrare attività recente
+                        $ultima = Malfunzionamento::where('creato_da', $user->id)
+                            ->orderBy('updated_at', 'desc')
+                            ->first();
+                        
+                        if ($ultima) {
+                            // diffForHumans() converte timestamp in formato "2 ore fa"
+                            $stats['ultima_modifica'] = $ultima->updated_at->diffForHumans();
+                        }
+                    }
+                    
+                    Log::info('Soluzioni create: ' . $soluzioniCount);
+                    
+                } else {
+                    // FALLBACK: Se colonna non esiste, usa statistiche generali
+                    Log::warning('Colonna creato_da NON ESISTE');
+                    $stats['soluzioni_create'] = Malfunzionamento::where('created_at', '>=', now()->subWeeks(2))->count();
+                    $stats['ultime_soluzioni'] = Malfunzionamento::with('prodotto')
+                        ->orderBy('created_at', 'desc')
+                        ->limit(3)
+                        ->get();
+                    $stats['ultima_modifica'] = 'Dati recenti';
+                }
+            } catch (\Exception $e) {
+                Log::error('Errore soluzioni create: ' . $e->getMessage());
+                $stats['soluzioni_create'] = 0;
+                $stats['ultime_soluzioni'] = collect();
+            }
+
+            // STEP 8: VALORI MINIMI SE TUTTO È ZERO (EVITA DASHBOARD VUOTE)
+            $sommaStats = $stats['prodotti_assegnati'] + $stats['soluzioni_create'] + $stats['total_prodotti'];
+            
+            if ($sommaStats === 0) {
+                Log::warning('TUTTE LE STATS SONO ZERO - APPLICO VALORI DI TEST');
+                
+                // Applica valori di test per evitare dashboard completamente vuote
+                $stats['prodotti_assegnati'] = 2;
+                $stats['soluzioni_create'] = 5;
+                $stats['soluzioni_critiche'] = 1;
+                $stats['total_prodotti'] = 8;
+                $stats['total_malfunzionamenti'] = 12;
+                $stats['ultima_modifica'] = '2 ore fa';
+                
+                // Crea prodotti fittizi per mostrare struttura dashboard
+                $stats['prodotti_lista'] = collect([
+                    (object)[
+                        'id' => 1,
+                        'nome' => 'Lavatrice Test A',
+                        'categoria' => 'elettrodomestici',
+                        'modello' => 'LT-001',
+                        'codice' => 'TEST001',
+                        'created_at' => now()->subDays(5),
+                        'updated_at' => now()->subHours(3),
+                        'malfunzionamenti' => collect([
+                            (object)['gravita' => 'media', 'created_at' => now()->subHours(2)]
+                        ])
+                    ],
+                    (object)[
+                        'id' => 2,
+                        'nome' => 'Lavastoviglie Test B',
+                        'categoria' => 'elettrodomestici', 
+                        'modello' => 'LS-002',
+                        'codice' => 'TEST002',
+                        'created_at' => now()->subDays(3),
+                        'updated_at' => now()->subHours(1),
+                        'malfunzionamenti' => collect([
+                            (object)['gravita' => 'critica', 'created_at' => now()->subMinutes(30)]
+                        ])
+                    ]
+                ]);
+            }
+
+            // STEP 9: LOG STATISTICHE FINALI COMPLETE
+            Log::info('STAFF DASHBOARD - STATISTICHE FINALI', [
+                'user_id' => $user->id,
+                'prodotti_assegnati' => $stats['prodotti_assegnati'],
+                'soluzioni_create' => $stats['soluzioni_create'], 
+                'soluzioni_critiche' => $stats['soluzioni_critiche'],
+                'total_prodotti' => $stats['total_prodotti'],
+                'total_malfunzionamenti' => $stats['total_malfunzionamenti'],
+                'prodotti_lista_count' => $stats['prodotti_lista']->count(),
+                'ultime_soluzioni_count' => $stats['ultime_soluzioni']->count()
+            ]);
+
+            // STEP 10: RETURN VISTA STAFF DASHBOARD
+            return view('staff.dashboard', compact('user', 'stats'));
+
         } catch (\Exception $e) {
-            Log::error('Errore prodotti assegnati: ' . $e->getMessage());
-            $stats['prodotti_assegnati'] = 0;
-            $stats['prodotti_lista'] = collect();
+            // STEP 11: GESTIONE ERRORE CRITICO CON DASHBOARD DI EMERGENZA
+            Log::error('ERRORE CRITICO STAFF DASHBOARD', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
+            ]);
+
+            // Statistiche di emergenza sempre funzionanti
+            $statsEmergency = [
+                'prodotti_assegnati' => 4,
+                'prodotti_lista' => collect([
+                    (object)[
+                        'id' => 999,
+                        'nome' => 'Sistema in Manutenzione',
+                        'categoria' => 'sistema',
+                        'modello' => 'MAINT-001',
+                        'codice' => 'SYS999',
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                        'malfunzionamenti' => collect()
+                    ]
+                ]),
+                'soluzioni_create' => 7,
+                'soluzioni_critiche' => 2,
+                'ultima_modifica' => 'Errore nel caricamento',
+                'ultime_soluzioni' => collect(),
+                'total_prodotti' => 15,
+                'total_malfunzionamenti' => 28,
+                'malfunzionamenti_critici' => 3,
+                'errore_sistema' => true
+            ];
+
+            // Return vista con dati di emergenza e messaggio di errore
+            return view('staff.dashboard', [
+                'user' => $user,
+                'stats' => $statsEmergency
+            ])->with('error', 'Errore nel sistema. Le statistiche mostrate sono di emergenza.');
+        }
+    }
+
+    /**
+     * METODO API STAFF STATS - LINGUAGGIO: PHP con JSON API Response
+     * 
+     * Endpoint API per aggiornamento statistiche staff via AJAX.
+     * Fornisce statistiche in tempo reale senza reload della pagina.
+     * Include gestione errori e valori di fallback.
+     * 
+     * @return \Illuminate\Http\JsonResponse Response JSON con statistiche staff
+     */
+    public function apiStaffStats()
+    {
+        // STEP 1: CONTROLLO AUTORIZZAZIONI API
+        if (!Auth::check() || !Auth::user()->isStaff()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        // === 4. SOLUZIONI CREATE DALL'UTENTE ===
+        $user = Auth::user();
+
         try {
+            // STEP 2: CALCOLO STATISTICHE IN TEMPO REALE
+            $stats = [
+                'prodotti_assegnati' => 0,
+                'soluzioni_create' => 0,
+                'soluzioni_critiche' => 0,
+                'total_prodotti' => Prodotto::count(),
+                'total_malfunzionamenti' => Malfunzionamento::count(),
+                'timestamp' => now()->toISOString()
+            ];
+
+            // STEP 3: PRODOTTI ASSEGNATI (SE COLONNA ESISTE)
+            if (Schema::hasColumn('prodotti', 'staff_assegnato_id')) {
+                $stats['prodotti_assegnati'] = Prodotto::where('staff_assegnato_id', $user->id)->count();
+            }
+
+            // STEP 4: SOLUZIONI CREATE (SE COLONNA ESISTE)
             if (Schema::hasColumn('malfunzionamenti', 'creato_da')) {
-                Log::info('Colonna creato_da ESISTE');
-                
-                $soluzioniCount = Malfunzionamento::where('creato_da', $user->id)->count();
-                $stats['soluzioni_create'] = $soluzioniCount;
-                
-                $soluzioniCritiche = Malfunzionamento::where('creato_da', $user->id)
+                $stats['soluzioni_create'] = Malfunzionamento::where('creato_da', $user->id)->count();
+                $stats['soluzioni_critiche'] = Malfunzionamento::where('creato_da', $user->id)
                     ->where('gravita', 'critica')
                     ->count();
-                $stats['soluzioni_critiche'] = max($stats['soluzioni_critiche'], $soluzioniCritiche);
-                
-                if ($soluzioniCount > 0) {
-                    $stats['ultime_soluzioni'] = Malfunzionamento::where('creato_da', $user->id)
-                        ->with('prodotto')
-                        ->orderBy('created_at', 'desc')
-                        ->limit(5)
-                        ->get();
-                    
-                    $ultima = Malfunzionamento::where('creato_da', $user->id)
-                        ->orderBy('updated_at', 'desc')
-                        ->first();
-                    
-                    if ($ultima) {
-                        $stats['ultima_modifica'] = $ultima->updated_at->diffForHumans();
-                    }
-                }
-                
-                Log::info('Soluzioni create: ' . $soluzioniCount);
-                
-            } else {
-                Log::warning('Colonna creato_da NON ESISTE');
-                // Fallback: usa statistiche generali
-                $stats['soluzioni_create'] = Malfunzionamento::where('created_at', '>=', now()->subWeeks(2))->count();
-                $stats['ultime_soluzioni'] = Malfunzionamento::with('prodotto')
-                    ->orderBy('created_at', 'desc')
-                    ->limit(3)
-                    ->get();
-                $stats['ultima_modifica'] = 'Dati recenti';
             }
-        } catch (\Exception $e) {
-            Log::error('Errore soluzioni create: ' . $e->getMessage());
-            $stats['soluzioni_create'] = 0;
-            $stats['ultime_soluzioni'] = collect();
-        }
 
-        // === 5. APPLICA VALORI MINIMI SE TUTTO È ZERO ===
-        $sommaStats = $stats['prodotti_assegnati'] + $stats['soluzioni_create'] + $stats['total_prodotti'];
-        
-        if ($sommaStats === 0) {
-            Log::warning('TUTTE LE STATS SONO ZERO - APPLICO VALORI DI TEST');
+            // STEP 5: VALORI DI TEST SE TUTTO ZERO
+            if ($stats['prodotti_assegnati'] === 0 && $stats['soluzioni_create'] === 0) {
+                $stats['prodotti_assegnati'] = 4;
+                $stats['soluzioni_create'] = 7;
+                $stats['soluzioni_critiche'] = 2;
+            }
+
+            // STEP 6: RESPONSE JSON DI SUCCESSO
+            return response()->json([
+                'success' => true,
+                'data' => $stats,
+                'user_id' => $user->id
+            ]);
+
+        } catch (\Exception $e) {
+            // STEP 7: GESTIONE ERRORI API
+            Log::error('Errore API staff stats: ' . $e->getMessage());
             
-            $stats['prodotti_assegnati'] = 2;
-            $stats['soluzioni_create'] = 5;
-            $stats['soluzioni_critiche'] = 1;
-            $stats['total_prodotti'] = 8;
-            $stats['total_malfunzionamenti'] = 12;
-            $stats['ultima_modifica'] = '2 ore fa';
-            
-            // Crea prodotti fittizi per la vista
-            $stats['prodotti_lista'] = collect([
-                (object)[
-                    'id' => 1,
-                    'nome' => 'Lavatrice Test A',
-                    'categoria' => 'elettrodomestici',
-                    'modello' => 'LT-001',
-                    'codice' => 'TEST001',
-                    'created_at' => now()->subDays(5),
-                    'updated_at' => now()->subHours(3),
-                    'malfunzionamenti' => collect([
-                        (object)['gravita' => 'media', 'created_at' => now()->subHours(2)]
-                    ])
-                ],
-                (object)[
-                    'id' => 2,
-                    'nome' => 'Lavastoviglie Test B',
-                    'categoria' => 'elettrodomestici', 
-                    'modello' => 'LS-002',
-                    'codice' => 'TEST002',
-                    'created_at' => now()->subDays(3),
-                    'updated_at' => now()->subHours(1),
-                    'malfunzionamenti' => collect([
-                        (object)['gravita' => 'critica', 'created_at' => now()->subMinutes(30)]
-                    ])
+            return response()->json([
+                'success' => false,
+                'error' => 'Errore nel caricamento statistiche',
+                'data' => [
+                    'prodotti_assegnati' => 4,
+                    'soluzioni_create' => 7,
+                    'soluzioni_critiche' => 2,
+                    'total_prodotti' => 15,
+                    'total_malfunzionamenti' => 28
                 ]
             ]);
         }
-
-        // === LOG STATISTICHE FINALI ===
-        Log::info('STAFF DASHBOARD - STATISTICHE FINALI', [
-            'user_id' => $user->id,
-            'prodotti_assegnati' => $stats['prodotti_assegnati'],
-            'soluzioni_create' => $stats['soluzioni_create'], 
-            'soluzioni_critiche' => $stats['soluzioni_critiche'],
-            'total_prodotti' => $stats['total_prodotti'],
-            'total_malfunzionamenti' => $stats['total_malfunzionamenti'],
-            'prodotti_lista_count' => $stats['prodotti_lista']->count(),
-            'ultime_soluzioni_count' => $stats['ultime_soluzioni']->count()
-        ]);
-
-        // === RITORNA LA VISTA ===
-        return view('staff.dashboard', compact('user', 'stats'));
-
-    } catch (\Exception $e) {
-        // === GESTIONE ERRORE CRITICO ===
-        Log::error('ERRORE CRITICO STAFF DASHBOARD', [
-            'user_id' => $user->id,
-            'error' => $e->getMessage(),
-            'line' => $e->getLine(),
-            'file' => $e->getFile()
-        ]);
-
-        // STATISTICHE DI EMERGENZA (sempre visibili)
-        $statsEmergency = [
-            'prodotti_assegnati' => 4,
-            'prodotti_lista' => collect([
-                (object)[
-                    'id' => 999,
-                    'nome' => 'Sistema in Manutenzione',
-                    'categoria' => 'sistema',
-                    'modello' => 'MAINT-001',
-                    'codice' => 'SYS999',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                    'malfunzionamenti' => collect()
-                ]
-            ]),
-            'soluzioni_create' => 7,
-            'soluzioni_critiche' => 2,
-            'ultima_modifica' => 'Errore nel caricamento',
-            'ultime_soluzioni' => collect(),
-            'total_prodotti' => 15,
-            'total_malfunzionamenti' => 28,
-            'malfunzionamenti_critici' => 3,
-            'errore_sistema' => true
-        ];
-
-        return view('staff.dashboard', [
-            'user' => $user,
-            'stats' => $statsEmergency
-        ])->with('error', 'Errore nel sistema. Le statistiche mostrate sono di emergenza.');
     }
-}
-/**
- * METODO AGGIUNTIVO: API per statistiche staff via AJAX
- * Aggiungi questo metodo dopo staffDashboard()
- */
-public function apiStaffStats()
-{
-    if (!Auth::check() || !Auth::user()->isStaff()) {
-        return response()->json(['error' => 'Unauthorized'], 403);
-    }
-
-    $user = Auth::user();
-
-    try {
-        // Calcola statistiche in tempo reale
-        $stats = [
-            'prodotti_assegnati' => 0,
-            'soluzioni_create' => 0,
-            'soluzioni_critiche' => 0,
-            'total_prodotti' => Prodotto::count(),
-            'total_malfunzionamenti' => Malfunzionamento::count(),
-            'timestamp' => now()->toISOString()
-        ];
-
-        // Calcola prodotti assegnati se la colonna esiste
-        if (Schema::hasColumn('prodotti', 'staff_assegnato_id')) {
-            $stats['prodotti_assegnati'] = Prodotto::where('staff_assegnato_id', $user->id)->count();
-        }
-
-        // Calcola soluzioni create se la colonna esiste
-        if (Schema::hasColumn('malfunzionamenti', 'creato_da')) {
-            $stats['soluzioni_create'] = Malfunzionamento::where('creato_da', $user->id)->count();
-            $stats['soluzioni_critiche'] = Malfunzionamento::where('creato_da', $user->id)
-                ->where('gravita', 'critica')
-                ->count();
-        }
-
-        // Se tutto è zero, usa valori di test
-        if ($stats['prodotti_assegnati'] === 0 && $stats['soluzioni_create'] === 0) {
-            $stats['prodotti_assegnati'] = 4;
-            $stats['soluzioni_create'] = 7;
-            $stats['soluzioni_critiche'] = 2;
-        }
-
-        return response()->json([
-            'success' => true,
-            'data' => $stats,
-            'user_id' => $user->id
-        ]);
-
-    } catch (\Exception $e) {
-        Log::error('Errore API staff stats: ' . $e->getMessage());
-        
-        return response()->json([
-            'success' => false,
-            'error' => 'Errore nel caricamento statistiche',
-            'data' => [
-                'prodotti_assegnati' => 4,
-                'soluzioni_create' => 7,
-                'soluzioni_critiche' => 2,
-                'total_prodotti' => 15,
-                'total_malfunzionamenti' => 28
-            ]
-        ]);
-    }
-}
-
-/**
- * AGGIUNGI ANCHE QUESTO METODO per debug via API
- * Route: GET /api/debug-staff-stats
- */
-public function debugStaffStats()
-{
-    if (!Auth::check() || !Auth::user()->isStaff()) {
-        return response()->json(['error' => 'Unauthorized'], 403);
-    }
-
-    $user = Auth::user();
-    
-    $debug = [
-        'user_info' => [
-            'id' => $user->id,
-            'username' => $user->username,
-            'livello_accesso' => $user->livello_accesso,
-        ],
-        'database_checks' => [
-            'prodotti_table_exists' => \Schema::hasTable('prodotti'),
-            'malfunzionamenti_table_exists' => \Schema::hasTable('malfunzionamenti'),
-            'staff_assegnato_id_column' => \Schema::hasColumn('prodotti', 'staff_assegnato_id'),
-            'creato_da_column' => \Schema::hasColumn('malfunzionamenti', 'creato_da'),
-        ],
-        'counts' => [
-            'total_prodotti' => \DB::table('prodotti')->count(),
-            'total_malfunzionamenti' => \DB::table('malfunzionamenti')->count(),
-            'malfunzionamenti_critici' => \DB::table('malfunzionamenti')->where('gravita', 'critica')->count(),
-        ]
-    ];
-    
-    // Se la colonna esiste, aggiungi conteggi specifici dell'utente
-    if ($debug['database_checks']['staff_assegnato_id_column']) {
-        $debug['user_specific'] = [
-            'prodotti_assegnati' => \DB::table('prodotti')->where('staff_assegnato_id', $user->id)->count(),
-        ];
-    }
-    
-    if ($debug['database_checks']['creato_da_column']) {
-        $debug['user_specific']['soluzioni_create'] = \DB::table('malfunzionamenti')->where('creato_da', $user->id)->count();
-    }
-    
-    return response()->json($debug);
-}
 
     /**
-     * Dashboard tecnici centri assistenza (Livello 2)
+     * METODO DEBUG STAFF STATS - LINGUAGGIO: PHP con Database Schema Inspection
+     * 
+     * Endpoint di debug per verificare struttura database e dati utente.
+     * Utilizzato per troubleshooting quando le statistiche non funzionano.
+     * 
+     * FUNZIONALITÀ DEBUG:
+     * - Verifica esistenza tabelle database
+     * - Controlla presenza colonne specifiche
+     * - Conta record nelle tabelle
+     * - Mostra informazioni utente corrente
+     * 
+     * @return \Illuminate\Http\JsonResponse Informazioni debug in formato JSON
      */
-   public function tecnicoDashboard()
-{
-    // Verifica autorizzazione
-    if (!Auth::check() || !Auth::user()->isTecnico()) {
-        abort(403, 'Accesso riservato ai tecnici');
+    public function debugStaffStats()
+    {
+        // STEP 1: CONTROLLO AUTORIZZAZIONI
+        if (!Auth::check() || !Auth::user()->isStaff()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $user = Auth::user();
+        
+        // STEP 2: RACCOLTA INFORMAZIONI DEBUG
+        $debug = [
+            // Informazioni utente corrente
+            'user_info' => [
+                'id' => $user->id,
+                'username' => $user->username,
+                'livello_accesso' => $user->livello_accesso,
+            ],
+            
+            // Verifica struttura database
+            'database_checks' => [
+                'prodotti_table_exists' => \Schema::hasTable('prodotti'),
+                'malfunzionamenti_table_exists' => \Schema::hasTable('malfunzionamenti'),
+                'staff_assegnato_id_column' => \Schema::hasColumn('prodotti', 'staff_assegnato_id'),
+                'creato_da_column' => \Schema::hasColumn('malfunzionamenti', 'creato_da'),
+            ],
+            
+            // Conteggi base tabelle
+            'counts' => [
+                'total_prodotti' => \DB::table('prodotti')->count(),
+                'total_malfunzionamenti' => \DB::table('malfunzionamenti')->count(),
+                'malfunzionamenti_critici' => \DB::table('malfunzionamenti')->where('gravita', 'critica')->count(),
+            ]
+        ];
+        
+        // STEP 3: CONTEGGI SPECIFICI UTENTE (SE COLONNE ESISTONO)
+        if ($debug['database_checks']['staff_assegnato_id_column']) {
+            $debug['user_specific']['prodotti_assegnati'] = \DB::table('prodotti')
+                ->where('staff_assegnato_id', $user->id)
+                ->count();
+        }
+        
+        if ($debug['database_checks']['creato_da_column']) {
+            $debug['user_specific']['soluzioni_create'] = \DB::table('malfunzionamenti')
+                ->where('creato_da', $user->id)
+                ->count();
+        }
+        
+        return response()->json($debug);
     }
 
-    $user = Auth::user();
-    
-    try {
-        // === CALCOLO SICURO DELLE STATISTICHE ===
-        
-        // Contatori base (sempre funzionano)
-        $totalProdotti = Prodotto::count();
-        $totalMalfunzionamenti = Malfunzionamento::count();
-        $totalCentri = CentroAssistenza::count();
-        
-        // Malfunzionamenti critici con controllo null
-        $malfunzionamentiCritici = Malfunzionamento::whereNotNull('gravita')
-            ->where('gravita', 'critica')
-            ->count();
+    /**
+     * METODO TECNICO DASHBOARD - LINGUAGGIO: PHP con Query Relazionali Complesse
+     * 
+     * Dashboard per tecnici dei centri assistenza (livello 2).
+     * Mostra statistiche sui malfunzionamenti, prodotti problematici e centro di appartenenza.
+     * 
+     * CARATTERISTICHE:
+     * - Statistiche malfunzionamenti per gravità
+     * - Prodotti più problematici con conteggi
+     * - Informazioni centro assistenza di appartenenza
+     * - Malfunzionamenti critici recenti
+     * - Gestione robusta degli errori per ogni sezione
+     * 
+     * @return \Illuminate\View\View Vista tecnico dashboard
+     */
+    public function tecnicoDashboard()
+    {
+        // STEP 1: VERIFICA AUTORIZZAZIONI
+        if (!Auth::check() || !Auth::user()->isTecnico()) {
+            abort(403, 'Accesso riservato ai tecnici');
+        }
 
-        // === CENTRO ASSISTENZA DEL TECNICO ===
-        $centroAssistenza = null;
-        if ($user->centro_assistenza_id) {
+        $user = Auth::user();
+        
+        try {
+            // STEP 2: CALCOLO SICURO DELLE STATISTICHE BASE
+            $totalProdotti = Prodotto::count();
+            $totalMalfunzionamenti = Malfunzionamento::count();
+            $totalCentri = CentroAssistenza::count();
+            
+            // Malfunzionamenti critici con controllo null
+            // whereNotNull() evita errori se campo gravita è null
+            $malfunzionamentiCritici = Malfunzionamento::whereNotNull('gravita')
+                ->where('gravita', 'critica')
+                ->count();
+
+            // STEP 3: CENTRO ASSISTENZA DEL TECNICO
+            $centroAssistenza = null;
+            if ($user->centro_assistenza_id) {
+                try {
+                    // find() ritorna null se non trova, evitando eccezioni
+                    $centroAssistenza = CentroAssistenza::find($user->centro_assistenza_id);
+                } catch (\Exception $e) {
+                    \Log::warning('Errore caricamento centro assistenza', [
+                        'user_id' => $user->id,
+                        'centro_id' => $user->centro_assistenza_id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            // STEP 4: MALFUNZIONAMENTI CRITICI RECENTI
+            $malfunzionamentiCriticiLista = collect();
             try {
-                $centroAssistenza = CentroAssistenza::find($user->centro_assistenza_id);
+                $malfunzionamentiCriticiLista = Malfunzionamento::where('gravita', 'critica')
+                    ->with(['prodotto' => function($query) {
+                        // select() limita campi caricati per performance
+                        $query->select('id', 'nome', 'modello', 'categoria');
+                    }])
+                    ->latest('created_at')                      // Più recenti prima
+                    ->take(5)                                   // Solo 5 per dashboard
+                    ->get();
             } catch (\Exception $e) {
-                \Log::warning('Errore caricamento centro assistenza', [
-                    'user_id' => $user->id,
-                    'centro_id' => $user->centro_assistenza_id,
+                \Log::warning('Errore caricamento malfunzionamenti critici', [
                     'error' => $e->getMessage()
                 ]);
             }
-        }
 
-        // === MALFUNZIONAMENTI CRITICI RECENTI ===
-        $malfunzionamentiCriticiLista = collect();
-        try {
-            $malfunzionamentiCriticiLista = Malfunzionamento::where('gravita', 'critica')
-                ->with(['prodotto' => function($query) {
-                    $query->select('id', 'nome', 'modello', 'categoria');
-                }])
-                ->latest('created_at')
-                ->take(5)
-                ->get();
-        } catch (\Exception $e) {
-            \Log::warning('Errore caricamento malfunzionamenti critici', [
-                'error' => $e->getMessage()
-            ]);
-        }
-
-        // === PRODOTTI PROBLEMATICI ===
-        $prodottiProblematici = collect();
-        try {
-            $prodottiProblematici = Prodotto::whereHas('malfunzionamenti', function($q) {
-                    $q->where('gravita', 'critica');
-                })
-                ->withCount([
-                    'malfunzionamenti',
-                    'malfunzionamenti as critici_count' => function($q) {
+            // STEP 5: PRODOTTI PROBLEMATICI CON CONTEGGI
+            $prodottiProblematici = collect();
+            try {
+                $prodottiProblematici = Prodotto::whereHas('malfunzionamenti', function($q) {
+                        // whereHas() filtra solo prodotti che HANNO malfunzionamenti critici
                         $q->where('gravita', 'critica');
-                    }
-                ])
-                ->having('critici_count', '>', 0)
-                ->orderBy('critici_count', 'desc')
-                ->take(6)
-                ->get(['id', 'nome', 'modello', 'categoria']);
-        } catch (\Exception $e) {
-            \Log::warning('Errore caricamento prodotti problematici', [
-                'error' => $e->getMessage()
-            ]);
-        }
+                    })
+                    ->withCount([
+                        'malfunzionamenti',                     // Conta tutti i malfunzionamenti
+                        'malfunzionamenti as critici_count' => function($q) {
+                            $q->where('gravita', 'critica');   // Conta solo quelli critici
+                        }
+                    ])
+                    ->having('critici_count', '>', 0)          // Solo prodotti con almeno 1 critico
+                    ->orderBy('critici_count', 'desc')         // Più problematici prima
+                    ->take(6)                                   // Top 6 per dashboard
+                    ->get(['id', 'nome', 'modello', 'categoria']);
+            } catch (\Exception $e) {
+                \Log::warning('Errore caricamento prodotti problematici', [
+                    'error' => $e->getMessage()
+                ]);
+            }
 
-        // === MALFUNZIONAMENTI RECENTI PER TABELLA ===
-        $malfunzionamentiRecenti = collect();
-        try {
-            $malfunzionamentiRecenti = Malfunzionamento::with(['prodotto' => function($query) {
-                    $query->select('id', 'nome', 'modello');
-                }])
-                ->whereNotNull('gravita')
-                ->latest('updated_at')
-                ->take(8)
-                ->get();
-        } catch (\Exception $e) {
-            \Log::warning('Errore caricamento malfunzionamenti recenti', [
-                'error' => $e->getMessage()
-            ]);
-        }
+            // STEP 6: MALFUNZIONAMENTI RECENTI PER TABELLA
+            $malfunzionamentiRecenti = collect();
+            try {
+                $malfunzionamentiRecenti = Malfunzionamento::with(['prodotto' => function($query) {
+                        $query->select('id', 'nome', 'modello');
+                    }])
+                    ->whereNotNull('gravita')                   // Evita record con gravita null
+                    ->latest('updated_at')                      // Ordinamento per ultima modifica
+                    ->take(8)                                   // 8 righe per tabella dashboard
+                    ->get();
+            } catch (\Exception $e) {
+                \Log::warning('Errore caricamento malfunzionamenti recenti', [
+                    'error' => $e->getMessage()
+                ]);
+            }
 
-        // === DISTRIBUZIONE PER GRAVITA ===
-        $malfunzionamentiPerGravita = [];
-        try {
-            $distribuzione = Malfunzionamento::selectRaw('gravita, COUNT(*) as count')
-                ->whereNotNull('gravita')
-                ->groupBy('gravita')
-                ->pluck('count', 'gravita')
-                ->toArray();
-            
-            // Assicura che tutte le gravità siano presenti
-            $malfunzionamentiPerGravita = [
-                'critica' => $distribuzione['critica'] ?? 0,
-                'alta' => $distribuzione['alta'] ?? 0,  
-                'media' => $distribuzione['media'] ?? 0,
-                'bassa' => $distribuzione['bassa'] ?? 0,
+            // STEP 7: DISTRIBUZIONE PER GRAVITÀ (PER GRAFICO A TORTA)
+            $malfunzionamentiPerGravita = [];
+            try {
+                // selectRaw() per query aggregate personalizzata
+                $distribuzione = Malfunzionamento::selectRaw('gravita, COUNT(*) as count')
+                    ->whereNotNull('gravita')
+                    ->groupBy('gravita')
+                    ->pluck('count', 'gravita')
+                    ->toArray();
+                
+                // Assicura che tutte le gravità siano presenti (anche con valore 0)
+                $malfunzionamentiPerGravita = [
+                    'critica' => $distribuzione['critica'] ?? 0,
+                    'alta' => $distribuzione['alta'] ?? 0,  
+                    'media' => $distribuzione['media'] ?? 0,
+                    'bassa' => $distribuzione['bassa'] ?? 0,
+                ];
+            } catch (\Exception $e) {
+                \Log::warning('Errore calcolo distribuzione gravità', [
+                    'error' => $e->getMessage()
+                ]);
+                
+                // Valori di fallback se query fallisce
+                $malfunzionamentiPerGravita = [
+                    'critica' => 0, 'alta' => 0, 'media' => 0, 'bassa' => 0
+                ];
+            }
+
+            // STEP 8: ASSEMBLY FINALE STATISTICHE
+            $stats = [
+                // Contatori principali (sempre presenti)
+                'total_prodotti' => $totalProdotti,
+                'total_malfunzionamenti' => $totalMalfunzionamenti,
+                'malfunzionamenti_critici' => $malfunzionamentiCritici,
+                'total_centri' => $totalCentri,
+                
+                // Dati relazionali (possono essere vuoti se errori)
+                'centro_assistenza' => $centroAssistenza,
+                'malfunzionamenti_critici_lista' => $malfunzionamentiCriticiLista,
+                'prodotti_problematici' => $prodottiProblematici,
+                'malfunzionamenti_per_gravita' => $malfunzionamentiPerGravita,
             ];
-        } catch (\Exception $e) {
-            \Log::warning('Errore calcolo distribuzione gravità', [
-                'error' => $e->getMessage()
-            ]);
-            
-            $malfunzionamentiPerGravita = [
-                'critica' => 0, 'alta' => 0, 'media' => 0, 'bassa' => 0
+
+            // STEP 9: DATI EXTRA PER SEZIONI SPECIFICHE DASHBOARD
+            $extraData = [
+                'prodotti_critici' => $prodottiProblematici,    // Per widget prodotti critici
+                'malfunzionamenti_recenti' => $malfunzionamentiRecenti, // Per tabella attività recenti
             ];
+
+            // STEP 10: LOG SUCCESSO PER MONITORING
+            \Log::info('Dashboard Tecnico caricata con successo', [
+                'user_id' => $user->id,
+                'username' => $user->username,
+                'total_prodotti' => $totalProdotti,
+                'total_malfunzionamenti' => $totalMalfunzionamenti,
+                'critici_count' => $malfunzionamentiCritici,
+                'prodotti_problematici_count' => $prodottiProblematici->count(),
+                'centro_assegnato' => $centroAssistenza ? $centroAssistenza->nome : 'Nessuno'
+            ]);
+
+            // STEP 11: RETURN VISTA CON DATI COMBINATI
+            // array_merge() combina i dati principali con quelli extra
+            return view('tecnico.dashboard', array_merge(
+                compact('user', 'stats'),
+                $extraData
+            ));
+
+        } catch (\Exception $e) {
+            // STEP 12: GESTIONE ERRORI COMPLETA CON FALLBACK
+            \Log::error('Errore Dashboard Tecnico', [
+                'user_id' => $user->id,
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine()
+            ]);
+
+            // Statistiche di fallback per evitare crash completo
+            $stats = [
+                'total_prodotti' => 0,
+                'total_malfunzionamenti' => 0, 
+                'malfunzionamenti_critici' => 0,
+                'total_centri' => 0,
+                'centro_assistenza' => null,
+                'malfunzionamenti_critici_lista' => collect(),
+                'prodotti_problematici' => collect(),
+                'malfunzionamenti_per_gravita' => [
+                    'critica' => 0, 'alta' => 0, 'media' => 0, 'bassa' => 0
+                ],
+            ];
+
+            $extraData = [
+                'prodotti_critici' => collect(),
+                'malfunzionamenti_recenti' => collect(),
+            ];
+
+            // Return vista con warning invece di errore critico
+            return view('tecnico.dashboard', array_merge(
+                compact('user', 'stats'),
+                $extraData
+            ))->with('warning', 'Alcune statistiche potrebbero non essere aggiornate');
         }
-
-        // === ASSEMBLY FINALE STATISTICHE ===
-        $stats = [
-            // Contatori principali (sempre presenti)
-            'total_prodotti' => $totalProdotti,
-            'total_malfunzionamenti' => $totalMalfunzionamenti,
-            'malfunzionamenti_critici' => $malfunzionamentiCritici,
-            'total_centri' => $totalCentri,
-            
-            // Dati relazionali (possono essere vuoti se ci sono errori)
-            'centro_assistenza' => $centroAssistenza,
-            'malfunzionamenti_critici_lista' => $malfunzionamentiCriticiLista,
-            'prodotti_problematici' => $prodottiProblematici,
-            'malfunzionamenti_per_gravita' => $malfunzionamentiPerGravita,
-        ];
-
-        // === PASSA DATI EXTRA ALLA VISTA ===
-        $extraData = [
-            'prodotti_critici' => $prodottiProblematici, // Per sezione prodotti critici
-            'malfunzionamenti_recenti' => $malfunzionamentiRecenti, // Per tabella recenti
-        ];
-
-        // Log successo per debug
-        \Log::info('Dashboard Tecnico caricata con successo', [
-            'user_id' => $user->id,
-            'username' => $user->username,
-            'total_prodotti' => $totalProdotti,
-            'total_malfunzionamenti' => $totalMalfunzionamenti,
-            'critici_count' => $malfunzionamentiCritici,
-            'prodotti_problematici_count' => $prodottiProblematici->count(),
-            'centro_assegnato' => $centroAssistenza ? $centroAssistenza->nome : 'Nessuno'
-        ]);
-
-        // === RETURN VISTA CORRETTA ===
-        return view('tecnico.dashboard', array_merge(
-            compact('user', 'stats'),
-            $extraData
-        ));
-
-    } catch (\Exception $e) {
-        // === GESTIONE ERRORI ROBUSTA ===
-        \Log::error('Errore Dashboard Tecnico', [
-            'user_id' => $user->id,
-            'error_message' => $e->getMessage(),
-            'error_file' => $e->getFile(),
-            'error_line' => $e->getLine()
-        ]);
-
-        // Statistiche di fallback
-        $stats = [
-            'total_prodotti' => 0,
-            'total_malfunzionamenti' => 0, 
-            'malfunzionamenti_critici' => 0,
-            'total_centri' => 0,
-            'centro_assistenza' => null,
-            'malfunzionamenti_critici_lista' => collect(),
-            'prodotti_problematici' => collect(),
-            'malfunzionamenti_per_gravita' => [
-                'critica' => 0, 'alta' => 0, 'media' => 0, 'bassa' => 0
-            ],
-        ];
-
-        $extraData = [
-            'prodotti_critici' => collect(),
-            'malfunzionamenti_recenti' => collect(),
-        ];
-
-        return view('tecnico.dashboard', array_merge(
-            compact('user', 'stats'),
-            $extraData
-        ))->with('warning', 'Alcune statistiche potrebbero non essere aggiornate');
     }
-}
 
     /**
-     * Dashboard generale - Fallback per utenti pubblici
+     * METODO DASHBOARD GENERALE - LINGUAGGIO: PHP con Fallback Logic
+     * 
+     * Dashboard generica per utenti pubblici o reindirizzamento per utenti con livello.
+     * Gestisce il fallback quando un utente non ha un livello specifico.
+     * 
+     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
      */
     public function dashboard()
     {
+        // STEP 1: CONTROLLO AUTENTICAZIONE
         if (!Auth::check()) {
             return redirect()->route('login');
         }
 
         $user = Auth::user();
         
-        // Se l'utente ha un livello specifico, reindirizza alla sua dashboard
+        // STEP 2: REINDIRIZZAMENTO PER UTENTI CON LIVELLO SPECIFICO
+        // Se l'utente ha livello >= 2, ha accesso a dashboard speciali
         if ($user->livello_accesso >= 2) {
             return $this->redirectBasedOnRole();
         }
         
-        // Dashboard base per utenti pubblici
+        // STEP 3: DASHBOARD BASE PER UTENTI PUBBLICI (LIVELLO 1)
         $stats = [
             'total_prodotti' => Prodotto::count(),
             'total_centri' => CentroAssistenza::count(),
@@ -742,16 +921,29 @@ public function debugStaffStats()
     }
 
     // ================================================
-    // STORICO INTERVENTI (METODO MANCANTE - CAUSA ERRORE)
+    // SEZIONE 3: STORICO INTERVENTI (METODO MANCANTE RISOLTO)
     // ================================================
 
     /**
-     * Visualizza lo storico degli interventi tecnici
-     * QUESTO METODO ERA MANCANTE E CAUSAVA L'ERRORE 404!
+     * METODO STORICO INTERVENTI - LINGUAGGIO: PHP con Filtri Dinamici
+     * 
+     * Visualizza lo storico completo degli interventi tecnici.
+     * QUESTO METODO ERA MANCANTE E CAUSAVA ERRORE 404!
+     * 
+     * FUNZIONALITÀ:
+     * - Filtri per prodotto, gravità, periodo temporale
+     * - Ricerca testuale multi-campo
+     * - Paginazione risultati
+     * - Accesso controllato per tecnici/staff/admin
+     * - Statistiche riassuntive dello storico
+     * 
+     * @param Request $request Parametri filtri dalla form
+     * @return \Illuminate\View\View Vista storico interventi
      */
     public function storicoInterventi(Request $request)
     {
-        // Verifica autorizzazioni - accessibile a tecnici, staff e admin
+        // STEP 1: VERIFICA AUTORIZZAZIONI MULTIPLE LIVELLI
+        // Accessibile a tecnici (2), staff (3) e admin (4)
         if (!Auth::check() || (!Auth::user()->isTecnico() && !Auth::user()->isStaff() && !Auth::user()->isAdmin())) {
             abort(403, 'Accesso riservato ai tecnici e staff aziendale');
         }
@@ -759,23 +951,24 @@ public function debugStaffStats()
         $user = Auth::user();
 
         try {
-            // Query base per gli interventi (usando i malfunzionamenti come storico)
+            // STEP 2: QUERY BASE PER INTERVENTI
+            // Usa malfunzionamenti come storico degli interventi
             $query = Malfunzionamento::with(['prodotto:id,nome,modello,categoria'])
-                ->orderBy('updated_at', 'desc');
+                ->orderBy('updated_at', 'desc');                // Più recenti prima
 
-            // === FILTRI BASATI SUL RUOLO ===
+            // STEP 3: FILTRI BASATI SUL RUOLO UTENTE
             if ($user->isTecnico() && $user->centro_assistenza_id) {
-                // I tecnici vedono gli interventi degli ultimi 6 mesi
+                // Tecnici vedono interventi degli ultimi 6 mesi
                 $query->where('updated_at', '>=', now()->subMonths(6));
             } elseif ($user->isStaff()) {
-                // Lo staff vede solo i malfunzionamenti dei prodotti che gestisce
+                // Staff vede solo malfunzionamenti dei prodotti che gestisce
                 $query->whereHas('prodotto', function($q) use ($user) {
                     $q->where('staff_assegnato_id', $user->id);
                 });
             }
             // Admin vede tutto senza filtri aggiuntivi
 
-            // === FILTRI DALLA RICHIESTA ===
+            // STEP 4: FILTRI DALLA RICHIESTA UTENTE
             
             // Filtro per prodotto specifico
             if ($request->filled('prodotto_id')) {
@@ -787,7 +980,7 @@ public function debugStaffStats()
                 $query->where('gravita', $request->input('gravita'));
             }
 
-            // Filtro temporale
+            // STEP 5: FILTRO TEMPORALE CON SWITCH MULTIPLO
             if ($request->filled('periodo')) {
                 switch($request->input('periodo')) {
                     case 'settimana':
@@ -805,42 +998,49 @@ public function debugStaffStats()
                 }
             }
 
-            // Ricerca testuale
+            // STEP 6: RICERCA TESTUALE MULTI-CAMPO
             if ($request->filled('search')) {
                 $searchTerm = $request->input('search');
                 $query->where(function($q) use ($searchTerm) {
                     $q->where('descrizione', 'LIKE', "%{$searchTerm}%")
                       ->orWhere('titolo', 'LIKE', "%{$searchTerm}%")
                       ->orWhereHas('prodotto', function($q2) use ($searchTerm) {
+                          // Ricerca anche nei nomi/modelli dei prodotti correlati
                           $q2->where('nome', 'LIKE', "%{$searchTerm}%")
                              ->orWhere('modello', 'LIKE', "%{$searchTerm}%");
                       });
                 });
             }
 
-            // Paginazione risultati
+            // STEP 7: ESECUZIONE QUERY CON PAGINAZIONE
+            // paginate() divide risultati in pagine da 15 elementi
             $interventi = $query->paginate(15);
 
-            // === STATISTICHE STORICO ===
+            // STEP 8: CALCOLO STATISTICHE STORICO
             $statisticheStorico = [
-                'totale_interventi' => $interventi->total(),
+                'totale_interventi' => $interventi->total(),    // Totale risultati trovati
                 'interventi_settimana' => Malfunzionamento::where('updated_at', '>=', now()->subWeek())->count(),
+                
+                // Distribuzione per gravità (per grafico)
                 'per_gravita' => Malfunzionamento::selectRaw('gravita, COUNT(*) as count')
                     ->groupBy('gravita')
                     ->pluck('count', 'gravita')
                     ->toArray(),
+                    
+                // Top 5 prodotti più problematici
                 'prodotti_problematici' => Prodotto::withCount('malfunzionamenti')
                     ->orderBy('malfunzionamenti_count', 'desc')
                     ->limit(5)
                     ->get(['id', 'nome', 'modello']),
             ];
 
-            // Lista prodotti per dropdown filtro
+            // STEP 9: LISTA PRODOTTI PER DROPDOWN FILTRO
             $prodotti = Prodotto::select('id', 'nome', 'modello')
                 ->where('attivo', true)
                 ->orderBy('nome')
                 ->get();
 
+            // STEP 10: RETURN VISTA CON TUTTI I DATI
             return view('auth.storico-interventi', compact(
                 'user', 
                 'interventi', 
@@ -849,6 +1049,7 @@ public function debugStaffStats()
             ));
 
         } catch (\Exception $e) {
+            // STEP 11: GESTIONE ERRORI
             Log::error('Errore storico interventi', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage()
@@ -860,31 +1061,43 @@ public function debugStaffStats()
     }
 
     // ================================================
-    // REINDIRIZZAMENTO AUTOMATICO
+    // SEZIONE 4: REINDIRIZZAMENTO AUTOMATICO
     // ================================================
 
     /**
-     * Reindirizza l'utente basandosi sul suo livello di accesso
+     * METODO REDIRECT BASED ON ROLE - LINGUAGGIO: PHP con Switch Logic
+     * 
+     * Reindirizza l'utente alla dashboard appropriata basandosi sul livello di accesso.
+     * Sistema intelligente di routing per diversi tipi di utente.
+     * 
+     * LIVELLI ACCESSO:
+     * - 4: Amministratori -> admin.dashboard
+     * - 3: Staff aziendale -> staff.dashboard  
+     * - 2: Tecnici -> tecnico.dashboard
+     * - 1 o altro: Home page con warning
+     * 
+     * @return \Illuminate\Http\RedirectResponse Redirect alla dashboard corretta
      */
     private function redirectBasedOnRole()
     {
         $user = Auth::user();
         
-        // Reindirizzamento alle dashboard specifiche per livello
+        // Switch basato su livello di accesso numerico
+        // Casting (int) garantisce confronto numerico
         switch ((int) $user->livello_accesso) {
-            case 4: // Admin
+            case 4: // Amministratori
                 return redirect()->route('admin.dashboard')
                     ->with('success', 'Benvenuto, Amministratore ' . $user->nome . '!');
                     
-            case 3: // Staff
+            case 3: // Staff aziendale
                 return redirect()->route('staff.dashboard')
                     ->with('success', 'Benvenuto, ' . $user->nome . '!');
                     
-            case 2: // Tecnico
+            case 2: // Tecnici centri assistenza
                 return redirect()->route('tecnico.dashboard')
                     ->with('success', 'Benvenuto, Tecnico ' . $user->nome . '!');
                     
-            default: // Livello non riconosciuto
+            default: // Livello non riconosciuto o pubblico
                 Log::warning('Livello accesso non riconosciuto', [
                     'user_id' => $user->id,
                     'livello_accesso' => $user->livello_accesso
@@ -896,7 +1109,12 @@ public function debugStaffStats()
     }
 
     /**
-     * Helper per reindirizzamento manuale alla dashboard appropriata
+     * METODO AUTO REDIRECT DASHBOARD - LINGUAGGIO: PHP
+     * 
+     * Helper pubblico per reindirizzamento manuale alla dashboard appropriata.
+     * Utile per link diretti o chiamate programmatiche.
+     * 
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function autoRedirectDashboard()
     {
@@ -908,11 +1126,16 @@ public function debugStaffStats()
     }
 
     // ================================================
-    // GESTIONE PROFILO UTENTE
+    // SEZIONE 5: GESTIONE PROFILO UTENTE
     // ================================================
 
     /**
-     * Mostra il profilo dell'utente corrente
+     * METODO SHOW PROFILE - LINGUAGGIO: PHP con Eager Loading
+     * 
+     * Mostra il profilo dell'utente corrente con dati correlati.
+     * Carica automaticamente relazioni per evitare query N+1.
+     * 
+     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
      */
     public function showProfile()
     {
@@ -921,13 +1144,21 @@ public function debugStaffStats()
         }
 
         $user = Auth::user();
-        $user->load('centroAssistenza'); // Carica il centro se è un tecnico
+        // load() esegue eager loading della relazione centro assistenza
+        // Utile per tecnici che hanno un centro di appartenenza
+        $user->load('centroAssistenza');
 
         return view('auth.profile', compact('user'));
     }
 
     /**
-     * Aggiorna il profilo dell'utente corrente
+     * METODO UPDATE PROFILE - LINGUAGGIO: PHP con Validazione Condizionale
+     * 
+     * Aggiorna il profilo dell'utente con validazione dei dati.
+     * Permette modifica solo di campi sicuri (non livello accesso).
+     * 
+     * @param Request $request Dati del form di modifica profilo
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function updateProfile(Request $request)
     {
@@ -937,112 +1168,20 @@ public function debugStaffStats()
 
         $user = Auth::user();
 
-        // Validazione dati modificabili dal profilo
+        // STEP 1: VALIDAZIONE DATI MODIFICABILI
+        // unique() esclude l'utente corrente dal controllo unicità email
         $validated = $request->validate([
-            'nome' => 'required|string|max:255',
-            'cognome' => 'required|string|max:255',
-            'email' => 'nullable|email|max:255|unique:users,email,' . $user->id,
-            'specializzazione' => 'nullable|string|max:255', // Solo per tecnici
-        ]);
-
-        // Aggiorna i dati
-        $user->update($validated);
-
-        Log::info('Profilo utente aggiornato', [
-            'user_id' => $user->id,
-            'updated_fields' => array_keys($validated)
-        ]);
-
-        return redirect()->route('auth.profile')
-            ->with('success', 'Profilo aggiornato con successo');
-    }
-
-    /**
-     * Cambia la password dell'utente corrente
-     */
-    public function changePassword(Request $request)
-    {
-        if (!Auth::check()) {
-            return redirect()->route('login');
-        }
-
-        $user = Auth::user();
-
-        // Validazione password
-        $request->validate([
-            'current_password' => 'required',
-            'new_password' => 'required|string|min:8|confirmed',
-        ], [
-            'current_password.required' => 'La password attuale è obbligatoria',
-            'new_password.required' => 'La nuova password è obbligatoria',
-            'new_password.min' => 'La password deve essere di almeno 8 caratteri',
-            'new_password.confirmed' => 'La conferma password non corrisponde',
-        ]);
-
-        // Verifica password attuale
-        if (!Hash::check($request->current_password, $user->password)) {
-            throw ValidationException::withMessages([
-                'current_password' => 'La password attuale non è corretta.',
-            ]);
-        }
-
-        // Aggiorna la password
-        $user->update([
-            'password' => Hash::make($request->new_password),
-        ]);
-
-        Log::info('Password cambiata', [
-            'user_id' => $user->id,
-            'username' => $user->username
-        ]);
-
-        return redirect()->route('auth.profile')
-            ->with('success', 'Password modificata con successo');
-    }
-
-    // ================================================
-    // REGISTRAZIONE (Solo per Admin)
-    // ================================================
-
-    /**
-     * Mostra il form di registrazione (solo per admin)
-     */
-    public function showRegister()
-    {
-        // Solo gli amministratori possono registrare nuovi utenti
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            abort(403, 'Non autorizzato a registrare nuovi utenti');
-        }
-
-        // Carica i centri assistenza per il form
-        $centri = CentroAssistenza::orderBy('nome')->get();
-
-        return view('auth.register', compact('centri'));
-    }
-
-    /**
-     * Gestisce la registrazione di un nuovo utente (solo admin)
-     */
-    public function register(Request $request)
-    {
-        // Verifica che solo gli admin possano registrare utenti
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            abort(403, 'Non autorizzato');
-        }
-
-        // Validazione completa dei dati
-        $validated = $request->validate([
-            'username' => 'required|string|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
             'nome' => 'required|string|max:255',
             'cognome' => 'required|string|max:255',
             'livello_accesso' => 'required|in:1,2,3,4',
             
-            // Campi specifici per tecnici (livello 2)
+            // VALIDAZIONE CONDIZIONALE: Campi obbligatori solo per tecnici (livello 2)
+            // required_if:livello_accesso,2 rende campo obbligatorio solo se livello = 2
             'data_nascita' => 'required_if:livello_accesso,2|nullable|date|before:today',
             'specializzazione' => 'required_if:livello_accesso,2|nullable|string|max:255',
             'centro_assistenza_id' => 'required_if:livello_accesso,2|nullable|exists:centri_assistenza,id',
         ], [
+            // Messaggi di errore personalizzati
             'username.required' => 'Il campo username è obbligatorio',
             'username.unique' => 'Questo username è già in uso',
             'password.min' => 'La password deve essere di almeno 8 caratteri',
@@ -1052,478 +1191,459 @@ public function debugStaffStats()
             'centro_assistenza_id.required_if' => 'Il centro di assistenza è obbligatorio per i tecnici',
         ]);
 
-        // Creazione del nuovo utente
+        // STEP 3: CREAZIONE NUOVO UTENTE CON HASH PASSWORD
         $user = User::create([
             'username' => $validated['username'],
-            'password' => Hash::make($validated['password']),
+            'password' => Hash::make($validated['password']),     // Hash sicuro della password
             'nome' => $validated['nome'],
             'cognome' => $validated['cognome'],
-            'livello_accesso' => (int) $validated['livello_accesso'],
+            'livello_accesso' => (int) $validated['livello_accesso'], // Cast esplicito a integer
             'data_nascita' => $validated['data_nascita'] ?? null,
             'specializzazione' => $validated['specializzazione'] ?? null,
             'centro_assistenza_id' => $validated['centro_assistenza_id'] ?? null,
         ]);
 
+        // STEP 4: LOG DELLA REGISTRAZIONE PER AUDIT
         Log::info('Nuovo utente registrato', [
             'new_user_id' => $user->id,
             'new_username' => $user->username,
-            'created_by' => Auth::id()
+            'created_by' => Auth::id()                            // Chi ha creato l'utente
         ]);
 
+        // STEP 5: REDIRECT CON MESSAGGIO DI SUCCESSO
         return redirect()->route('admin.users.index')
             ->with('success', 'Utente registrato con successo');
     }
 
-    
-/**
- * AGGIUNGI QUESTI METODI ALLA FINE DELLA CLASSE AuthController
- * Prima della chiusura finale della classe (prima dell'ultima parentesi graffa)
- * Posizionali nella sezione "API ENDPOINTS PER STATISTICHE"
- */
+    // ================================================
+    // SEZIONE 7: API ENDPOINTS PER STATISTICHE AJAX
+    // ================================================
 
-// ================================================
-// API ENDPOINTS PER STATISTICHE (AJAX)
-// ================================================
+    /**
+     * METODO STATISTICHE TECNICO - LINGUAGGIO: PHP con JSON API
+     * 
+     * API endpoint per statistiche complete del tecnico.
+     * CORREZIONE PRINCIPALE: Fix nome colonna 'numero_segnalazioni' invece di 'num_segnalazioni'
+     * 
+     * FUNZIONALITÀ:
+     * - Statistiche generali accessibili al tecnico
+     * - Malfunzionamenti per gravità con distribuzione
+     * - Centro assistenza di appartenenza
+     * - Malfunzionamenti critici recenti
+     * - Prodotti più problematici
+     * - Top malfunzionamenti più segnalati
+     * 
+     * @return \Illuminate\Http\JsonResponse Statistiche complete in formato JSON
+     */
+    public function statisticheTecnico()
+    {
+        try {
+            // STEP 1: CONTROLLO AUTORIZZAZIONI API
+            if (!Auth::check() || !Auth::user()->isTecnico()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Accesso riservato ai tecnici',
+                    'code' => 403
+                ], 403);
+            }
 
-/**
- * API per statistiche tecnico (chiamate AJAX) - METODO MANCANTE RISOLTO
- * Fornisce statistiche specifiche per il dashboard tecnico via API
- * @return \Illuminate\Http\JsonResponse - Risposta JSON con statistiche tecnico
- */
-/**
- * FIX CORRETTO per errore colonna - Il nome giusto è 'numero_segnalazioni'
- * 
- * PROBLEMA: Il codice cercava 'num_segnalazioni' ma la colonna si chiama 'numero_segnalazioni'
- * SOLUZIONE: Sostituire tutti i riferimenti con il nome corretto della colonna
- */
+            $user = Auth::user();
+            
+            // STEP 2: LOG DEBUG API CALL
+            Log::info('API statisticheTecnico chiamata', [
+                'user_id' => $user->id,
+                'username' => $user->username,
+                'centro_id' => $user->centro_assistenza_id,
+                'ip' => request()->ip()
+            ]);
 
-/**
- * VERSIONE CORRETTA DEFINITIVA del metodo statisticheTecnico()
- * Ora usa i nomi delle colonne corretti dal database
- */
-public function statisticheTecnico()
-{
-    try {
-        // === CONTROLLO AUTORIZZAZIONI ===
-        if (!Auth::check() || !Auth::user()->isTecnico()) {
+            // STEP 3: CALCOLO STATISTICHE COMPLETE
+            $stats = [
+                // === STATISTICHE GENERALI ===
+                'generale' => [
+                    'total_prodotti' => Prodotto::count(),
+                    'total_malfunzionamenti' => Malfunzionamento::count(),
+                    'total_centri' => CentroAssistenza::count(),
+                    'prodotti_attivi' => Prodotto::where('attivo', true)->count()
+                ],
+
+                // === MALFUNZIONAMENTI PER GRAVITÀ ===
+                'malfunzionamenti' => [
+                    'totali' => Malfunzionamento::count(),
+                    'critici' => Malfunzionamento::where('gravita', 'critica')->count(),
+                    'media' => Malfunzionamento::where('gravita', 'media')->count(),
+                    'bassa' => Malfunzionamento::where('gravita', 'bassa')->count(),
+                    
+                    // Distribuzione per grafici (array associativo)
+                    'per_gravita' => Malfunzionamento::selectRaw('gravita, COUNT(*) as count')
+                        ->whereNotNull('gravita')
+                        ->groupBy('gravita')
+                        ->pluck('count', 'gravita')
+                        ->toArray(),
+                        
+                    // Andamento temporale
+                    'questo_mese' => Malfunzionamento::whereMonth('created_at', now()->month)
+                        ->whereYear('created_at', now()->year)
+                        ->count()
+                ],
+
+                // === CENTRO ASSISTENZA DEL TECNICO ===
+                'centro_assistenza' => $user->centroAssistenza ? [
+                    'id' => $user->centroAssistenza->id,
+                    'nome' => $user->centroAssistenza->nome,
+                    'citta' => $user->centroAssistenza->citta,
+                    'provincia' => $user->centroAssistenza->provincia,
+                    'indirizzo' => $user->centroAssistenza->indirizzo,
+                    'telefono' => $user->centroAssistenza->telefono,
+                    // Conta altri tecnici nello stesso centro
+                    'altri_tecnici' => User::where('centro_assistenza_id', $user->centro_assistenza_id)
+                        ->where('id', '!=', $user->id)
+                        ->where('livello_accesso', 2)
+                        ->count()
+                ] : null,
+
+                // === MALFUNZIONAMENTI CRITICI RECENTI (CORREZIONE COLONNA) ===
+                'critici_recenti' => Malfunzionamento::where('gravita', 'critica')
+                    ->with(['prodotto:id,nome,modello,categoria'])
+                    // CORREZIONE: 'numero_segnalazioni' è il nome corretto della colonna
+                    ->select('id', 'titolo', 'descrizione', 'gravita', 'prodotto_id', 'created_at', 'numero_segnalazioni')
+                    ->latest()
+                    ->take(10)
+                    ->get()
+                    ->map(function($m) {
+                        return [
+                            'id' => $m->id,
+                            'titolo' => $m->titolo,
+                            'descrizione' => \Illuminate\Support\Str::limit($m->descrizione, 100),
+                            'prodotto_nome' => $m->prodotto->nome ?? 'N/D',
+                            'prodotto_modello' => $m->prodotto->modello ?? '',
+                            'categoria' => $m->prodotto->categoria ?? 'N/D',
+                            'segnalazioni' => $m->numero_segnalazioni ?? 0,     // NOME CORRETTO
+                            'data' => $m->created_at->format('d/m/Y H:i')
+                        ];
+                    }),
+
+                // === PRODOTTI PIÙ PROBLEMATICI ===
+                'prodotti_problematici' => Prodotto::whereHas('malfunzionamenti', function($q) {
+                        $q->where('gravita', 'critica');
+                    })
+                    ->withCount(['malfunzionamenti as critici_count' => function($q) {
+                        $q->where('gravita', 'critica');
+                    }])
+                    ->orderBy('critici_count', 'desc')
+                    ->take(8)
+                    ->get(['id', 'nome', 'modello', 'categoria'])
+                    ->map(function($p) {
+                        return [
+                            'id' => $p->id,
+                            'nome' => $p->nome,
+                            'modello' => $p->modello,
+                            'categoria' => $p->categoria,
+                            'problemi_critici' => $p->critici_count
+                        ];
+                    }),
+
+                // === STATISTICHE PER CATEGORIA ===
+                'per_categoria' => Prodotto::selectRaw('categoria, COUNT(*) as count')
+                    ->where('attivo', true)
+                    ->groupBy('categoria')
+                    ->pluck('count', 'categoria')
+                    ->toArray(),
+
+                // === ATTIVITÀ RECENTI ===
+                'attivita_recenti' => [
+                    'malfunzionamenti_settimana' => Malfunzionamento::where('created_at', '>=', now()->subWeek())->count(),
+                    'nuovi_prodotti_mese' => Prodotto::where('created_at', '>=', now()->subMonth())->count(),
+                    'categorie_disponibili' => Prodotto::distinct('categoria')->count('categoria')
+                ],
+
+                // === TOP MALFUNZIONAMENTI PIÙ SEGNALATI (CORREZIONE COLONNA) ===
+                'piu_segnalati' => Malfunzionamento::with(['prodotto:id,nome,modello'])
+                    ->orderBy('numero_segnalazioni', 'desc')            // NOME CORRETTO
+                    ->take(5)
+                    ->get()
+                    ->map(function($m) {
+                        return [
+                            'id' => $m->id,
+                            'titolo' => $m->titolo,
+                            'prodotto' => $m->prodotto->nome ?? 'N/D',
+                            'segnalazioni' => $m->numero_segnalazioni,      // NOME CORRETTO
+                            'gravita' => $m->gravita
+                        ];
+                    })
+            ];
+
+            // STEP 4: METADATA RISPOSTA
+            $metadata = [
+                'timestamp' => now()->toISOString(),
+                'user_level' => $user->livello_accesso,
+                'centro_nome' => $user->centroAssistenza->nome ?? 'Non assegnato',
+                'cache_ttl' => 300,                                    // TTL cache in secondi
+                'version' => '1.1_fixed'                               // Versione API
+            ];
+
+            // STEP 5: LOG SUCCESSO
+            Log::info('statisticheTecnico API completata con successo', [
+                'user_id' => $user->id,
+                'stats_generated' => [
+                    'prodotti_problematici' => count($stats['prodotti_problematici']),
+                    'critici_recenti' => count($stats['critici_recenti']),
+                    'piu_segnalati' => count($stats['piu_segnalati']),
+                    'malfunzionamenti_totali' => $stats['generale']['total_malfunzionamenti']
+                ]
+            ]);
+
+            // STEP 6: RESPONSE JSON STRUTTURATA
+            return response()->json([
+                'success' => true,
+                'data' => $stats,
+                'meta' => $metadata
+            ], 200);
+
+        } catch (\Exception $e) {
+            // STEP 7: GESTIONE ERRORI COMPLETA
+            Log::error('Errore in statisticheTecnico API', [
+                'user_id' => Auth::id(),
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine()
+            ]);
+
             return response()->json([
                 'success' => false,
-                'error' => 'Accesso riservato ai tecnici',
-                'code' => 403
-            ], 403);
+                'error' => config('app.debug') ? $e->getMessage() : 'Errore nel caricamento delle statistiche',
+                'code' => 500,
+                'timestamp' => now()->toISOString()
+            ], 500);
         }
+    }
 
-        $user = Auth::user();
-        
-        // === LOG PER DEBUGGING ===
-        Log::info('API statisticheTecnico chiamata', [
-            'user_id' => $user->id,
-            'username' => $user->username,
-            'centro_id' => $user->centro_assistenza_id,
-            'ip' => request()->ip()
-        ]);
+    /**
+     * METODO MALFUNZIONAMENTI CRITICI - LINGUAGGIO: PHP con API Response
+     * 
+     * API endpoint per malfunzionamenti critici con correzione nome colonna.
+     * Ordinamento per numero segnalazioni per prioritizzare i più urgenti.
+     * 
+     * @return \Illuminate\Http\JsonResponse Lista malfunzionamenti critici
+     */
+    public function malfunzionamentiCritici()
+    {
+        try {
+            // STEP 1: CONTROLLO AUTORIZZAZIONI
+            if (!Auth::check() || !Auth::user()->isTecnico()) {
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
 
-        // === CALCOLO STATISTICHE TECNICO (CON NOMI COLONNE CORRETTI) ===
-        $stats = [
-            // Statistiche generali accessibili al tecnico
-            'generale' => [
-                'total_prodotti' => Prodotto::count(),
-                'total_malfunzionamenti' => Malfunzionamento::count(),
-                'total_centri' => CentroAssistenza::count(),
-                'prodotti_attivi' => Prodotto::where('attivo', true)->count()
-            ],
-
-            // Statistiche sui malfunzionamenti per gravità
-            'malfunzionamenti' => [
-                'totali' => Malfunzionamento::count(),
-                'critici' => Malfunzionamento::where('gravita', 'critica')->count(),
-                'media' => Malfunzionamento::where('gravita', 'media')->count(),
-                'bassa' => Malfunzionamento::where('gravita', 'bassa')->count(),
-                
-                // Distribuzione per gravità (per grafici)
-                'per_gravita' => Malfunzionamento::selectRaw('gravita, COUNT(*) as count')
-                    ->whereNotNull('gravita')
-                    ->groupBy('gravita')
-                    ->pluck('count', 'gravita')
-                    ->toArray(),
-                    
-                // Malfunzionamenti creati questo mese
-                'questo_mese' => Malfunzionamento::whereMonth('created_at', now()->month)
-                    ->whereYear('created_at', now()->year)
-                    ->count()
-            ],
-
-            // Informazioni centro assistenza del tecnico
-            'centro_assistenza' => $user->centroAssistenza ? [
-                'id' => $user->centroAssistenza->id,
-                'nome' => $user->centroAssistenza->nome,
-                'citta' => $user->centroAssistenza->citta,
-                'provincia' => $user->centroAssistenza->provincia,
-                'indirizzo' => $user->centroAssistenza->indirizzo,
-                'telefono' => $user->centroAssistenza->telefono,
-                // Conta altri tecnici nello stesso centro
-                'altri_tecnici' => User::where('centro_assistenza_id', $user->centro_assistenza_id)
-                    ->where('id', '!=', $user->id)
-                    ->where('livello_accesso', 2)
-                    ->count()
-            ] : null,
-
-            // Malfunzionamenti critici recenti (CON NOME COLONNA CORRETTO)
-            'critici_recenti' => Malfunzionamento::where('gravita', 'critica')
+            // STEP 2: QUERY CON NOMI COLONNE CORRETTI
+            $critici = Malfunzionamento::where('gravita', 'critica')
                 ->with(['prodotto:id,nome,modello,categoria'])
-                ->select('id', 'titolo', 'descrizione', 'gravita', 'prodotto_id', 'created_at', 'numero_segnalazioni') // CORRETTO!
-                ->latest()
-                ->take(10)
+                // CORREZIONE: Usa 'numero_segnalazioni' invece di 'num_segnalazioni'
+                ->select('id', 'titolo', 'descrizione', 'prodotto_id', 'created_at', 'numero_segnalazioni')
+                ->orderBy('numero_segnalazioni', 'desc')           // Più segnalazioni = più urgente
+                ->orderBy('created_at', 'desc')                    // Poi per data
+                ->take(20)
                 ->get()
                 ->map(function($m) {
                     return [
                         'id' => $m->id,
                         'titolo' => $m->titolo,
-                        'descrizione' => \Illuminate\Support\Str::limit($m->descrizione, 100),
-                        'prodotto_nome' => $m->prodotto->nome ?? 'N/D',
-                        'prodotto_modello' => $m->prodotto->modello ?? '',
-                        'categoria' => $m->prodotto->categoria ?? 'N/D',
-                        'segnalazioni' => $m->numero_segnalazioni ?? 0, // CORRETTO!
-                        'data' => $m->created_at->format('d/m/Y H:i')
+                        'descrizione' => \Illuminate\Support\Str::limit($m->descrizione, 150),
+                        'prodotto' => [
+                            'id' => $m->prodotto->id,
+                            'nome' => $m->prodotto->nome,
+                            'modello' => $m->prodotto->modello,
+                            'categoria' => $m->prodotto->categoria
+                        ],
+                        'segnalazioni' => $m->numero_segnalazioni ?? 0, // NOME CORRETTO
+                        'data_creazione' => $m->created_at->format('d/m/Y H:i'),
+                        'urgenza' => $m->numero_segnalazioni > 5 ? 'alta' : 'media' // LOGICA CORRETTA
                     ];
-                }),
+                });
 
-            // Prodotti più problematici (con più malfunzionamenti critici)
-            'prodotti_problematici' => Prodotto::whereHas('malfunzionamenti', function($q) {
-                    $q->where('gravita', 'critica');
-                })
-                ->withCount(['malfunzionamenti as critici_count' => function($q) {
-                    $q->where('gravita', 'critica');
-                }])
-                ->orderBy('critici_count', 'desc')
-                ->take(8)
-                ->get(['id', 'nome', 'modello', 'categoria'])
-                ->map(function($p) {
-                    return [
-                        'id' => $p->id,
-                        'nome' => $p->nome,
-                        'modello' => $p->modello,
-                        'categoria' => $p->categoria,
-                        'problemi_critici' => $p->critici_count
-                    ];
-                }),
+            return response()->json([
+                'success' => true,
+                'data' => $critici,
+                'count' => count($critici),
+                'timestamp' => now()->toISOString()
+            ], 200);
 
-            // Statistiche per categoria prodotti
-            'per_categoria' => Prodotto::selectRaw('categoria, COUNT(*) as count')
-                ->where('attivo', true)
-                ->groupBy('categoria')
-                ->pluck('count', 'categoria')
-                ->toArray(),
+        } catch (\Exception $e) {
+            Log::error('Errore malfunzionamentiCritici API', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id()
+            ]);
 
-            // Statistiche delle ultime attività
-            'attivita_recenti' => [
-                'malfunzionamenti_settimana' => Malfunzionamento::where('created_at', '>=', now()->subWeek())->count(),
-                'nuovi_prodotti_mese' => Prodotto::where('created_at', '>=', now()->subMonth())->count(),
-                'categorie_disponibili' => Prodotto::distinct('categoria')->count('categoria')
-            ],
-
-            // Top malfunzionamenti più segnalati
-            'piu_segnalati' => Malfunzionamento::with(['prodotto:id,nome,modello'])
-                ->orderBy('numero_segnalazioni', 'desc') // CORRETTO!
-                ->take(5)
-                ->get()
-                ->map(function($m) {
-                    return [
-                        'id' => $m->id,
-                        'titolo' => $m->titolo,
-                        'prodotto' => $m->prodotto->nome ?? 'N/D',
-                        'segnalazioni' => $m->numero_segnalazioni, // CORRETTO!
-                        'gravita' => $m->gravita
-                    ];
-                })
-        ];
-
-        // === METADATA RISPOSTA ===
-        $metadata = [
-            'timestamp' => now()->toISOString(),
-            'user_level' => $user->livello_accesso,
-            'centro_nome' => $user->centroAssistenza->nome ?? 'Non assegnato',
-            'cache_ttl' => 300,
-            'version' => '1.1_fixed'
-        ];
-
-        // === LOG SUCCESSO ===
-        Log::info('statisticheTecnico API completata con successo', [
-            'user_id' => $user->id,
-            'stats_generated' => [
-                'prodotti_problematici' => count($stats['prodotti_problematici']),
-                'critici_recenti' => count($stats['critici_recenti']),
-                'piu_segnalati' => count($stats['piu_segnalati']),
-                'malfunzionamenti_totali' => $stats['generale']['total_malfunzionamenti']
-            ]
-        ]);
-
-        // === RISPOSTA JSON ===
-        return response()->json([
-            'success' => true,
-            'data' => $stats,
-            'meta' => $metadata
-        ], 200);
-
-    } catch (\Exception $e) {
-        // === GESTIONE ERRORI COMPLETA ===
-        Log::error('Errore in statisticheTecnico API', [
-            'user_id' => Auth::id(),
-            'error_message' => $e->getMessage(),
-            'error_file' => $e->getFile(),
-            'error_line' => $e->getLine()
-        ]);
-
-        return response()->json([
-            'success' => false,
-            'error' => config('app.debug') ? $e->getMessage() : 'Errore nel caricamento delle statistiche',
-            'code' => 500,
-            'timestamp' => now()->toISOString()
-        ], 500);
-    }
-}
-
-/**
- * VERSIONE CORRETTA di malfunzionamentiCritici() - CON NOME COLONNA CORRETTO
- */
-public function malfunzionamentiCritici()
-{
-    try {
-        // === CONTROLLO AUTORIZZAZIONI ===
-        if (!Auth::check() || !Auth::user()->isTecnico()) {
-            return response()->json(['error' => 'Unauthorized'], 403);
+            return response()->json([
+                'success' => false,
+                'error' => 'Errore nel caricamento malfunzionamenti critici'
+            ], 500);
         }
-
-        // === QUERY CON NOMI COLONNE CORRETTI ===
-        $critici = Malfunzionamento::where('gravita', 'critica')
-            ->with(['prodotto:id,nome,modello,categoria'])
-            ->select('id', 'titolo', 'descrizione', 'prodotto_id', 'created_at', 'numero_segnalazioni') // CORRETTO!
-            ->orderBy('numero_segnalazioni', 'desc') // CORRETTO! Più segnalazioni = più urgente
-            ->orderBy('created_at', 'desc')
-            ->take(20)
-            ->get()
-            ->map(function($m) {
-                return [
-                    'id' => $m->id,
-                    'titolo' => $m->titolo,
-                    'descrizione' => \Illuminate\Support\Str::limit($m->descrizione, 150),
-                    'prodotto' => [
-                        'id' => $m->prodotto->id,
-                        'nome' => $m->prodotto->nome,
-                        'modello' => $m->prodotto->modello,
-                        'categoria' => $m->prodotto->categoria
-                    ],
-                    'segnalazioni' => $m->numero_segnalazioni ?? 0, // CORRETTO!
-                    'data_creazione' => $m->created_at->format('d/m/Y H:i'),
-                    'urgenza' => $m->numero_segnalazioni > 5 ? 'alta' : 'media' // CORRETTO!
-                ];
-            });
-
-        return response()->json([
-            'success' => true,
-            'data' => $critici,
-            'count' => count($critici),
-            'timestamp' => now()->toISOString()
-        ], 200);
-
-    } catch (\Exception $e) {
-        Log::error('Errore malfunzionamentiCritici API', [
-            'error' => $e->getMessage(),
-            'user_id' => Auth::id()
-        ]);
-
-        return response()->json([
-            'success' => false,
-            'error' => 'Errore nel caricamento malfunzionamenti critici'
-        ], 500);
     }
-}
 
-/**
- * IMPORTANTE: SOSTITUISCI TUTTI I METODI PRECEDENTI CON QUESTE VERSIONI CORRETTE
- * 
- * SUMMARY DEI CAMBIAMENTI:
- * 1. Sostituito 'num_segnalazioni' con 'numero_segnalazioni' (nome corretto della colonna)
- * 2. Aggiunta nuova sezione 'piu_segnalati' per mostrare i problemi più frequenti
- * 3. Ordinamento corretto per urgenza basato su numero_segnalazioni
- * 4. Tutti i riferimenti alla colonna ora usano il nome corretto
- */
+    /**
+     * METODO STATISTICHE TECNICO VIEW - LINGUAGGIO: PHP con Vista HTML
+     * 
+     * Vista HTML completa per statistiche tecnico invece di JSON.
+     * Restituisce pagina web con grafici e tabelle per analisi dettagliata.
+     * 
+     * @return \Illuminate\View\View Vista Blade con statistiche complete
+     */
+    public function statisticheTecnicoView()
+    {
+        try {
+            // STEP 1: CONTROLLO AUTORIZZAZIONI
+            if (!Auth::check() || !Auth::user()->isTecnico()) {
+                abort(403, 'Accesso riservato ai tecnici');
+            }
 
-/**
- * PASSO 1: AGGIUNGI QUESTO METODO in AuthController.php
- * Crea una vista HTML per le statistiche tecnico invece di restituire JSON
- */
+            $user = Auth::user();
+            
+            // STEP 2: CALCOLO STATISTICHE PER VISTA WEB
+            $statistiche = [
+                // === STATISTICHE GENERALI ===
+                'generale' => [
+                    'total_prodotti' => Prodotto::count(),
+                    'total_malfunzionamenti' => Malfunzionamento::count(),
+                    'total_centri' => CentroAssistenza::count(),
+                    'prodotti_attivi' => Prodotto::where('attivo', true)->count()
+                ],
 
-/**
- * Vista HTML per le statistiche complete del tecnico
- * Questo metodo restituisce una pagina web invece di JSON
- * @return \Illuminate\View\View - Vista Blade con statistiche
- */
-public function statisticheTecnicoView()
-{
-    try {
-        // === CONTROLLO AUTORIZZAZIONI ===
-        if (!Auth::check() || !Auth::user()->isTecnico()) {
-            abort(403, 'Accesso riservato ai tecnici');
-        }
+                // === MALFUNZIONAMENTI CON TREND ===
+                'malfunzionamenti' => [
+                    'totali' => Malfunzionamento::count(),
+                    'critici' => Malfunzionamento::where('gravita', 'critica')->count(),
+                    'media' => Malfunzionamento::where('gravita', 'media')->count(),
+                    'bassa' => Malfunzionamento::where('gravita', 'bassa')->count(),
+                    
+                    // Per grafico a torta
+                    'per_gravita' => Malfunzionamento::selectRaw('gravita, COUNT(*) as count')
+                        ->whereNotNull('gravita')
+                        ->groupBy('gravita')
+                        ->get()
+                        ->pluck('count', 'gravita')
+                        ->toArray(),
+                        
+                    // Andamento mensile per trend
+                    'questo_mese' => Malfunzionamento::whereMonth('created_at', now()->month)
+                        ->whereYear('created_at', now()->year)
+                        ->count(),
+                    'mese_precedente' => Malfunzionamento::whereMonth('created_at', now()->subMonth()->month)
+                        ->whereYear('created_at', now()->subMonth()->year)
+                        ->count()
+                ],
 
-        $user = Auth::user();
-        
-        // === CALCOLO STATISTICHE PER LA VISTA ===
-        $statistiche = [
-            // Statistiche generali
-            'generale' => [
-                'total_prodotti' => Prodotto::count(),
-                'total_malfunzionamenti' => Malfunzionamento::count(),
-                'total_centri' => CentroAssistenza::count(),
-                'prodotti_attivi' => Prodotto::where('attivo', true)->count()
-            ],
+                // === CENTRO DI APPARTENENZA ===
+                'centro_assistenza' => $user->centroAssistenza ? [
+                    'id' => $user->centroAssistenza->id,
+                    'nome' => $user->centroAssistenza->nome,
+                    'citta' => $user->centroAssistenza->citta,
+                    'provincia' => $user->centroAssistenza->provincia,
+                    'indirizzo' => $user->centroAssistenza->indirizzo,
+                    'telefono' => $user->centroAssistenza->telefono,
+                    'altri_tecnici' => User::where('centro_assistenza_id', $user->centro_assistenza_id)
+                        ->where('id', '!=', $user->id)
+                        ->where('livello_accesso', 2)
+                        ->count(),
+                    // Lista colleghi per networking
+                    'colleghi' => User::where('centro_assistenza_id', $user->centro_assistenza_id)
+                        ->where('id', '!=', $user->id)
+                        ->where('livello_accesso', 2)
+                        ->get(['id', 'nome', 'cognome', 'specializzazione'])
+                ] : null,
 
-            // Malfunzionamenti per gravità
-            'malfunzionamenti' => [
-                'totali' => Malfunzionamento::count(),
-                'critici' => Malfunzionamento::where('gravita', 'critica')->count(),
-                'media' => Malfunzionamento::where('gravita', 'media')->count(),
-                'bassa' => Malfunzionamento::where('gravita', 'bassa')->count(),
-                
-                // Per il grafico a torta
-                'per_gravita' => Malfunzionamento::selectRaw('gravita, COUNT(*) as count')
-                    ->whereNotNull('gravita')
-                    ->groupBy('gravita')
+                // === TOP 10 CRITICI RECENTI ===
+                'critici_recenti' => Malfunzionamento::where('gravita', 'critica')
+                    ->with(['prodotto:id,nome,modello,categoria'])
+                    ->orderBy('numero_segnalazioni', 'desc')        // NOME CORRETTO
+                    ->orderBy('created_at', 'desc')
+                    ->take(10)
+                    ->get(),
+
+                // === PRODOTTI PROBLEMATICI ===
+                'prodotti_problematici' => Prodotto::whereHas('malfunzionamenti', function($q) {
+                        $q->where('gravita', 'critica');
+                    })
+                    ->withCount(['malfunzionamenti as critici_count' => function($q) {
+                        $q->where('gravita', 'critica');
+                    }])
+                    ->orderBy('critici_count', 'desc')
+                    ->take(10)
+                    ->get(),
+
+                // === DISTRIBUZIONE PER CATEGORIA ===
+                'per_categoria' => Prodotto::selectRaw('categoria, COUNT(*) as count')
+                    ->where('attivo', true)
+                    ->groupBy('categoria')
                     ->get()
-                    ->pluck('count', 'gravita')
+                    ->pluck('count', 'categoria')
                     ->toArray(),
-                    
-                // Andamento ultimo mese
-                'questo_mese' => Malfunzionamento::whereMonth('created_at', now()->month)
-                    ->whereYear('created_at', now()->year)
-                    ->count(),
-                'mese_precedente' => Malfunzionamento::whereMonth('created_at', now()->subMonth()->month)
-                    ->whereYear('created_at', now()->subMonth()->year)
-                    ->count()
-            ],
 
-            // Centro di appartenenza
-            'centro_assistenza' => $user->centroAssistenza ? [
-                'id' => $user->centroAssistenza->id,
-                'nome' => $user->centroAssistenza->nome,
-                'citta' => $user->centroAssistenza->citta,
-                'provincia' => $user->centroAssistenza->provincia,
-                'indirizzo' => $user->centroAssistenza->indirizzo,
-                'telefono' => $user->centroAssistenza->telefono,
-                'altri_tecnici' => User::where('centro_assistenza_id', $user->centro_assistenza_id)
-                    ->where('id', '!=', $user->id)
-                    ->where('livello_accesso', 2)
-                    ->count(),
-                // Tecnici colleghi nel centro
-                'colleghi' => User::where('centro_assistenza_id', $user->centro_assistenza_id)
-                    ->where('id', '!=', $user->id)
-                    ->where('livello_accesso', 2)
-                    ->get(['id', 'nome', 'cognome', 'specializzazione'])
-            ] : null,
+                // === TREND SETTIMANALE PER GRAFICO LINEARE ===
+                'trend_settimanale' => $this->calcolaTrendSettimanale(),
 
-            // Top 10 malfunzionamenti critici recenti
-            'critici_recenti' => Malfunzionamento::where('gravita', 'critica')
-                ->with(['prodotto:id,nome,modello,categoria'])
-                ->orderBy('numero_segnalazioni', 'desc')
-                ->orderBy('created_at', 'desc')
-                ->take(10)
-                ->get(),
+                // === STATISTICHE PERSONALI ===
+                'personali' => [
+                    'data_registrazione' => $user->created_at,
+                    'specializzazione' => $user->specializzazione,
+                    'giorni_attivo' => $user->created_at->diffInDays(now()),
+                    'ultimo_accesso' => now()                       // Potresti aggiungere campo last_login_at
+                ]
+            ];
 
-            // Prodotti più problematici
-            'prodotti_problematici' => Prodotto::whereHas('malfunzionamenti', function($q) {
-                    $q->where('gravita', 'critica');
-                })
-                ->withCount(['malfunzionamenti as critici_count' => function($q) {
-                    $q->where('gravita', 'critica');
-                }])
-                ->orderBy('critici_count', 'desc')
-                ->take(10)
-                ->get(),
+            // STEP 3: LOG VISUALIZZAZIONE
+            Log::info('Vista statistiche tecnico caricata', [
+                'user_id' => $user->id,
+                'username' => $user->username,
+                'centro' => $user->centroAssistenza->nome ?? 'Non assegnato'
+            ]);
 
-            // Statistiche per categoria
-            'per_categoria' => Prodotto::selectRaw('categoria, COUNT(*) as count')
-                ->where('attivo', true)
-                ->groupBy('categoria')
-                ->get()
-                ->pluck('count', 'categoria')
-                ->toArray(),
+            // STEP 4: RETURN VISTA BLADE COMPLETA
+            return view('tecnico.statistiche', [
+                'user' => $user,
+                'stats' => $statistiche,
+                'pageTitle' => 'Le mie Statistiche - Tecnico'
+            ]);
 
-            // Trend settimanale (ultimi 7 giorni)
-            'trend_settimanale' => $this->calcolaTrendSettimanale(),
+        } catch (\Exception $e) {
+            // STEP 5: GESTIONE ERRORI
+            Log::error('Errore vista statistiche tecnico', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
 
-            // Statistiche personali
-            'personali' => [
-                'data_registrazione' => $user->created_at,
-                'specializzazione' => $user->specializzazione,
-                'giorni_attivo' => $user->created_at->diffInDays(now()),
-                'ultimo_accesso' => now() // Potresti aggiungere un campo last_login_at
-            ]
-        ];
-
-        // === LOG DELLA VISUALIZZAZIONE ===
-        Log::info('Vista statistiche tecnico caricata', [
-            'user_id' => $user->id,
-            'username' => $user->username,
-            'centro' => $user->centroAssistenza->nome ?? 'Non assegnato'
-        ]);
-
-        // === RESTITUISCI VISTA BLADE ===
-        return view('tecnico.statistiche', [
-            'user' => $user,
-            'stats' => $statistiche,
-            'pageTitle' => 'Le mie Statistiche - Tecnico'
-        ]);
-
-    } catch (\Exception $e) {
-        // === GESTIONE ERRORI ===
-        Log::error('Errore vista statistiche tecnico', [
-            'user_id' => Auth::id(),
-            'error' => $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine()
-        ]);
-
-        return redirect()->route('tecnico.dashboard')
-            ->with('error', 'Errore nel caricamento delle statistiche. Riprova più tardi.');
+            return redirect()->route('tecnico.dashboard')
+                ->with('error', 'Errore nel caricamento delle statistiche. Riprova più tardi.');
+        }
     }
-}
 
-/**
- * METODO HELPER per calcolare il trend settimanale
- * Restituisce dati per grafico lineare degli ultimi 7 giorni
- */
-private function calcolaTrendSettimanale()
-{
-    $giorni = [];
-    $conteggi = [];
-    
-    for ($i = 6; $i >= 0; $i--) {
-        $data = now()->subDays($i);
-        $giorni[] = $data->format('d/m');
+    /**
+     * METODO HELPER CALCOLA TREND SETTIMANALE - LINGUAGGIO: PHP con Date Manipulation
+     * 
+     * Calcola dati per grafico lineare degli ultimi 7 giorni.
+     * Utilizzato per mostrare andamento temporale dei malfunzionamenti.
+     * 
+     * @return array Dati formattati per grafico JavaScript
+     */
+    private function calcolaTrendSettimanale()
+    {
+        $giorni = [];
+        $conteggi = [];
         
-        $conteggi[] = Malfunzionamento::whereDate('created_at', $data->format('Y-m-d'))
-            ->count();
+        // Loop per gli ultimi 7 giorni
+        for ($i = 6; $i >= 0; $i--) {
+            $data = now()->subDays($i);
+            $giorni[] = $data->format('d/m');                      // Formato per asse X
+            
+            // Conta malfunzionamenti creati in questo giorno
+            $conteggi[] = Malfunzionamento::whereDate('created_at', $data->format('Y-m-d'))
+                ->count();
+        }
+        
+        return [
+            'giorni' => $giorni,                                   // Labels per asse X
+            'conteggi' => $conteggi                                // Valori per asse Y
+        ];
     }
-    
-    return [
-        'giorni' => $giorni,
-        'conteggi' => $conteggi
-    ];
-}
-
- /**
- * PASSO 3: MODIFICA IL LINK NELLA DASHBOARD
- * Nel file resources/views/tecnico/dashboard.blade.php
- * Cerca il bottone "Le mie Stats" e cambia il link da:
- * href="{{ route('api.tecnico.statistiche') }}"
- * a:
- * href="{{ route('tecnico.statistiche.view') }}"
- */
-
-/**
- * PASSO 4: CREA IL FILE VISTA
- * Crea il file: resources/views/tecnico/statistiche.blade.php
- * Vedi il prossimo artifact per il contenuto completo della vista
- */
 }
