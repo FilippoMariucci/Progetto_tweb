@@ -1,0 +1,157 @@
+Template per ogni file JavaScript
+Ogni file JavaScript dovrebbe seguire questo template con commenti:
+javascript/**
+ * [NOME FILE] - [DESCRIZIONE FUNZIONALITA]
+ * File: /public/js/[percorso]/[nome-file].js
+ * Gestisce: [lista delle funzionalità]
+ * @author Gruppo 51 - Corso Tecnologie Web 2024/2025
+ */
+
+$(document).ready(function() {
+    console.log('[NOME FILE] caricato');
+    
+    // Controlla se siamo nella pagina corretta
+    const currentRoute = window.LaravelApp?.route || '';
+    if (currentRoute !== '[nome.route.specifica]') {
+        console.log('Script caricato ma route non corrispondente');
+        return;
+    }
+    
+    // Ottieni dati specifici della pagina
+    const pageData = window.PageData || {};
+    const user = window.LaravelApp?.user;
+    
+    // === CONFIGURAZIONE SPECIFICA ===
+    
+    // === INIZIALIZZAZIONE COMPONENTI ===
+    
+    // === EVENT HANDLERS ===
+    
+    // === FUNZIONI PRINCIPALI ===
+    
+    // === FUNZIONI HELPER LOCALI ===
+    
+    // === CHIAMATE AJAX ===
+    
+    console.log('[NOME FILE] inizializzato correttamente');
+});
+
+
+
+Esempi per file specifici
+admin/assegnazioni-index.js:
+javascript/**
+ * Admin Assegnazioni Index - Gestione assegnazione prodotti a staff
+ * File: /public/js/admin/assegnazioni-index.js
+ * Gestisce: selezione multipla prodotti, assegnazione staff, filtri
+ * @author Gruppo 51 - Corso Tecnologie Web 2024/2025
+ */
+
+$(document).ready(function() {
+    console.log('Admin assegnazioni index caricato');
+    
+    const currentRoute = window.LaravelApp?.route || '';
+    if (currentRoute !== 'admin.assegnazioni.index') {
+        return;
+    }
+    
+    const pageData = window.PageData || {};
+    let selectedProducts = [];
+    
+    // Il tuo codice JavaScript qui...
+});
+
+
+
+
+
+malfunzionamenti/show.js:
+javascript/**
+ * Malfunzionamento Show - Visualizzazione dettagli malfunzionamento
+ * File: /public/js/malfunzionamenti/show.js  
+ * Gestisce: segnalazioni problemi, visualizzazione soluzioni, interazioni tecnici
+ * @author Gruppo 51 - Corso Tecnologie Web 2024/2025
+ */
+
+$(document).ready(function() {
+    console.log('Dettaglio malfunzionamento caricato');
+    
+    const currentRoute = window.LaravelApp?.route || '';
+    if (currentRoute !== 'malfunzionamenti.show') {
+        return;
+    }
+    
+    const pageData = window.PageData || {};
+    const malfunzionamento = pageData.malfunzionamento;
+    
+    if (!malfunzionamento) {
+        console.warn('Dati malfunzionamento non disponibili');
+        return;
+    }
+    
+    // Il tuo codice JavaScript qui...
+});
+
+
+
+
+Come spostare JavaScript dalle view
+Per ogni view:
+
+Trova il JavaScript nella view (blocchi @push('scripts'))
+Copia il codice senza $(document).ready()
+Incolla nel file corrispondente usando il template sopra
+Sostituisci nella view con solo:
+
+blade@push('scripts')
+
+
+@push('scripts')
+<script>
+// Inizializza i dati della pagina se non esistono già
+window.PageData = window.PageData || {};
+
+// Aggiungi dati specifici solo se necessari per questa view
+@if(isset($prodotto))
+window.PageData.prodotto = @json($prodotto);
+@endif
+
+@if(isset($prodotti))
+window.PageData.prodotti = @json($prodotti);
+@endif
+
+@if(isset($malfunzionamento))
+window.PageData.malfunzionamento = @json($malfunzionamento);
+@endif
+
+@if(isset($malfunzionamenti))
+window.PageData.malfunzionamenti = @json($malfunzionamenti);
+@endif
+
+@if(isset($centro))
+window.PageData.centro = @json($centro);
+@endif
+
+@if(isset($centri))
+window.PageData.centri = @json($centri);
+@endif
+
+@if(isset($categorie))
+window.PageData.categorie = @json($categorie);
+@endif
+
+@if(isset($staffMembers))
+window.PageData.staffMembers = @json($staffMembers);
+@endif
+
+@if(isset($stats))
+window.PageData.stats = @json($stats);
+@endif
+
+@if(isset($user))
+window.PageData.user = @json($user);
+@endif
+
+// Aggiungi altri dati che potrebbero servire...
+</script>
+@endpush
