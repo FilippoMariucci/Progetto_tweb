@@ -1,47 +1,98 @@
 <?php
 
+/*
+ * LINGUAGGIO: PHP 8.x con Laravel Framework 12
+ * TIPO FILE: Modello Eloquent (ORM di Laravel)
+ * DESCRIZIONE: Modello per la gestione dei prodotti nel sistema di assistenza tecnica
+ * 
+ * Questo modello rappresenta la tabella 'prodotti' nel database e gestisce:
+ * - Le relazioni con malfunzionamenti e utenti staff
+ * - La ricerca testuale con supporto wildcard
+ * - La gestione delle categorie di prodotti
+ * - L'upload e gestione delle immagini
+ * - Le statistiche sui malfunzionamenti associati
+ */
+
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+// IMPORT delle classi Laravel necessarie per il funzionamento del modello
+use Illuminate\Database\Eloquent\Factories\HasFactory;     // Per il seeding/testing
+use Illuminate\Database\Eloquent\Model;                    // Classe base per tutti i modelli Eloquent
+use Illuminate\Database\Eloquent\Builder;                  // Per costruire query personalizzate
+use Illuminate\Database\Eloquent\Relations\HasMany;       // Relazione 1-a-molti
+use Illuminate\Database\Eloquent\Relations\BelongsTo;     // Relazione molti-a-1
 
+/**
+ * CLASSE PRINCIPALE DEL MODELLO PRODOTTO
+ * 
+ * Estende Model di Laravel per utilizzare l'ORM Eloquent
+ * Rappresenta un prodotto nel sistema di assistenza tecnica
+ */
 class Prodotto extends Model
 {
+    // TRAIT: Abilita l'uso di factory per il seeding e testing
     use HasFactory;
 
+    /**
+     * CONFIGURAZIONE TABELLA DATABASE
+     * 
+     * $table: specifica il nome della tabella nel database
+     * Laravel di default usa il plurale del nome classe (prodottos), 
+     * qui forziamo l'uso di 'prodotti' (plurale italiano)
+     */
     protected $table = 'prodotti';
 
+    /**
+     * CONFIGURAZIONE MASS ASSIGNMENT
+     * 
+     * $fillable: array dei campi che possono essere assegnati in massa
+     * Protezione di sicurezza di Laravel per evitare mass assignment attacks
+     * Solo questi campi possono essere valorizzati con create() o fill()
+     */
     protected $fillable = [
-        'nome',
-        'modello', 
-        'descrizione',
-        'categoria',
-        'note_tecniche',
-        'modalita_installazione',
-        'modalita_uso',
-        'prezzo',
-        'foto',
-        'staff_assegnato_id',
-        'attivo'
+        'nome',                    // Nome del prodotto (es: "Lavatrice")
+        'modello',                 // Modello specifico (es: "WM2100")
+        'descrizione',             // Descrizione dettagliata del prodotto
+        'categoria',               // Categoria di appartenenza (lavatrice, frigorifero, etc)
+        'note_tecniche',           // Note tecniche per i tecnici
+        'modalita_installazione',  // Istruzioni di installazione
+        'modalita_uso',           // Istruzioni d'uso
+        'prezzo',                 // Prezzo del prodotto
+        'foto',                   // Path dell'immagine del prodotto
+        'staff_assegnato_id',     // ID dello staff assegnato (funzionalità opzionale)
+        'attivo'                  // Flag booleano per attivazione/disattivazione
     ];
 
+    /**
+     * CONFIGURAZIONE CAST AUTOMATICI
+     * 
+     * $casts: definisce come Laravel deve convertire i dati dal database
+     * Automatizza la conversione dei tipi quando si legge/scrive dal DB
+     */
     protected $casts = [
-        'prezzo' => 'decimal:2',
-        'attivo' => 'boolean',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime'
+        'prezzo' => 'decimal:2',        // Converte in decimal con 2 cifre decimali
+        'attivo' => 'boolean',          // Converte 0/1 in true/false
+        'created_at' => 'datetime',     // Converte in oggetto Carbon (DateTime esteso)
+        'updated_at' => 'datetime'      // Converte in oggetto Carbon (DateTime esteso)
     ];
 
     // ================================================
-    // RELAZIONI
+    // SEZIONE RELAZIONI ELOQUENT
     // ================================================
 
     /**
-     * Relazione con i malfunzionamenti del prodotto
-     * Un prodotto può avere molti malfunzionamenti
+     * RELAZIONE ELOQUENT: Un prodotto ha molti malfunzionamenti
+     * 
+     * TIPO: One-to-Many (1:N)
+     * LINGUAGGIO: Eloquent ORM (parte di Laravel)
+     * 
+     * @return HasMany Relazione con il modello Malfunzionamento
+     * 
+     * SPIEGAZIONE:
+     * - hasMany() crea una relazione 1-a-molti
+     * - Un prodotto può avere 0 o più malfunzionamenti
+     * - La foreign key è 'prodotto_id' nella tabella malfunzionamenti
+     * - Permette di accedere ai malfunzionamenti con $prodotto->malfunzionamenti
      */
     public function malfunzionamenti(): HasMany
     {
@@ -49,8 +100,18 @@ class Prodotto extends Model
     }
 
     /**
-     * Relazione con lo staff assegnato al prodotto
-     * Un prodotto può essere assegnato a un membro dello staff (funzionalità opzionale)
+     * RELAZIONE ELOQUENT: Un prodotto appartiene a un membro dello staff
+     * 
+     * TIPO: Many-to-One (N:1) - Relazione opzionale
+     * LINGUAGGIO: Eloquent ORM
+     * 
+     * @return BelongsTo Relazione con il modello User (staff)
+     * 
+     * SPIEGAZIONE:
+     * - belongsTo() crea una relazione molti-a-1
+     * - Implementa la funzionalità opzionale di assegnazione prodotti al staff
+     * - La foreign key è 'staff_assegnato_id' in questa tabella
+     * - Se NULL, il prodotto non è assegnato a nessuno
      */
     public function staffAssegnato(): BelongsTo
     {
@@ -58,33 +119,48 @@ class Prodotto extends Model
     }
 
     // ================================================
-    // ACCESSORS (Attributi Calcolati)
+    // SEZIONE ACCESSORS (ATTRIBUTI CALCOLATI)
     // ================================================
 
     /**
-     * FIXED: Accessor per URL immagine prodotto
-     * Gestisce diversi scenari di storage
+     * ACCESSOR: URL completo dell'immagine del prodotto
+     * 
+     * LINGUAGGIO: PHP + Laravel Accessor Pattern
+     * TIPO: Attributo virtuale (non esiste nel database)
+     * 
+     * @return string URL completo dell'immagine o placeholder
+     * 
+     * SPIEGAZIONE:
+     * - Gli accessor in Laravel si definiscono con getNomeAttribute()
+     * - Si accede come $prodotto->foto_url (snake_case)
+     * - Gestisce diversi scenari di storage per compatibilità
+     * - Se non c'è immagine, restituisce un placeholder
+     * - asset() genera URL pubblici relativi alla document root
      */
     public function getFotoUrlAttribute(): string
     {
+        // Se non c'è immagine salvata, usa placeholder
         if (!$this->foto) {
-            // Immagine placeholder se non presente
             return asset('images/prodotto-placeholder.jpg');
         }
 
-        // === TENTATIVO 1: Storage Laravel standard ===
+        // TENTATIVO 1: Path standard Laravel Storage
+        // storage/ è il link simbolico verso storage/app/public
         $standardPath = asset('storage/' . $this->foto);
         
-        // === TENTATIVO 2: Path diretto alla cartella storage ===
+        // TENTATIVO 2: Path diretto alla cartella storage
+        // Per casi in cui il symlink non funziona
         $directPath = asset('storage/app/public/' . $this->foto);
         
-        // === TENTATIVO 3: Path verso uploads pubblici ===
+        // TENTATIVO 3: Path verso uploads pubblici
+        // Approccio alternativo con cartella uploads
         $uploadsPath = asset('uploads/prodotti/' . basename($this->foto));
         
-        // === TENTATIVO 4: URL completo con dominio ===
+        // TENTATIVO 4: URL completo con dominio
+        // url() genera URL assoluti invece di relativi
         $fullUrl = url('storage/' . $this->foto);
 
-        // Per debug, logga tutti i path possibili (solo in development)
+        // DEBUGGING: Logga tutti i path possibili in modalità development
         if (config('app.debug')) {
             \Log::debug('Tentativi path immagine', [
                 'foto_field' => $this->foto,
@@ -95,12 +171,22 @@ class Prodotto extends Model
             ]);
         }
 
-        // Prova prima il path standard
+        // Restituisce il path standard (il più comune)
         return $standardPath;
     }
 
     /**
-     * Fallback: URL immagine con path alternativo
+     * ACCESSOR ALTERNATIVO: URL immagine con verifica esistenza file
+     * 
+     * LINGUAGGIO: PHP + Laravel + File System
+     * 
+     * @return string URL dell'immagine verificando che il file esista
+     * 
+     * SPIEGAZIONE:
+     * - Prova diversi path e verifica l'esistenza fisica del file
+     * - public_path() restituisce il path assoluto alla cartella public
+     * - file_exists() verifica se il file esiste fisicamente
+     * - Più lento ma più affidabile del primo accessor
      */
     public function getFotoUrlAlternativeAttribute(): string
     {
@@ -108,14 +194,15 @@ class Prodotto extends Model
             return asset('images/no-image.png');
         }
 
-        // Prova path alternativi
+        // Array di possibili percorsi dove cercare l'immagine
         $paths = [
-            'storage/' . $this->foto,
-            'storage/app/public/' . $this->foto,
-            'uploads/prodotti/' . basename($this->foto),
-            'images/prodotti/' . basename($this->foto)
+            'storage/' . $this->foto,                           // Storage standard
+            'storage/app/public/' . $this->foto,                // Storage diretto
+            'uploads/prodotti/' . basename($this->foto),        // Uploads custom
+            'images/prodotti/' . basename($this->foto)          // Images custom
         ];
 
+        // Itera sui path e restituisce il primo file esistente
         foreach ($paths as $path) {
             $fullPath = public_path($path);
             if (file_exists($fullPath)) {
@@ -123,12 +210,21 @@ class Prodotto extends Model
             }
         }
 
-        // Se nessun file trovato, restituisce placeholder
+        // Se nessun file trovato, placeholder di fallback
         return asset('images/no-image.png');
     }
 
     /**
-     * Nome completo del prodotto (nome + modello)
+     * ACCESSOR: Nome completo del prodotto
+     * 
+     * LINGUAGGIO: PHP + Laravel
+     * 
+     * @return string Concatenazione di nome e modello
+     * 
+     * SPIEGAZIONE:
+     * - Combina nome e modello per un identificativo completo
+     * - Es: "Lavatrice" + "WM2100" = "Lavatrice WM2100"
+     * - Utile per dropdown e visualizzazioni compatte
      */
     public function getNomeCompletoAttribute(): string
     {
@@ -136,8 +232,17 @@ class Prodotto extends Model
     }
 
     /**
-     * FIXED: Label formattata per la categoria - SISTEMA UNIFICATO
-     * Ora usa il mapping unificato delle categorie
+     * ACCESSOR: Etichetta formattata della categoria
+     * 
+     * LINGUAGGIO: PHP + Laravel
+     * 
+     * @return string Nome user-friendly della categoria
+     * 
+     * SPIEGAZIONE:
+     * - Converte la categoria dal formato database a formato leggibile
+     * - Usa il sistema unificato delle categorie
+     * - Es: "lavatrice" -> "Lavatrici"
+     * - Se categoria non mappata, formatta automaticamente (underscore -> spazi, prima lettera maiuscola)
      */
     public function getCategoriaLabelAttribute(): string
     {
@@ -145,7 +250,17 @@ class Prodotto extends Model
     }
 
     /**
-     * Prezzo formattato in Euro
+     * METODO: Prezzo formattato in Euro
+     * 
+     * LINGUAGGIO: PHP
+     * 
+     * @return string Prezzo formattato per visualizzazione
+     * 
+     * SPIEGAZIONE:
+     * - Formatta il prezzo numerico in stringa leggibile
+     * - number_format(valore, decimali, sep_decimali, sep_migliaia)
+     * - Gestisce il caso di prezzo mancante
+     * - Es: 1234.56 -> "€ 1.234,56"
      */
     public function getPrezzoFormattato(): string
     {
@@ -157,21 +272,41 @@ class Prodotto extends Model
     }
 
     /**
-     * Conta i malfunzionamenti totali per questo prodotto
+     * ACCESSOR: Conteggio totale malfunzionamenti
+     * 
+     * LINGUAGGIO: PHP + Eloquent ORM
+     * 
+     * @return int Numero di malfunzionamenti associati
+     * 
+     * SPIEGAZIONE:
+     * - relationLoaded() verifica se la relazione è già stata caricata in memoria
+     * - Se già caricata, conta gli elementi in memoria (più veloce)
+     * - Se non caricata, esegue query di conteggio sul database
+     * - Ottimizzazione per evitare query duplicate
      */
     public function getTotaleMalfunzionamentiAttribute(): int
     {
-        // Se la relazione è già caricata, usa i dati in memoria
+        // Controllo ottimizzazione: usa dati in memoria se disponibili
         if ($this->relationLoaded('malfunzionamenti')) {
             return $this->malfunzionamenti->count();
         }
         
-        // Altrimenti esegui una query di conteggio
+        // Altrimenti esegui COUNT(*) sul database
         return $this->malfunzionamenti()->count();
     }
 
     /**
-     * Conta le segnalazioni totali per tutti i malfunzionamenti
+     * ACCESSOR: Somma totale segnalazioni
+     * 
+     * LINGUAGGIO: PHP + Eloquent ORM
+     * 
+     * @return int Somma di tutte le segnalazioni dei malfunzionamenti
+     * 
+     * SPIEGAZIONE:
+     * - sum('campo') esegue una query SQL SUM() sul database
+     * - Somma il campo 'numero_segnalazioni' di tutti i malfunzionamenti
+     * - ?? 0 è null coalescing: se sum() restituisce null, usa 0
+     * - Utile per statistiche generali del prodotto
      */
     public function getTotaleSegnalazioniAttribute(): int
     {
@@ -179,7 +314,18 @@ class Prodotto extends Model
     }
 
     /**
-     * Ottiene i malfunzionamenti ordinati per gravità e frequenza
+     * ACCESSOR: Malfunzionamenti ordinati per priorità
+     * 
+     * LINGUAGGIO: PHP + Eloquent ORM + SQL
+     * 
+     * @return Collection Malfunzionamenti ordinati per gravità e frequenza
+     * 
+     * SPIEGAZIONE:
+     * - orderByRaw() permette di usare SQL raw per ordinamenti complessi
+     * - FIELD() di MySQL ordina secondo un ordine specifico di valori
+     * - Prima ordina per gravità (critica, alta, media, bassa)
+     * - Poi ordina per numero di segnalazioni (decrescente)
+     * - get() esegue la query e restituisce una Collection Laravel
      */
     public function getMalfunzionamentiOrdinatiAttribute()
     {
@@ -190,7 +336,16 @@ class Prodotto extends Model
     }
 
     /**
-     * Ottiene il numero di malfunzionamenti critici
+     * ACCESSOR: Conteggio malfunzionamenti critici
+     * 
+     * LINGUAGGIO: PHP + Eloquent ORM
+     * 
+     * @return int Numero di malfunzionamenti con gravità critica
+     * 
+     * SPIEGAZIONE:
+     * - where('campo', 'valore') aggiunge condizione WHERE alla query
+     * - count() esegue un COUNT(*) con le condizioni specificate
+     * - Utile per dashboard e badge di allarme
      */
     public function getMalfunzionamentiCriticiCountAttribute(): int
     {
@@ -200,7 +355,11 @@ class Prodotto extends Model
     }
 
     /**
-     * Ottiene il numero di malfunzionamenti di alta gravità
+     * ACCESSOR: Conteggio malfunzionamenti di alta gravità
+     * 
+     * LINGUAGGIO: PHP + Eloquent ORM
+     * 
+     * @return int Numero di malfunzionamenti con gravità alta
      */
     public function getMalfunzionamentiAltaCountAttribute(): int
     {
@@ -210,7 +369,16 @@ class Prodotto extends Model
     }
 
     /**
-     * Categoria formattata per visualizzazione
+     * ACCESSOR: Alias per categoria formattata
+     * 
+     * LINGUAGGIO: PHP + Laravel
+     * 
+     * @return string Categoria formattata (alias di categoria_label)
+     * 
+     * SPIEGAZIONE:
+     * - Accessor che richiama altro accessor
+     * - Fornisce nomenclatura alternativa per lo stesso dato
+     * - Utile per compatibilità con vecchio codice
      */
     public function getCategoriaFormattataAttribute(): string
     {
@@ -218,12 +386,20 @@ class Prodotto extends Model
     }
 
     // ================================================
-    // METODI HELPER PER MALFUNZIONAMENTI
+    // SEZIONE METODI HELPER PER MALFUNZIONAMENTI
     // ================================================
 
     /**
-     * Controlla se il prodotto ha malfunzionamenti critici
-     * Metodo utilizzato nelle viste per mostrare badge di avviso
+     * METODO HELPER: Verifica presenza malfunzionamenti critici
+     * 
+     * LINGUAGGIO: PHP + Eloquent ORM
+     * 
+     * @return bool True se esistono malfunzionamenti critici
+     * 
+     * SPIEGAZIONE:
+     * - exists() verifica se esiste almeno un record che soddisfa le condizioni
+     * - Più efficiente di count() > 0 perché si ferma al primo match
+     * - Utile per badge di allarme e priorità nelle viste
      */
     public function hasMalfunzionamentiCritici(): bool
     {
@@ -233,7 +409,11 @@ class Prodotto extends Model
     }
 
     /**
-     * Controlla se il prodotto ha malfunzionamenti di alta gravità
+     * METODO HELPER: Verifica presenza malfunzionamenti di alta gravità
+     * 
+     * LINGUAGGIO: PHP + Eloquent ORM
+     * 
+     * @return bool True se esistono malfunzionamenti di alta gravità
      */
     public function hasMalfunzionamentiAlta(): bool
     {
@@ -243,7 +423,17 @@ class Prodotto extends Model
     }
 
     /**
-     * Ottiene i malfunzionamenti più critici (massimo 5)
+     * METODO HELPER: Ottieni top 5 malfunzionamenti critici
+     * 
+     * LINGUAGGIO: PHP + Eloquent ORM
+     * 
+     * @return Collection I 5 malfunzionamenti critici più segnalati
+     * 
+     * SPIEGAZIONE:
+     * - Filtra per gravità critica
+     * - Ordina per numero segnalazioni (decrescente = più segnalati primi)
+     * - limit(5) limita i risultati ai primi 5
+     * - Utile per dashboard riepilogative
      */
     public function getMalfunzionamentiCritici()
     {
@@ -255,7 +445,11 @@ class Prodotto extends Model
     }
 
     /**
-     * Ottiene i malfunzionamenti più segnalati (massimo 5)
+     * METODO HELPER: Ottieni top 5 malfunzionamenti più frequenti
+     * 
+     * LINGUAGGIO: PHP + Eloquent ORM
+     * 
+     * @return Collection I 5 malfunzionamenti più segnalati (qualsiasi gravità)
      */
     public function getMalfunzionamentiFrequenti()
     {
@@ -266,7 +460,16 @@ class Prodotto extends Model
     }
 
     /**
-     * Controlla se il prodotto è assegnato a uno staff
+     * METODO HELPER: Verifica se prodotto è assegnato a staff
+     * 
+     * LINGUAGGIO: PHP
+     * 
+     * @return bool True se il prodotto è assegnato a qualcuno
+     * 
+     * SPIEGAZIONE:
+     * - is_null() controlla se il valore è NULL
+     * - !is_null() restituisce true se NON è null (quindi assegnato)
+     * - Implementa funzionalità opzionale di gestione staff
      */
     public function isAssegnato(): bool
     {
@@ -274,7 +477,18 @@ class Prodotto extends Model
     }
 
     /**
-     * Ottiene le statistiche complete del prodotto
+     * METODO HELPER: Statistiche complete del prodotto
+     * 
+     * LINGUAGGIO: PHP + Laravel
+     * 
+     * @return array Array associativo con tutte le statistiche
+     * 
+     * SPIEGAZIONE:
+     * - Aggregazione di tutti i dati statistici in un unico array
+     * - Usa accessor e metodi helper già definiti
+     * - ?-> operator: safe navigation (PHP 8.0+), evita errori se null
+     * - ->only() su User estrae solo i campi specificati
+     * - Utile per API e dashboard
      */
     public function getStatistiche(): array
     {
@@ -285,18 +499,30 @@ class Prodotto extends Model
             'totale_segnalazioni' => $this->totale_segnalazioni,
             'has_problemi_critici' => $this->hasMalfunzionamentiCritici(),
             'has_problemi_alta' => $this->hasMalfunzionamentiAlta(),
-            'staff_assegnato' => $this->staffAssegnato?->nome_completo,
+            'staff_assegnato' => $this->staffAssegnato?->nome_completo,  // Safe navigation
             'categoria_formattata' => $this->categoria_formattata,
             'attivo' => $this->attivo
         ];
     }
 
     /**
-     * Ottiene il badge di gravità per il prodotto
-     * Basato sui malfunzionamenti più gravi presenti
+     * METODO HELPER: Badge di gravità per UI
+     * 
+     * LINGUAGGIO: PHP
+     * 
+     * @return array Configurazione badge con classe CSS, testo e icona
+     * 
+     * SPIEGAZIONE:
+     * - Logica a cascata per determinare il livello di gravità
+     * - Restituisce array con configurazione per Bootstrap badges
+     * - 'class': classe CSS Bootstrap per il colore
+     * - 'text': testo da visualizzare
+     * - 'icon': classe icona Bootstrap Icons
+     * - Ordine: Critico > Alta > Media > OK
      */
     public function getBadgeGravita(): array
     {
+        // Priorità 1: Problemi critici (rosso)
         if ($this->hasMalfunzionamentiCritici()) {
             return [
                 'class' => 'bg-danger',
@@ -305,6 +531,7 @@ class Prodotto extends Model
             ];
         }
         
+        // Priorità 2: Problemi di alta gravità (arancione)
         if ($this->hasMalfunzionamentiAlta()) {
             return [
                 'class' => 'bg-warning',
@@ -313,6 +540,7 @@ class Prodotto extends Model
             ];
         }
         
+        // Priorità 3: Ha malfunzionamenti ma non gravi (blu)
         if ($this->totale_malfunzionamenti > 0) {
             return [
                 'class' => 'bg-info',
@@ -321,6 +549,7 @@ class Prodotto extends Model
             ];
         }
         
+        // Priorità 4: Nessun malfunzionamento (verde)
         return [
             'class' => 'bg-success',
             'text' => 'OK',
@@ -329,11 +558,24 @@ class Prodotto extends Model
     }
 
     // ================================================
-    // SCOPE (Filtri per Query)
+    // SEZIONE SCOPE (FILTRI PER QUERY)
     // ================================================
 
     /**
-     * Scope per prodotti attivi
+     * SCOPE: Filtra solo prodotti attivi
+     * 
+     * LINGUAGGIO: PHP + Eloquent ORM
+     * TIPO: Query Scope (pattern Laravel)
+     * 
+     * @param Builder $query Il query builder da modificare
+     * @return void Modifica la query per riferimento
+     * 
+     * SPIEGAZIONE:
+     * - Gli scope in Laravel si chiamano scopeNome()
+     * - Si usano chiamando ->attivi() sulla query
+     * - Builder è l'oggetto che costruisce le query SQL
+     * - where('attivo', true) aggiunge WHERE attivo = 1
+     * - void significa che non restituisce nulla, modifica $query
      */
     public function scopeAttivi(Builder $query): void
     {
@@ -341,7 +583,18 @@ class Prodotto extends Model
     }
 
     /**
-     * Scope per prodotti di una categoria specifica
+     * SCOPE: Filtra per categoria specifica
+     * 
+     * LINGUAGGIO: PHP + Eloquent ORM
+     * 
+     * @param Builder $query Query builder
+     * @param string $categoria Categoria da filtrare
+     * @return void
+     * 
+     * SPIEGAZIONE:
+     * - Scope con parametro per filtrare una categoria specifica
+     * - Si usa: Prodotto::categoria('lavatrice')->get()
+     * - Aggiunge WHERE categoria = 'valore_parametro'
      */
     public function scopeCategoria(Builder $query, string $categoria): void
     {
@@ -349,19 +602,34 @@ class Prodotto extends Model
     }
 
     /**
-     * Scope per ricerca testuale
+     * SCOPE: Ricerca testuale nei campi principali
+     * 
+     * LINGUAGGIO: PHP + Eloquent ORM + SQL
+     * 
+     * @param Builder $query Query builder
+     * @param string $termine Termine di ricerca
+     * @return void
+     * 
+     * SPIEGAZIONE:
+     * - Implementa ricerca full-text sui campi nome, descrizione, modello
+     * - str_ends_with() (PHP 8.0+) verifica se stringa finisce con carattere
+     * - Supporta wildcard "*" solo alla fine del termine
+     * - LIKE con % permette matching parziale
+     * - where(function()) crea OR group in parentesi
+     * - Es: "lav*" cerca tutto che inizia con "lav"
      */
     public function scopeRicerca(Builder $query, string $termine): void
     {
-        // Implementa wildcard search
+        // Gestione wildcard: se termine finisce con *, cerca per prefisso
         if (str_ends_with($termine, '*')) {
-            $termine = rtrim($termine, '*');
+            $termine = rtrim($termine, '*');  // Rimuove * dalla fine
             $query->where(function($q) use ($termine) {
                 $q->where('nome', 'LIKE', $termine . '%')
                   ->orWhere('descrizione', 'LIKE', $termine . '%')
                   ->orWhere('modello', 'LIKE', $termine . '%');
             });
         } else {
+            // Ricerca normale: termine può essere ovunque nel testo
             $query->where(function($q) use ($termine) {
                 $q->where('nome', 'LIKE', '%' . $termine . '%')
                   ->orWhere('descrizione', 'LIKE', '%' . $termine . '%')
@@ -371,11 +639,23 @@ class Prodotto extends Model
     }
 
     /**
-     * Scope per ricerca con wildcard (supporta *)
+     * SCOPE: Ricerca con wildcard generico
+     * 
+     * LINGUAGGIO: PHP + Eloquent ORM
+     * 
+     * @param Builder $query Query builder
+     * @param string $termine Pattern di ricerca con *
+     * @return void
+     * 
+     * SPIEGAZIONE:
+     * - Versione semplificata che converte * in % di SQL
+     * - str_replace('*', '%', $termine) converte wildcard
+     * - Più flessibile: supporta * in qualsiasi posizione
+     * - Es: "lav*" -> "lav%", "*rice" -> "%rice", "la*trice" -> "la%trice"
      */
     public function scopeRicercaWildcard(Builder $query, string $termine): void
     {
-        // Converte * in % per MySQL LIKE
+        // Converte wildcard utente (*) in wildcard SQL (%)
         $pattern = str_replace('*', '%', $termine);
         
         $query->where(function($q) use ($pattern) {
@@ -386,7 +666,18 @@ class Prodotto extends Model
     }
 
     /**
-     * Scope per prodotti assegnati a uno staff specifico
+     * SCOPE: Prodotti assegnati a staff specifico
+     * 
+     * LINGUAGGIO: PHP + Eloquent ORM
+     * 
+     * @param Builder $query Query builder
+     * @param int $staffId ID dello staff member
+     * @return void
+     * 
+     * SPIEGAZIONE:
+     * - Filtra prodotti assegnati a un membro dello staff specifico
+     * - Implementa funzionalità opzionale del progetto
+     * - WHERE staff_assegnato_id = $staffId
      */
     public function scopeAssegnatiA(Builder $query, int $staffId): void
     {
@@ -394,7 +685,17 @@ class Prodotto extends Model
     }
 
     /**
-     * Scope per prodotti non assegnati
+     * SCOPE: Prodotti non assegnati a nessuno
+     * 
+     * LINGUAGGIO: PHP + Eloquent ORM
+     * 
+     * @param Builder $query Query builder
+     * @return void
+     * 
+     * SPIEGAZIONE:
+     * - Filtra prodotti senza assegnazione staff
+     * - whereNull() genera WHERE campo IS NULL
+     * - Utile per mostrare prodotti disponibili per assegnazione
      */
     public function scopeNonAssegnati(Builder $query): void
     {
@@ -402,7 +703,18 @@ class Prodotto extends Model
     }
 
     /**
-     * Scope per prodotti con malfunzionamenti critici
+     * SCOPE: Prodotti con malfunzionamenti critici
+     * 
+     * LINGUAGGIO: PHP + Eloquent ORM
+     * 
+     * @param Builder $query Query builder
+     * @return void
+     * 
+     * SPIEGAZIONE:
+     * - whereHas() filtra modelli che hanno relazioni che soddisfano condizioni
+     * - Equivalente a EXISTS (SELECT * FROM malfunzionamenti WHERE...)
+     * - La closure function definisce le condizioni sulla relazione
+     * - Utile per dashboard di emergenza
      */
     public function scopeConMalfunzionamentiCritici(Builder $query): void
     {
@@ -412,7 +724,19 @@ class Prodotto extends Model
     }
 
     /**
-     * Scope per prodotti con molti malfunzionamenti
+     * SCOPE: Prodotti con molti malfunzionamenti
+     * 
+     * LINGUAGGIO: PHP + Eloquent ORM + SQL
+     * 
+     * @param Builder $query Query builder
+     * @param int $soglia Numero minimo di malfunzionamenti (default 5)
+     * @return void
+     * 
+     * SPIEGAZIONE:
+     * - withCount() aggiunge un campo calcolato con COUNT()
+     * - having() filtra sui risultati aggregati (come WHERE ma per GROUP BY)
+     * - Identifica prodotti problematici con molti malfunzionamenti
+     * - Il campo calcolato si chiama {relazione}_count
      */
     public function scopeConMoltiMalfunzionamenti(Builder $query, int $soglia = 5): void
     {
@@ -421,7 +745,18 @@ class Prodotto extends Model
     }
 
     /**
-     * Scope per prodotti per categoria
+     * SCOPE: Alias per categoria (per compatibilità)
+     * 
+     * LINGUAGGIO: PHP + Eloquent ORM
+     * 
+     * @param Builder $query Query builder
+     * @param string $categoria Categoria da filtrare
+     * @return void
+     * 
+     * SPIEGAZIONE:
+     * - Alias del scope categoria() per nomenclatura alternativa
+     * - Richiama il metodo categoria() già definito
+     * - Mantiene compatibilità con codice esistente
      */
     public function scopePerCategoria(Builder $query, string $categoria): void
     {
@@ -429,18 +764,28 @@ class Prodotto extends Model
     }
 
     // ================================================
-    // METODI STATICI UNIFICATI - SISTEMA PRINCIPALE
+    // SEZIONE METODI STATICI UNIFICATI
     // ================================================
 
     /**
-     * SISTEMA UNIFICATO - Mappa definitiva delle categorie
-     * Questo è l'unico metodo che definisce le categorie, tutte le altre funzioni dovranno usarlo
-     * Basato sui dati del seeder e sulle categorie presenti nel database
+     * METODO STATICO: Sistema unificato delle categorie
+     * 
+     * LINGUAGGIO: PHP
+     * TIPO: Metodo statico (chiamabile senza istanza)
+     * 
+     * @return array Mapping categoria_db => etichetta_display
+     * 
+     * SPIEGAZIONE:
+     * - self:: richiama metodi sulla stessa classe (alternativa a static::)
+     * - Array associativo che mappa valori DB a etichette user-friendly
+     * - Sistema centralizzato: tutte le funzioni categorie usano questo
+     * - static significa chiamabile come Prodotto::getCategorieUnifico()
+     * - Basato sui dati reali presenti nel database seeder
      */
     public static function getCategorieUnifico(): array
     {
         return [
-            // Categorie principali da seeder (corrispondono ai valori reali nel database)
+            // Categorie principali da seeder (valori reali nel database)
             'lavatrice' => 'Lavatrici',
             'lavastoviglie' => 'Lavastoviglie', 
             'frigorifero' => 'Frigoriferi',
@@ -456,7 +801,7 @@ class Prodotto extends Model
             'scaldabagno' => 'Scaldabagni',
             'caldaia' => 'Caldaie',
             
-            // Categorie aggiuntive supportate (possono essere create in futuro)
+            // Categorie aggiuntive supportate (espandibilità futura)
             'climatizzatori' => 'Climatizzatori',
             'elettrodomestici' => 'Elettrodomestici',
             'informatica' => 'Informatica',
@@ -468,8 +813,18 @@ class Prodotto extends Model
     }
 
     /**
-     * DEPRECATO - Mantiene compatibilità vecchio codice
+     * METODO STATICO DEPRECATO: Compatibilità retroattiva
+     * 
+     * LINGUAGGIO: PHP
+     * 
      * @deprecated Utilizzare getCategorieUnifico() invece
+     * @return array Stesso array del metodo unificato
+     * 
+     * SPIEGAZIONE:
+     * - @deprecated in PHPDoc indica metodo obsoleto
+     * - Mantiene funzionamento del vecchio codice
+     * - Reindirizza al nuovo metodo unificato
+     * - Da rimuovere in versioni future
      */
     public static function getCategorie(): array
     {
@@ -477,26 +832,38 @@ class Prodotto extends Model
     }
 
     /**
-     * Ottiene le categorie presenti effettivamente nel database con conteggio
-     * Utilizza il sistema unificato per le etichette
+     * METODO STATICO: Categorie con conteggio prodotti
+     * 
+     * LINGUAGGIO: PHP + Eloquent ORM + SQL
+     * 
+     * @return array Array [categoria => ['label' => nome, 'count' => numero]]
+     * 
+     * SPIEGAZIONE:
+     * - Query aggregata per contare prodotti per categoria
+     * - selectRaw() permette di usare SQL raw nelle SELECT
+     * - GROUP BY categoria raggruppa i risultati
+     * - pluck('count', 'categoria') crea array [categoria => count]
+     * - toArray() converte Collection Laravel in array PHP
+     * - try/catch gestisce errori database
+     * - \Log::error() registra errori nel log Laravel
      */
     public static function getCategorieConConteggio(): array
     {
         try {
-            // Ottiene le categorie dal sistema unificato
+            // Ottiene mapping completo categorie
             $categorieComplete = self::getCategorieUnifico();
             
-            // Conta i prodotti per categoria presenti nel database
+            // Query di conteggio con GROUP BY
             $prodottiPerCategoria = self::where('attivo', true)
                 ->selectRaw('categoria, COUNT(*) as count')
                 ->groupBy('categoria')
                 ->pluck('count', 'categoria')
                 ->toArray();
 
-            // Costruisce il risultato solo per le categorie che hanno prodotti
+            // Costruisce risultato solo per categorie con prodotti
             $result = [];
             foreach ($prodottiPerCategoria as $categoria => $count) {
-                if ($count > 0) { // Solo categorie con prodotti
+                if ($count > 0) { // Solo categorie popolate
                     $result[$categoria] = [
                         'label' => $categorieComplete[$categoria] ?? ucfirst(str_replace('_', ' ', $categoria)),
                         'count' => $count
@@ -504,12 +871,13 @@ class Prodotto extends Model
                 }
             }
 
-            // Ordina per nome categoria per consistenza UI
+            // Ordinamento alfabetico per consistenza UI
             ksort($result);
 
             return $result;
 
         } catch (\Exception $e) {
+            // Gestione errori con logging
             \Log::error('Errore nel calcolo categorie con conteggio', [
                 'error' => $e->getMessage()
             ]);
@@ -519,12 +887,23 @@ class Prodotto extends Model
     }
 
     /**
-     * Ottiene solo le categorie presenti nel database (senza conteggio)
-     * Utile per i filtri dropdown
+     * METODO STATICO: Solo categorie presenti nel database
+     * 
+     * LINGUAGGIO: PHP + Eloquent ORM
+     * 
+     * @return array Array [categoria_db => etichetta_display]
+     * 
+     * SPIEGAZIONE:
+     * - distinct() evita duplicati nella query
+     * - pluck('campo') estrae solo i valori di un campo
+     * - toArray() converte in array PHP
+     * - asort() ordina per valore mantenendo le chiavi
+     * - Più leggero di getCategorieConConteggio() se non serve il count
      */
     public static function getCategorieDisponibili(): array
     {
         try {
+            // Estrae categorie uniche presenti nel DB
             $categoriePresenti = self::where('attivo', true)
                 ->distinct()
                 ->pluck('categoria')
@@ -532,6 +911,7 @@ class Prodotto extends Model
 
             $categorieComplete = self::getCategorieUnifico();
             
+            // Costruisce array con solo categorie presenti
             $result = [];
             foreach ($categoriePresenti as $categoria) {
                 $result[$categoria] = $categorieComplete[$categoria] ?? ucfirst(str_replace('_', ' ', $categoria));
@@ -551,7 +931,17 @@ class Prodotto extends Model
     }
 
     /**
-     * Verifica se una categoria è valida
+     * METODO STATICO: Validazione categoria
+     * 
+     * LINGUAGGIO: PHP
+     * 
+     * @param string $categoria Categoria da validare
+     * @return bool True se categoria valida
+     * 
+     * SPIEGAZIONE:
+     * - array_key_exists() verifica se chiave esiste in array
+     * - Valida che la categoria sia tra quelle supportate
+     * - Utile per validazione form e API
      */
     public static function isCategoriaValida(string $categoria): bool
     {
@@ -559,7 +949,19 @@ class Prodotto extends Model
     }
 
     /**
-     * Ottiene l'etichetta di una categoria
+     * METODO STATICO: Ottieni etichetta categoria
+     * 
+     * LINGUAGGIO: PHP
+     * 
+     * @param string $categoria Categoria da convertire
+     * @return string Etichetta formattata
+     * 
+     * SPIEGAZIONE:
+     * - Converte categoria DB in etichetta display
+     * - ?? è null coalescing operator (PHP 7.0+)
+     * - Se categoria non mappata, formatta automaticamente
+     * - ucfirst() rende maiuscola la prima lettera
+     * - str_replace('_', ' ') converte underscore in spazi
      */
     public static function getEtichettaCategoria(string $categoria): string
     {
@@ -567,13 +969,25 @@ class Prodotto extends Model
     }
 
     /**
-     * Ricerca prodotti con supporto wildcard
+     * METODO STATICO: Ricerca avanzata prodotti
+     * 
+     * LINGUAGGIO: PHP + Eloquent ORM
+     * 
+     * @param string $termine Termine di ricerca
+     * @param string|null $categoria Categoria opzionale per filtrare
+     * @return Builder Query builder configurato (non eseguito)
+     * 
+     * SPIEGAZIONE:
+     * - Combina ricerca testuale e filtro categoria
+     * - Restituisce Builder, non risultati: permette ulteriori concatenazioni
+     * - Es: ::ricercaAvanzata('lav', 'elettrodomestici')->orderBy('nome')->get()
+     * - Validazione categoria prima dell'applicazione del filtro
      */
     public static function ricercaAvanzata(string $termine, string $categoria = null): Builder
     {
         $query = self::where('attivo', true);
 
-        // Applica ricerca testuale
+        // Applica ricerca testuale con scope
         $query->ricerca($termine);
 
         // Filtra per categoria se specificata e valida
@@ -585,31 +999,49 @@ class Prodotto extends Model
     }
 
     // ================================================
-    // METODI PER GESTIONE FILE
+    // SEZIONE GESTIONE FILE
     // ================================================
 
     /**
-     * Salva l'immagine del prodotto in modo sicuro
+     * METODO: Salvataggio sicuro immagine prodotto
+     * 
+     * LINGUAGGIO: PHP + Laravel File Storage
+     * 
+     * @param \Illuminate\Http\UploadedFile $file File uploadato
+     * @return string Path dell'immagine salvata
+     * @throws \Exception Se tutti i metodi di storage falliscono
+     * 
+     * SPIEGAZIONE:
+     * - Gestisce upload file con diversi meccanismi di fallback
+     * - time() genera timestamp per nomi file unici
+     * - getClientOriginalExtension() estrae estensione file originale
+     * - try/catch gestisce errori di ogni metodo di storage
+     * - mkdir() crea directory se non esistenti (chmod 0755)
+     * - move() sposta file dalla posizione temporanea
+     * - Logging per debug e monitoraggio
      */
     public function salvaImmagine($file): string
     {
         try {
-            // Genera nome file univoco
+            // Genera nome file univoco: timestamp_id.estensione
             $filename = time() . '_' . $this->id . '.' . $file->getClientOriginalExtension();
             
-            // Prova diversi metodi di storage
+            // Array di metodi di storage con fallback
             $methods = [
+                // METODO 1: Storage Laravel standard (storage/app/public)
                 'storage_public' => function() use ($file, $filename) {
                     return $file->storeAs('prodotti', $filename, 'public');
                 },
+                // METODO 2: Directory pubblica uploads
                 'public_uploads' => function() use ($file, $filename) {
                     $path = public_path('uploads/prodotti');
                     if (!file_exists($path)) {
-                        mkdir($path, 0755, true);
+                        mkdir($path, 0755, true);  // Crea directory ricorsivamente
                     }
                     $file->move($path, $filename);
                     return 'uploads/prodotti/' . $filename;
                 },
+                // METODO 3: Directory pubblica images
                 'public_images' => function() use ($file, $filename) {
                     $path = public_path('images/prodotti');
                     if (!file_exists($path)) {
@@ -620,6 +1052,7 @@ class Prodotto extends Model
                 }
             ];
 
+            // Prova ogni metodo finché uno non funziona
             foreach ($methods as $method => $callback) {
                 try {
                     $result = $callback();
@@ -633,10 +1066,11 @@ class Prodotto extends Model
                     \Log::warning("Metodo {$method} fallito", [
                         'error' => $e->getMessage()
                     ]);
-                    continue;
+                    continue;  // Prova il metodo successivo
                 }
             }
 
+            // Se arriviamo qui, tutti i metodi sono falliti
             throw new \Exception('Tutti i metodi di storage sono falliti');
 
         } catch (\Exception $e) {
@@ -645,30 +1079,43 @@ class Prodotto extends Model
                 'prodotto_id' => $this->id
             ]);
             
-            throw $e;
+            throw $e;  // Rilancia l'eccezione per gestione upstream
         }
     }
 
     /**
-     * Elimina l'immagine del prodotto
+     * METODO: Eliminazione sicura immagine prodotto
+     * 
+     * LINGUAGGIO: PHP + File System
+     * 
+     * @return bool True se eliminazione riuscita
+     * 
+     * SPIEGAZIONE:
+     * - Elimina file immagine da tutte le possibili posizioni
+     * - storage_path() restituisce path assoluto a storage/
+     * - public_path() restituisce path assoluto a public/
+     * - unlink() elimina file dal filesystem
+     * - Prova tutte le posizioni possibili per sicurezza
+     * - Restituisce true se almeno un file è stato eliminato
      */
     public function eliminaImmagine(): bool
     {
         if (!$this->foto) {
-            return true;
+            return true;  // Niente da eliminare
         }
 
         try {
+            // Array di possibili percorsi del file
             $paths = [
-                storage_path('app/public/' . $this->foto),
-                public_path('storage/' . $this->foto),
-                public_path($this->foto)
+                storage_path('app/public/' . $this->foto),    // Storage Laravel
+                public_path('storage/' . $this->foto),        // Symlink storage
+                public_path($this->foto)                      // Path diretto
             ];
 
             $deleted = false;
             foreach ($paths as $path) {
                 if (file_exists($path)) {
-                    unlink($path);
+                    unlink($path);  // Elimina file
                     $deleted = true;
                     \Log::info("Immagine eliminata", ['path' => $path]);
                 }
@@ -686,14 +1133,27 @@ class Prodotto extends Model
     }
 
     // ================================================
-    // METODI PER L'API
+    // SEZIONE API
     // ================================================
 
     /**
-     * Trasforma il prodotto per le risposte API
+     * METODO: Serializzazione per API
+     * 
+     * LINGUAGGIO: PHP + Laravel
+     * 
+     * @param bool $includeDetails Se includere dettagli completi
+     * @return array Rappresentazione array del prodotto
+     * 
+     * SPIEGAZIONE:
+     * - Converte modello in array per risposte API/JSON
+     * - $includeDetails controlla livello di dettaglio
+     * - ?->toISOString() safe navigation con formattazione ISO8601
+     * - ->only() estrae solo campi specificati da modello correlato
+     * - Separazione tra dati base e dettagli per ottimizzazione
      */
     public function toApiArray(bool $includeDetails = false): array
     {
+        // Dati base sempre inclusi
         $data = [
             'id' => $this->id,
             'nome' => $this->nome,
@@ -709,6 +1169,7 @@ class Prodotto extends Model
             'updated_at' => $this->updated_at?->toISOString()
         ];
 
+        // Dati dettagliati solo se richiesti
         if ($includeDetails) {
             $data['note_tecniche'] = $this->note_tecniche;
             $data['modalita_installazione'] = $this->modalita_installazione;
@@ -722,11 +1183,23 @@ class Prodotto extends Model
     }
 
     // ================================================
-    // METODI PER DEBUGGING
+    // SEZIONE DEBUGGING
     // ================================================
 
     /**
-     * Debug: verifica esistenza file immagine
+     * METODO DEBUG: Verifica esistenza file immagine
+     * 
+     * LINGUAGGIO: PHP + File System
+     * 
+     * @return array Dettagli su tutti i possibili path dell'immagine
+     * 
+     * SPIEGAZIONE:
+     * - Metodo di debug per risolvere problemi con le immagini
+     * - Controlla esistenza file in tutte le posizioni possibili
+     * - basename() estrae solo il nome file dal path completo
+     * - filesize() restituisce dimensione file in bytes
+     * - is_readable() verifica permessi di lettura
+     * - Utile per troubleshooting problemi di upload/visualizzazione
      */
     public function verificaImmagine(): array
     {
@@ -734,6 +1207,7 @@ class Prodotto extends Model
             return ['exists' => false, 'reason' => 'No image set'];
         }
 
+        // Definisce tutti i possibili percorsi
         $paths = [
             'storage_public' => storage_path('app/public/' . $this->foto),
             'public_storage' => public_path('storage/' . $this->foto),
@@ -742,6 +1216,7 @@ class Prodotto extends Model
             'public_images' => public_path('images/prodotti/' . basename($this->foto))
         ];
 
+        // Controlla ogni percorso
         $results = [];
         foreach ($paths as $key => $path) {
             $results[$key] = [
@@ -756,28 +1231,59 @@ class Prodotto extends Model
     }
 
     // ================================================
-    // EVENTI DEL MODELLO
+    // SEZIONE EVENTI DEL MODELLO (LIFECYCLE HOOKS)
     // ================================================
 
+    /**
+     * METODO STATICO: Configurazione eventi del modello
+     * 
+     * LINGUAGGIO: PHP + Laravel Eloquent Events
+     * 
+     * @return void
+     * 
+     * SPIEGAZIONE:
+     * - boot() è un metodo speciale di Laravel per configurare il modello
+     * - parent::boot() chiama il metodo boot della classe genitore
+     * - static::deleting() registra listener per evento "eliminazione"
+     * - static::created() registra listener per evento "creazione"
+     * - static::updated() registra listener per evento "aggiornamento"
+     * - Eventi utili per logging, pulizia, notifiche, etc.
+     * - auth()->id() restituisce ID utente autenticato (se presente)
+     * - ?? 'Sistema' è fallback se nessun utente autenticato
+     */
     protected static function boot()
     {
         parent::boot();
         
-        // Quando un prodotto viene eliminato, gestisci i malfunzionamenti
+        /**
+         * EVENTO: Prima dell'eliminazione del prodotto
+         * 
+         * SPIEGAZIONE:
+         * - Si attiva automaticamente prima di delete()
+         * - Logging per audit trail
+         * - Conta malfunzionamenti associati
+         * - NON elimina automaticamente i malfunzionamenti (preserva storico)
+         */
         static::deleting(function ($prodotto) {
-            // Log dell'eliminazione
             \Log::info('Prodotto in eliminazione', [
                 'prodotto_id' => $prodotto->id,
                 'nome' => $prodotto->nome,
                 'malfunzionamenti_count' => $prodotto->malfunzionamenti()->count()
             ]);
 
-            // Nota: I malfunzionamenti non vengono eliminati automaticamente
+            // NOTA: I malfunzionamenti non vengono eliminati automaticamente
             // per preservare lo storico tecnico. Solo l'admin può decidere
             // se eliminare anche i malfunzionamenti associati
         });
         
-        // Quando un prodotto viene creato
+        /**
+         * EVENTO: Dopo la creazione del prodotto
+         * 
+         * SPIEGAZIONE:
+         * - Si attiva automaticamente dopo create()
+         * - Logging per tracciabilità
+         * - Registra chi ha creato il prodotto
+         */
         static::created(function ($prodotto) {
             \Log::info('Nuovo prodotto creato', [
                 'prodotto_id' => $prodotto->id,
@@ -787,7 +1293,15 @@ class Prodotto extends Model
             ]);
         });
 
-        // Quando un prodotto viene aggiornato
+        /**
+         * EVENTO: Dopo l'aggiornamento del prodotto
+         * 
+         * SPIEGAZIONE:
+         * - Si attiva automaticamente dopo update()
+         * - getChanges() restituisce array dei campi modificati
+         * - Logging delle modifiche per audit
+         * - Traccia chi ha fatto la modifica
+         */
         static::updated(function ($prodotto) {
             \Log::info('Prodotto aggiornato', [
                 'prodotto_id' => $prodotto->id,
@@ -798,3 +1312,41 @@ class Prodotto extends Model
         });
     }
 }
+
+/*
+ * RIEPILOGO FUNZIONALITÀ DEL MODELLO:
+ * 
+ * 1. RELAZIONI DATABASE:
+ *    - hasMany con Malfunzionamento (1:N)
+ *    - belongsTo con User/Staff (N:1, opzionale)
+ * 
+ * 2. RICERCA E FILTRI:
+ *    - Ricerca testuale con wildcard (*)
+ *    - Filtri per categoria, staff, gravità
+ *    - Scope riutilizzabili per query complesse
+ * 
+ * 3. GESTIONE CATEGORIE:
+ *    - Sistema unificato centralizzato
+ *    - Mapping DB -> Display labels
+ *    - Conteggi e validazioni
+ * 
+ * 4. GESTIONE IMMAGINI:
+ *    - Upload multipaths con fallback
+ *    - URL generation per diverse configurazioni
+ *    - Eliminazione sicura
+ * 
+ * 5. STATISTICHE E REPORTING:
+ *    - Conteggi malfunzionamenti per gravità
+ *    - Badge UI dinamici
+ *    - Aggregazioni per dashboard
+ * 
+ * 6. API SUPPORT:
+ *    - Serializzazione configurabile
+ *    - Livelli di dettaglio
+ *    - Formattazione JSON-friendly
+ * 
+ * 7. LOGGING E AUDIT:
+ *    - Eventi lifecycle completi
+ *    - Tracciabilità operazioni
+ *    - Debug tools per troubleshooting
+ */
