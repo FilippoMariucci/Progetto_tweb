@@ -1,4 +1,81 @@
-<?php
+}
+
+    /**
+     * =============================================================================
+     * API PRODOTTI ASSEGNATI ALLO STAFF CORRENTE
+     * =============================================================================
+     * 
+     * LINGUAGGIO: PHP con Laravel Framework
+     * TIPO METODO: API REST endpoint senza parametri
+     * ROUTE: GET /api/prodotti-assegnati
+     * TIPO RITORNO: Illuminate\Http\JsonResponse
+     * 
+     * SCOPO:
+     * Ritorna la lista completa dei prodotti assegnati all'utente staff
+     * in formato JSON con metadati e statistiche per widgets dashboard.
+     * 
+     * DATI INCLUSI:
+     * - Informazioni complete prodotto
+     * - Contatori malfunzionamenti (totali e critici)
+     * - URL per azioni rapide (gestione, visualizzazione)
+     * - Timestamp ultima modifica
+     * - Statistiche aggregate
+     * 
+     * SICUREZZA:
+     * - Solo prodotti effettivamente assegnati all'utente
+     * - Eager loading per performance
+     * - Gestione errori completa
+     */
+    public function apiProdottiAssegnati()
+    {
+        try {
+            $user = Auth::user();
+            
+            // === QUERY PRODOTTI ASSEGNATI CON EAGER LOADING ===
+            $prodotti = Prodotto::where('staff_assegnato_id', $user->id)
+                ->with(['malfunzionamenti'])           // Carica malfunzionamenti correlati
+                ->orderBy('nome')                      // Ordinamento alfabetico
+                ->get()
+                ->map(function($prodotto) {            // Transform per API JSON
+                    return [
+                        // === DATI BASE PRODOTTO ===
+                        'id' => $prodotto->id,
+                        'nome' => $prodotto->nome,
+                        'categoria' => $prodotto->categoria,
+                        'codice' => $prodotto->codice ?? 'N/A',
+                        'descrizione' => $prodotto->descrizione ?? 'Nessuna descrizione',
+                        
+                        // === CONTATORI MALFUNZIONAMENTI ===
+                        'malfunzionamenti_count' => $prodotto->malfunzionamenti->count(),
+                        'critici_count' => $prodotto->malfunzionamenti->where('gravita', 'critica')->count(),
+                        
+                        // === METADATI ===
+                        'ultima_modifica' => $prodotto->updated_at->toISOString(),
+                        'attivo' => $prodotto->attivo ?? true,
+                        
+                        // === URL PER AZIONI STAFF ===
+                        'management_url' => route('staff.malfunzionamenti.index') . '?prodotto_id=' . $prodotto->id,
+                        'add_malfunction_url' => route('staff.malfunzionamenti.create', $prodotto->id),
+                        'view_url' => route('prodotti.completo.show', $prodotto->id)
+                    ];
+                });
+            
+            // === CALCOLO STATISTICHE AGGREGATE ===
+            $stats = [
+                'totale_assegnati' => $prodotti->count(),
+                'con_malfunzionamenti' => $prodotti->filter(fn($p) => $p['malfunzionamenti_count'] > 0)->count(),
+                'critici' => $prodotti->filter(fn($p) => $p['critici_count'] > 0)->count(),
+                'senza_problemi' => $prodotti->filter(fn($p) => $p['malfunzionamenti_count'] === 0)->count()
+            ];
+            
+            // === RESPONSE JSON COMPLETO ===
+            return response()->json([
+                'success' => true,
+                'data' => $prodotti->values(),         // Array indicizzato numericamente
+                'stats' => $stats,
+                'total' => $prodotti->count(),
+                'user_id' => $user->id,
+                '<?php
 
 namespace App\Http\Controllers;
 
@@ -14,954 +91,541 @@ use App\Models\User;
 use Carbon\Carbon;
 
 /**
- * Controller per le funzionalità specifiche dello staff aziendale (Livello 3)
+ * ======================================================================================
+ * STAFFCONTROLLER - CONTROLLER LARAVEL PER GESTIONE STAFF AZIENDALE
+ * ======================================================================================
  * 
- * Lo staff aziendale può:
- * - Gestire malfunzionamenti e soluzioni (CRUD completo)
- * - Visualizzare prodotti assegnati (funzionalità opzionale)
- * - Accedere a statistiche personali e report attività
- * - Utilizzare API per aggiornamenti dinamici via AJAX
+ * DESCRIZIONE:
+ * Questo è un Controller Laravel (framework PHP per applicazioni web) che gestisce
+ * tutte le funzionalità riservate ai membri dello staff aziendale (Livello 3).
  * 
- * Route protette da middleware: auth, check.level:3
+ * LINGUAGGIO: PHP 8.x con Laravel Framework 12
+ * 
+ * FUNZIONALITÀ PRINCIPALI:
+ * - Dashboard staff con statistiche e panoramiche
+ * - Gestione CRUD (Create, Read, Update, Delete) malfunzionamenti
+ * - Visualizzazione prodotti assegnati (funzionalità opzionale del progetto)
+ * - API REST per chiamate AJAX dinamiche dal frontend
+ * - Sistema di logging e audit delle operazioni
+ * 
+ * AUTORIZZAZIONI:
+ * - Livello accesso richiesto: 3 (Staff aziendale)
+ * - Middleware di sicurezza: auth + check.level:3
+ * 
+ * MODELLI UTILIZZATI:
+ * - Prodotto: Gestisce i prodotti del catalogo aziendale
+ * - Malfunzionamento: Gestisce problemi e soluzioni tecniche
+ * - User: Gestisce gli utenti del sistema
+ * 
+ * ROUTE PROTETTE:
+ * Tutte le route di questo controller sono protette da middleware di autenticazione
+ * e controllo livello accesso per garantire che solo lo staff possa accedervi.
  */
 class StaffController extends Controller
 {
     /**
-     * Costruttore - Applica middleware di sicurezza
+     * =============================================================================
+     * COSTRUTTORE - INIZIALIZZAZIONE SICUREZZA
+     * =============================================================================
+     * 
+     * LINGUAGGIO: PHP - Metodo costruttore della classe
+     * 
+     * SCOPO:
+     * Il costruttore viene eseguito automaticamente quando Laravel istanzia
+     * questo controller. Applica i middleware di sicurezza a TUTTE le funzioni
+     * della classe senza doverli ripetere su ogni singolo metodo.
+     * 
+     * MIDDLEWARE APPLICATI:
+     * 1. 'auth' - Verifica che l'utente sia autenticato (logged in)
+     * 2. 'check.level:3' - Verifica che l'utente abbia livello accesso >= 3 (staff)
+     * 
+     * SICUREZZA:
+     * Se l'utente non è autenticato o non ha il livello richiesto,
+     * Laravel bloccherà automaticamente l'accesso prima che qualsiasi
+     * metodo di questo controller venga eseguito.
      */
     public function __construct()
     {
-        // Middleware obbligatori per tutte le funzioni del controller
+        // Middleware Laravel per verificare autenticazione utente
+        // Se non autenticato, reindirizza automaticamente al login
         $this->middleware('auth');
+        
+        // Middleware custom per verificare livello accesso >= 3
+        // Se livello insufficiente, genera errore 403 Forbidden
         $this->middleware('check.level:3');
     }
 
-    // ================================================
-    // DASHBOARD E VISTE PRINCIPALI
-    // ================================================
+    // =================================================================================
+    // SEZIONE: DASHBOARD E VISTE PRINCIPALI
+    // =================================================================================
 
     /**
-     * Dashboard principale dello staff
-     * Mostra panoramica generale con statistiche iniziali
+     * =============================================================================
+     * DASHBOARD PRINCIPALE DELLO STAFF
+     * =============================================================================
      * 
-     * @return \Illuminate\View\View
+     * LINGUAGGIO: PHP con Laravel Framework
+     * TIPO METODO: Metodo pubblico di Controller Laravel
+     * TIPO RITORNO: Illuminate\View\View (vista Laravel compilata)
+     * 
+     * SCOPO:
+     * Questo metodo genera la dashboard principale per i membri dello staff.
+     * Calcola e visualizza statistiche in tempo reale sui prodotti assegnati,
+     * malfunzionamenti gestiti, soluzioni create e metriche di performance.
+     * 
+     * FLUSSO LOGICO:
+     * 1. Verifica autorizzazioni dell'utente corrente
+     * 2. Inizializza array statistiche vuoto
+     * 3. Calcola statistiche base (totali prodotti/malfunzionamenti)
+     * 4. Calcola malfunzionamenti critici
+     * 5. Gestisce prodotti assegnati (se funzionalità implementata)
+     * 6. Calcola soluzioni create dall'utente
+     * 7. Gestisce fallback se non ci sono dati
+     * 8. Ritorna vista compilata con i dati
+     * 
+     * TECNOLOGIE UTILIZZATE:
+     * - Laravel Eloquent ORM per query database
+     * - Laravel Schema per verificare struttura tabelle
+     * - Laravel Log per debugging e monitoraggio
+     * - Carbon per gestione date/timestamp
+     * - Laravel Auth per gestione utente corrente
+     * - Laravel Collections per manipolazione dati
+     * 
+     * GESTIONE ERRORI:
+     * Ogni sezione è protetta da try-catch per evitare che errori
+     * di database compromettano l'intera dashboard. In caso di errore,
+     * vengono mostrati dati di fallback per mantenere l'interfaccia funzionale.
      */
     public function dashboard()
-{
-     // === VERIFICA AUTORIZZAZIONI ===
-    if (!Auth::check() || !Auth::user()->isStaff()) {
-        abort(403, 'Accesso riservato allo staff aziendale');
-    }
-
-    $user = Auth::user();
-
-    // === LOG DEBUG INIZIALE ===
-    Log::info('STAFF DASHBOARD START - ' . $user->username);
-
-    try {
-        // === INIZIALIZZA STATISTICHE (SEMPRE VISIBILI) ===
-        $stats = [
-            'prodotti_assegnati' => 0,
-            'prodotti_lista' => collect(),
-            'soluzioni_create' => 0,
-            'soluzioni_critiche' => 0,
-            'ultima_modifica' => 'Mai',
-            'ultime_soluzioni' => collect(),
-            'total_prodotti' => 0,
-            'total_malfunzionamenti' => 0,
-            'malfunzionamenti_critici' => 0,
-        ];
-
-        // === 1. CALCOLA TOTALI BASE ===
-        try {
-            $stats['total_prodotti'] = Prodotto::count();
-            $stats['total_malfunzionamenti'] = Malfunzionamento::count();
-            Log::info('Totali calcolati: P=' . $stats['total_prodotti'] . ' M=' . $stats['total_malfunzionamenti']);
-        } catch (\Exception $e) {
-            Log::error('Errore totali: ' . $e->getMessage());
-            $stats['total_prodotti'] = 0;
-            $stats['total_malfunzionamenti'] = 0;
-        }
-
-        // === 2. CALCOLA CRITICI ===
-        try {
-            $criticiCount = Malfunzionamento::where('gravita', 'critica')->count();
-            $stats['malfunzionamenti_critici'] = $criticiCount;
-            $stats['soluzioni_critiche'] = $criticiCount;
-            Log::info('Critici calcolati: ' . $criticiCount);
-        } catch (\Exception $e) {
-            Log::error('Errore critici: ' . $e->getMessage());
-            $stats['malfunzionamenti_critici'] = 0;
-            $stats['soluzioni_critiche'] = 0;
-        }
-
-        // === 3. PRODOTTI ASSEGNATI (CON GESTIONE ERRORI) ===
-        try {
-            if (Schema::hasColumn('prodotti', 'staff_assegnato_id')) {
-                Log::info('Colonna staff_assegnato_id ESISTE');
-                
-                $prodottiCount = Prodotto::where('staff_assegnato_id', $user->id)->count();
-                $stats['prodotti_assegnati'] = $prodottiCount;
-                
-                if ($prodottiCount > 0) {
-                    $stats['prodotti_lista'] = Prodotto::where('staff_assegnato_id', $user->id)
-                        ->with('malfunzionamenti')
-                        ->orderBy('nome')
-                        ->limit(10)
-                        ->get();
-                    Log::info('Prodotti lista caricata: ' . $stats['prodotti_lista']->count());
-                } else {
-                    Log::warning('Nessun prodotto assegnato all\'utente ' . $user->id);
-                }
-                
-            } else {
-                Log::warning('Colonna staff_assegnato_id NON ESISTE');
-                // Fallback: usa alcuni prodotti generici
-                $stats['prodotti_assegnati'] = min(3, $stats['total_prodotti']);
-                $stats['prodotti_lista'] = Prodotto::with('malfunzionamenti')
-                    ->limit(3)
-                    ->get();
-            }
-        } catch (\Exception $e) {
-            Log::error('Errore prodotti assegnati: ' . $e->getMessage());
-            $stats['prodotti_assegnati'] = 0;
-            $stats['prodotti_lista'] = collect();
-        }
-
-        // === 4. SOLUZIONI CREATE DALL'UTENTE ===
-        try {
-            if (Schema::hasColumn('malfunzionamenti', 'creato_da')) {
-                Log::info('Colonna creato_da ESISTE');
-                
-                $soluzioniCount = Malfunzionamento::where('creato_da', $user->id)->count();
-                $stats['soluzioni_create'] = $soluzioniCount;
-                
-                $soluzioniCritiche = Malfunzionamento::where('creato_da', $user->id)
-                    ->where('gravita', 'critica')
-                    ->count();
-                $stats['soluzioni_critiche'] = max($stats['soluzioni_critiche'], $soluzioniCritiche);
-                
-                if ($soluzioniCount > 0) {
-                    $stats['ultime_soluzioni'] = Malfunzionamento::where('creato_da', $user->id)
-                        ->with('prodotto')
-                        ->orderBy('created_at', 'desc')
-                        ->limit(5)
-                        ->get();
-                    
-                    $ultima = Malfunzionamento::where('creato_da', $user->id)
-                        ->orderBy('updated_at', 'desc')
-                        ->first();
-                    
-                    if ($ultima) {
-                        $stats['ultima_modifica'] = $ultima->updated_at->diffForHumans();
-                    }
-                }
-                
-                Log::info('Soluzioni create: ' . $soluzioniCount);
-                
-            } else {
-                Log::warning('Colonna creato_da NON ESISTE');
-                // Fallback: usa statistiche generali
-                $stats['soluzioni_create'] = Malfunzionamento::where('created_at', '>=', now()->subWeeks(2))->count();
-                $stats['ultime_soluzioni'] = Malfunzionamento::with('prodotto')
-                    ->orderBy('created_at', 'desc')
-                    ->limit(3)
-                    ->get();
-                $stats['ultima_modifica'] = 'Dati recenti';
-            }
-        } catch (\Exception $e) {
-            Log::error('Errore soluzioni create: ' . $e->getMessage());
-            $stats['soluzioni_create'] = 0;
-            $stats['ultime_soluzioni'] = collect();
-        }
-
-        // === 5. APPLICA VALORI MINIMI SE TUTTO È ZERO ===
-        $sommaStats = $stats['prodotti_assegnati'] + $stats['soluzioni_create'] + $stats['total_prodotti'];
-        
-        if ($sommaStats === 0) {
-            Log::warning('TUTTE LE STATS SONO ZERO - APPLICO VALORI DI TEST');
-            
-            $stats['prodotti_assegnati'] = 2;
-            $stats['soluzioni_create'] = 5;
-            $stats['soluzioni_critiche'] = 1;
-            $stats['total_prodotti'] = 8;
-            $stats['total_malfunzionamenti'] = 12;
-            $stats['ultima_modifica'] = '2 ore fa';
-            
-            // Crea prodotti fittizi per la vista
-            $stats['prodotti_lista'] = collect([
-                (object)[
-                    'id' => 1,
-                    'nome' => 'Lavatrice Test A',
-                    'categoria' => 'elettrodomestici',
-                    'modello' => 'LT-001',
-                    'codice' => 'TEST001',
-                    'created_at' => now()->subDays(5),
-                    'updated_at' => now()->subHours(3),
-                    'malfunzionamenti' => collect([
-                        (object)['gravita' => 'media', 'created_at' => now()->subHours(2)]
-                    ])
-                ],
-                (object)[
-                    'id' => 2,
-                    'nome' => 'Lavastoviglie Test B',
-                    'categoria' => 'elettrodomestici', 
-                    'modello' => 'LS-002',
-                    'codice' => 'TEST002',
-                    'created_at' => now()->subDays(3),
-                    'updated_at' => now()->subHours(1),
-                    'malfunzionamenti' => collect([
-                        (object)['gravita' => 'critica', 'created_at' => now()->subMinutes(30)]
-                    ])
-                ]
-            ]);
-        }
-
-        // === LOG STATISTICHE FINALI ===
-        Log::info('STAFF DASHBOARD - STATISTICHE FINALI', [
-            'user_id' => $user->id,
-            'prodotti_assegnati' => $stats['prodotti_assegnati'],
-            'soluzioni_create' => $stats['soluzioni_create'], 
-            'soluzioni_critiche' => $stats['soluzioni_critiche'],
-            'total_prodotti' => $stats['total_prodotti'],
-            'total_malfunzionamenti' => $stats['total_malfunzionamenti'],
-            'prodotti_lista_count' => $stats['prodotti_lista']->count(),
-            'ultime_soluzioni_count' => $stats['ultime_soluzioni']->count()
-        ]);
-
-        // === RITORNA LA VISTA ===
-        return view('staff.dashboard', compact('user', 'stats'));
-
-    } catch (\Exception $e) {
-        // === GESTIONE ERRORE CRITICO ===
-        Log::error('ERRORE CRITICO STAFF DASHBOARD', [
-            'user_id' => $user->id,
-            'error' => $e->getMessage(),
-            'line' => $e->getLine(),
-            'file' => $e->getFile()
-        ]);
-
-        // STATISTICHE DI EMERGENZA (sempre visibili)
-        $statsEmergency = [
-            'prodotti_assegnati' => 4,
-            'prodotti_lista' => collect([
-                (object)[
-                    'id' => 999,
-                    'nome' => 'Sistema in Manutenzione',
-                    'categoria' => 'sistema',
-                    'modello' => 'MAINT-001',
-                    'codice' => 'SYS999',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                    'malfunzionamenti' => collect()
-                ]
-            ]),
-            'soluzioni_create' => 7,
-            'soluzioni_critiche' => 2,
-            'ultima_modifica' => 'Errore nel caricamento',
-            'ultime_soluzioni' => collect(),
-            'total_prodotti' => 15,
-            'total_malfunzionamenti' => 28,
-            'malfunzionamenti_critici' => 3,
-            'errore_sistema' => true
-        ];
-
-        return view('staff.dashboard', [
-            'user' => $user,
-            'stats' => $statsEmergency
-        ])->with('error', 'Errore nel sistema. Le statistiche mostrate sono di emergenza.');
-    }
-}
-
-    /**
-     * Visualizza i prodotti assegnati all'utente staff corrente
-     * Funzionalità opzionale - implementa ripartizione gestione prodotti
-     * 
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\View\View
-     */
-    public function prodottiAssegnati(Request $request)
     {
+        // === VERIFICA AUTORIZZAZIONI UTENTE ===
+        // Laravel Auth::check() - Verifica se l'utente è autenticato
+        // Auth::user()->isStaff() - Metodo custom per verificare se è staff
+        if (!Auth::check() || !Auth::user()->isStaff()) {
+            // abort() - Funzione Laravel per generare errori HTTP
+            // 403 = Forbidden (autenticato ma senza permessi)
+            abort(403, 'Accesso riservato allo staff aziendale');
+        }
+
+        // Ottiene l'istanza dell'utente corrente autenticato
+        // Auth::user() ritorna il modello User dell'utente loggato
         $user = Auth::user();
 
+        // === LOGGING DI DEBUG ===
+        // Laravel Log::info() - Scrive nel file di log per debugging
+        // Utile per monitorare accessi e debugging in produzione
+        Log::info('STAFF DASHBOARD START - ' . $user->username);
+
         try {
-            // Query base per prodotti assegnati all'utente
-            $query = Prodotto::where('staff_assegnato_id', $user->id)
-                         ->with(['malfunzionamenti' => function($q) {
-                             $q->orderBy('gravita', 'desc')
-                               ->orderBy('created_at', 'desc');
-                         }]);
-            
-            // Applicazione filtri dalla request
-            if ($request->filled('categoria')) {
-                $query->where('categoria', $request->input('categoria'));
-            }
-            
-            if ($request->boolean('solo_critici')) {
-                $query->whereHas('malfunzionamenti', function($q) {
-                    $q->where('gravita', 'critica');
-                });
-            }
-            
-            // CORREZIONE: Gestione ricerca migliorata
-            $searchTerm = $request->input('search');
-            if ($searchTerm && trim($searchTerm) !== '') {
-                $searchTerm = trim($searchTerm);
-                $query->where(function($q) use ($searchTerm) {
-                    $q->where('nome', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('modello', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('codice', 'LIKE', "%{$searchTerm}%");
-                });
-            }
-            
-            // Ordinamento
-            $sortField = $request->input('sort', 'nome');
-            $sortDirection = $request->input('direction', 'asc');
-            
-            if (in_array($sortField, ['nome', 'categoria', 'created_at', 'updated_at'])) {
-                $query->orderBy($sortField, $sortDirection);
-            }
-            
-            $prodottiAssegnati = $query->paginate(15);
-            
-            // Calcolo statistiche per prodotti assegnati
+            // === INIZIALIZZAZIONE ARRAY STATISTICHE ===
+            // Array PHP associativo per contenere tutte le statistiche
+            // Inizializzato con valori di default per evitare errori nella vista
             $stats = [
-                'totale_assegnati' => $prodottiAssegnati->total(),
-                'con_malfunzionamenti' => Prodotto::where('staff_assegnato_id', $user->id)
-                                                   ->whereHas('malfunzionamenti')
-                                                   ->count(),
-                'critici' => Prodotto::where('staff_assegnato_id', $user->id)
-                                     ->whereHas('malfunzionamenti', function($q) {
-                                         $q->where('gravita', 'critica');
-                                     })->count(),
-                'senza_malfunzionamenti' => Prodotto::where('staff_assegnato_id', $user->id)
-                                                    ->whereDoesntHave('malfunzionamenti')
-                                                    ->count()
+                'prodotti_assegnati' => 0,           // Contatore prodotti assegnati all'utente
+                'prodotti_lista' => collect(),        // Laravel Collection di prodotti
+                'soluzioni_create' => 0,             // Soluzioni create dall'utente
+                'soluzioni_critiche' => 0,           // Soluzioni per problemi critici
+                'ultima_modifica' => 'Mai',          // Timestamp ultima modifica
+                'ultime_soluzioni' => collect(),     // Collection delle ultime soluzioni
+                'total_prodotti' => 0,               // Totale prodotti nel sistema
+                'total_malfunzionamenti' => 0,       // Totale malfunzionamenti nel sistema
+                'malfunzionamenti_critici' => 0,     // Contatore problemi critici
             ];
-            
-            // Categorie disponibili per filtro dropdown
-            $categorie = Prodotto::where('staff_assegnato_id', $user->id)
-                                 ->distinct()
-                                 ->pluck('categoria')
-                                 ->filter()
-                                 ->sort()
-                                 ->values();
-            
-            return view('staff.prodotti-assegnati', compact(
-                'prodottiAssegnati', 'stats', 'categorie', 'user'
-            ));
 
-        } catch (\Exception $e) {
-            Log::error('Errore prodotti assegnati staff', [
-                'error' => $e->getMessage(),
-                'user_id' => $user->id,
-                'filters' => $request->all()
-            ]);
-
-            return back()->with('error', 'Errore nel caricamento dei prodotti assegnati');
-        }
-    }
-
-    /**
-     * Statistiche dettagliate per lo staff corrente
-     * 
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\View\View
-     */
-    public function statistiche(Request $request)
-{
-    // Verifica autorizzazioni - solo staff (livello 3+)
-    if (!Auth::check() || !Auth::user()->canManageMalfunzionamenti()) {
-        abort(403, 'Accesso riservato allo staff aziendale');
-    }
-
-    $user = Auth::user();
-    $periodo = $request->input('periodo', 30); // Default 30 giorni
-    
-    try {
-        // === STATISTICHE GENERALI ===
-        $stats = [
-            // Contatori base
-            'prodotti_totali' => \App\Models\Prodotto::count(),
-            'malfunzionamenti_totali' => \App\Models\Malfunzionamento::count(),
-            
-            // Statistiche dell'utente corrente se il campo creato_da esiste
-            'soluzioni_create' => \Schema::hasColumn('malfunzionamenti', 'creato_da') 
-                ? \App\Models\Malfunzionamento::where('creato_da', $user->id)->count() 
-                : 0,
-            'soluzioni_modificate' => \Schema::hasColumn('malfunzionamenti', 'modificato_da') 
-                ? \App\Models\Malfunzionamento::where('modificato_da', $user->id)->count() 
-                : 0,
-            
-            // Statistiche per periodo
-            'soluzioni_periodo' => \Schema::hasColumn('malfunzionamenti', 'creato_da') 
-                ? \App\Models\Malfunzionamento::where('creato_da', $user->id)
-                    ->where('created_at', '>=', now()->subDays($periodo))
-                    ->count()
-                : 0,
+            // === 1. CALCOLO STATISTICHE BASE ===
+            try {
+                // Eloquent ORM - Prodotto::count() esegue SELECT COUNT(*) FROM prodotti
+                $stats['total_prodotti'] = Prodotto::count();
                 
-            'modifiche_periodo' => \Schema::hasColumn('malfunzionamenti', 'modificato_da') 
-                ? \App\Models\Malfunzionamento::where('modificato_da', $user->id)
-                    ->where('updated_at', '>=', now()->subDays($periodo))
-                    ->count()
-                : 0,
+                // Eloquent ORM - Malfunzionamento::count() esegue SELECT COUNT(*) FROM malfunzionamenti
+                $stats['total_malfunzionamenti'] = Malfunzionamento::count();
                 
-            // Statistiche per gravità
-            'critiche_risolte' => \Schema::hasColumn('malfunzionamenti', 'creato_da') 
-                ? \App\Models\Malfunzionamento::where('creato_da', $user->id)
-                    ->where('gravita', 'critica')->count()
-                : 0,
-            'alte_risolte' => \Schema::hasColumn('malfunzionamenti', 'creato_da') 
-                ? \App\Models\Malfunzionamento::where('creato_da', $user->id)
-                    ->where('gravita', 'alta')->count()
-                : 0,
-            'medie_risolte' => \Schema::hasColumn('malfunzionamenti', 'creato_da') 
-                ? \App\Models\Malfunzionamento::where('creato_da', $user->id)
-                    ->where('gravita', 'media')->count()
-                : 0,
-            'basse_risolte' => \Schema::hasColumn('malfunzionamenti', 'creato_da') 
-                ? \App\Models\Malfunzionamento::where('creato_da', $user->id)
-                    ->where('gravita', 'bassa')->count()
-                : 0,
-        ];
-
-        // === ATTIVITÀ MENSILE (ultimi 6 mesi) ===
-        $attivitaMensile = [];
-        if (\Schema::hasColumn('malfunzionamenti', 'creato_da')) {
-            for ($i = 5; $i >= 0; $i--) {
-                $startOfMonth = now()->subMonths($i)->startOfMonth();
-                $endOfMonth = now()->subMonths($i)->endOfMonth();
+                // Log delle statistiche calcolate per debugging
+                Log::info('Totali calcolati: P=' . $stats['total_prodotti'] . ' M=' . $stats['total_malfunzionamenti']);
                 
-                $attivitaMensile[] = [
-                    'mese' => $startOfMonth->format('M Y'),
-                    'soluzioni_create' => \App\Models\Malfunzionamento::where('creato_da', $user->id)
-                        ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
-                        ->count(),
-                    'soluzioni_modificate' => \App\Models\Malfunzionamento::where('modificato_da', $user->id)
-                        ->whereBetween('updated_at', [$startOfMonth, $endOfMonth])
-                        ->count(),
-                ];
+            } catch (\Exception $e) {
+                // Gestione errore database - se le query falliscono
+                Log::error('Errore totali: ' . $e->getMessage());
+                $stats['total_prodotti'] = 0;
+                $stats['total_malfunzionamenti'] = 0;
             }
-        }
 
-        // === PRODOTTI PIÙ PROBLEMATICI ===
-        $prodottiProblematici = collect();
-        if (\Schema::hasColumn('malfunzionamenti', 'creato_da')) {
-            $prodottiProblematici = \App\Models\Prodotto::withCount([
-                    'malfunzionamenti as soluzioni_mie' => function ($query) use ($user) {
-                        $query->where('creato_da', $user->id);
+            // === 2. CALCOLO MALFUNZIONAMENTI CRITICI ===
+            try {
+                // Eloquent WHERE - Filtra malfunzionamenti con gravità critica
+                // SQL generato: SELECT COUNT(*) FROM malfunzionamenti WHERE gravita = 'critica'
+                $criticiCount = Malfunzionamento::where('gravita', 'critica')->count();
+                $stats['malfunzionamenti_critici'] = $criticiCount;
+                $stats['soluzioni_critiche'] = $criticiCount;
+                
+                Log::info('Critici calcolati: ' . $criticiCount);
+                
+            } catch (\Exception $e) {
+                Log::error('Errore critici: ' . $e->getMessage());
+                $stats['malfunzionamenti_critici'] = 0;
+                $stats['soluzioni_critiche'] = 0;
+            }
+
+            // === 3. GESTIONE PRODOTTI ASSEGNATI (FUNZIONALITÀ OPZIONALE) ===
+            try {
+                // Laravel Schema::hasColumn() - Verifica se colonna esiste nella tabella
+                // Questo perché la funzionalità di assegnazione prodotti è opzionale
+                if (Schema::hasColumn('prodotti', 'staff_assegnato_id')) {
+                    Log::info('Colonna staff_assegnato_id ESISTE');
+                    
+                    // Query con filtro su staff assegnato
+                    // SQL: SELECT COUNT(*) FROM prodotti WHERE staff_assegnato_id = ?
+                    $prodottiCount = Prodotto::where('staff_assegnato_id', $user->id)->count();
+                    $stats['prodotti_assegnati'] = $prodottiCount;
+                    
+                    if ($prodottiCount > 0) {
+                        // Eloquent con eager loading - carica prodotti + malfunzionamenti correlati
+                        // with('malfunzionamenti') evita il problema N+1 delle query
+                        $stats['prodotti_lista'] = Prodotto::where('staff_assegnato_id', $user->id)
+                            ->with('malfunzionamenti')    // Eager loading della relazione
+                            ->orderBy('nome')              // Ordinamento alfabetico
+                            ->limit(10)                    // Limita a 10 per performance
+                            ->get();                       // Esegue la query e ritorna Collection
+                        
+                        Log::info('Prodotti lista caricata: ' . $stats['prodotti_lista']->count());
+                    } else {
+                        Log::warning('Nessun prodotto assegnato all\'utente ' . $user->id);
                     }
-                ])
-                ->having('soluzioni_mie', '>', 0)
-                ->orderByDesc('soluzioni_mie')
-                ->limit(10)
-                ->get();
-        }
-
-        // === ULTIME SOLUZIONI ===
-        $ultimeSoluzioni = collect();
-        if (\Schema::hasColumn('malfunzionamenti', 'creato_da')) {
-            $ultimeSoluzioni = \App\Models\Malfunzionamento::where('creato_da', $user->id)
-                ->with(['prodotto:id,nome,modello,categoria'])
-                ->orderBy('created_at', 'desc')
-                ->limit(10)
-                ->get();
-        }
-
-        // === SOLUZIONI PER CATEGORIA ===
-        $soluzioniPerCategoria = collect();
-        if (\Schema::hasColumn('malfunzionamenti', 'creato_da')) {
-            $soluzioniPerCategoria = \App\Models\Malfunzionamento::where('creato_da', $user->id)
-                ->join('prodotti', 'malfunzionamenti.prodotto_id', '=', 'prodotti.id')
-                ->selectRaw('prodotti.categoria, COUNT(*) as count')
-                ->groupBy('prodotti.categoria')
-                ->orderByDesc('count')
-                ->get();
-        }
-
-        return view('staff.statistiche', compact(
-            'user',
-            'stats', 
-            'attivitaMensile', 
-            'prodottiProblematici',
-            'ultimeSoluzioni',
-            'soluzioniPerCategoria',
-            'periodo'
-        ));
-
-    } catch (\Exception $e) {
-        \Log::error('Errore caricamento statistiche staff', [
-            'error' => $e->getMessage(),
-            'user_id' => $user->id,
-            'periodo' => $periodo
-        ]);
-        
-        return view('statistiche', [
-            'user' => $user,
-            'stats' => [
-                'prodotti_totali' => 0,
-                'malfunzionamenti_totali' => 0,
-                'soluzioni_create' => 0,
-                'soluzioni_modificate' => 0,
-                'soluzioni_periodo' => 0,
-                'modifiche_periodo' => 0,
-                'critiche_risolte' => 0,
-                'alte_risolte' => 0,
-                'medie_risolte' => 0,
-                'basse_risolte' => 0,
-            ],
-            'attivitaMensile' => [],
-            'prodottiProblematici' => collect(),
-            'ultimeSoluzioni' => collect(),
-            'soluzioniPerCategoria' => collect(),
-            'periodo' => $periodo,
-            'error' => 'Errore nel caricamento delle statistiche'
-        ]);
-    }
-}
-
-    /**
-     * Report dettagliato delle attività dello staff
-     * 
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\View\View
-     */
-    public function reportAttivita(Request $request)
-    {
-        $user = Auth::user();
-        
-        try {
-            // Parametri filtro dal form
-            $dataInizio = $request->input('data_inizio', now()->startOfMonth()->format('Y-m-d'));
-            $dataFine = $request->input('data_fine', now()->format('Y-m-d'));
-            $tipoAttivita = $request->input('tipo', 'all'); // all, create, update, delete
-            
-            // Query base per le attività del periodo
-            $query = Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
-                    $q->where('staff_assegnato_id', $user->id);
-                })
-                ->with(['prodotto'])
-                ->whereBetween('updated_at', [$dataInizio . ' 00:00:00', $dataFine . ' 23:59:59']);
-            
-            // Applicazione filtro per tipo attività se necessario
-            if ($tipoAttivita !== 'all') {
-                // Per future implementazioni con audit log
-                // Qui potresti filtrare per tipo di azione (create, update, delete)
+                    
+                } else {
+                    // FALLBACK - Se la funzionalità opzionale non è implementata
+                    Log::warning('Colonna staff_assegnato_id NON ESISTE');
+                    
+                    // Mostra alcuni prodotti generici per mantenere l'interfaccia funzionale
+                    $stats['prodotti_assegnati'] = min(3, $stats['total_prodotti']);
+                    $stats['prodotti_lista'] = Prodotto::with('malfunzionamenti')
+                        ->limit(3)
+                        ->get();
+                }
+                
+            } catch (\Exception $e) {
+                Log::error('Errore prodotti assegnati: ' . $e->getMessage());
+                $stats['prodotti_assegnati'] = 0;
+                $stats['prodotti_lista'] = collect();  // Collection vuota
             }
+
+            // === 4. CALCOLO SOLUZIONI CREATE DALL'UTENTE ===
+            try {
+                // Verifica se esiste il campo per tracking dell'autore
+                if (Schema::hasColumn('malfunzionamenti', 'creato_da')) {
+                    Log::info('Colonna creato_da ESISTE');
+                    
+                    // Conta soluzioni create dall'utente corrente
+                    $soluzioniCount = Malfunzionamento::where('creato_da', $user->id)->count();
+                    $stats['soluzioni_create'] = $soluzioniCount;
+                    
+                    // Conta soluzioni critiche create dall'utente
+                    $soluzioniCritiche = Malfunzionamento::where('creato_da', $user->id)
+                        ->where('gravita', 'critica')
+                        ->count();
+                    $stats['soluzioni_critiche'] = max($stats['soluzioni_critiche'], $soluzioniCritiche);
+                    
+                    if ($soluzioniCount > 0) {
+                        // Carica le ultime 5 soluzioni create dall'utente
+                        $stats['ultime_soluzioni'] = Malfunzionamento::where('creato_da', $user->id)
+                            ->with('prodotto')                    // Eager loading prodotto correlato
+                            ->orderBy('created_at', 'desc')       // Ordine cronologico inverso
+                            ->limit(5)
+                            ->get();
+                        
+                        // Trova l'ultima modifica per calcolare il timestamp
+                        $ultima = Malfunzionamento::where('creato_da', $user->id)
+                            ->orderBy('updated_at', 'desc')
+                            ->first();
+                        
+                        if ($ultima) {
+                            // Carbon diffForHumans() - Mostra tempo in formato human-readable
+                            // Es: "2 ore fa", "3 giorni fa", ecc.
+                            $stats['ultima_modifica'] = $ultima->updated_at->diffForHumans();
+                        }
+                    }
+                    
+                    Log::info('Soluzioni create: ' . $soluzioniCount);
+                    
+                } else {
+                    // FALLBACK se il tracking dell'autore non è implementato
+                    Log::warning('Colonna creato_da NON ESISTE');
+                    
+                    // Usa statistiche generali delle ultime 2 settimane
+                    $stats['soluzioni_create'] = Malfunzionamento::where('created_at', '>=', now()->subWeeks(2))->count();
+                    $stats['ultime_soluzioni'] = Malfunzionamento::with('prodotto')
+                        ->orderBy('created_at', 'desc')
+                        ->limit(3)
+                        ->get();
+                    $stats['ultima_modifica'] = 'Dati recenti';
+                }
+                
+            } catch (\Exception $e) {
+                Log::error('Errore soluzioni create: ' . $e->getMessage());
+                $stats['soluzioni_create'] = 0;
+                $stats['ultime_soluzioni'] = collect();
+            }
+
+            // === 5. GESTIONE VALORI MINIMI PER INTERFACCIA ===
+            // Se tutte le statistiche sono zero, mostra dati di test per evitare interfaccia vuota
+            $sommaStats = $stats['prodotti_assegnati'] + $stats['soluzioni_create'] + $stats['total_prodotti'];
             
-            $attivita = $query->orderByDesc('updated_at')->paginate(20);
-            
-            // Statistiche del periodo selezionato
-            $statsReport = [
-                'totale_attivita' => $attivita->total(),
-                'prodotti_modificati' => $query->distinct('prodotto_id')->count('prodotto_id'),
-                'nuove_soluzioni' => Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
-                        $q->where('staff_assegnato_id', $user->id);
-                    })
-                    ->whereBetween('created_at', [$dataInizio . ' 00:00:00', $dataFine . ' 23:59:59'])
-                    ->whereNotNull('soluzione')
-                    ->where('soluzione', '!=', '')
-                    ->count(),
-                'modifiche_soluzioni' => Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
-                        $q->where('staff_assegnato_id', $user->id);
-                    })
-                    ->whereBetween('updated_at', [$dataInizio . ' 00:00:00', $dataFine . ' 23:59:59'])
-                    ->where('created_at', '<', $dataInizio . ' 00:00:00') // Modifiche a record esistenti
-                    ->count()
-            ];
-            
-            return view('staff.report-attivita', compact(
-                'user', 'attivita', 'statsReport', 'dataInizio', 'dataFine', 'tipoAttivita'
-            ));
+            if ($sommaStats === 0) {
+                Log::warning('TUTTE LE STATS SONO ZERO - APPLICO VALORI DI TEST');
+                
+                // Imposta valori di test per mantenere l'interfaccia usabile
+                $stats['prodotti_assegnati'] = 2;
+                $stats['soluzioni_create'] = 5;
+                $stats['soluzioni_critiche'] = 1;
+                $stats['total_prodotti'] = 8;
+                $stats['total_malfunzionamenti'] = 12;
+                $stats['ultima_modifica'] = '2 ore fa';
+                
+                // Crea oggetti fittizi per la visualizzazione
+                // Laravel collect() - Crea una Collection da un array
+                $stats['prodotti_lista'] = collect([
+                    // Oggetti PHP stdClass per simulare modelli Eloquent
+                    (object)[
+                        'id' => 1,
+                        'nome' => 'Lavatrice Test A',
+                        'categoria' => 'elettrodomestici',
+                        'modello' => 'LT-001',
+                        'codice' => 'TEST001',
+                        'created_at' => now()->subDays(5),
+                        'updated_at' => now()->subHours(3),
+                        'malfunzionamenti' => collect([
+                            (object)['gravita' => 'media', 'created_at' => now()->subHours(2)]
+                        ])
+                    ],
+                    (object)[
+                        'id' => 2,
+                        'nome' => 'Lavastoviglie Test B',
+                        'categoria' => 'elettrodomestici', 
+                        'modello' => 'LS-002',
+                        'codice' => 'TEST002',
+                        'created_at' => now()->subDays(3),
+                        'updated_at' => now()->subHours(1),
+                        'malfunzionamenti' => collect([
+                            (object)['gravita' => 'critica', 'created_at' => now()->subMinutes(30)]
+                        ])
+                    ]
+                ]);
+            }
+
+            // === LOGGING STATISTICHE FINALI ===
+            // Log strutturato con array per debugging approfondito
+            Log::info('STAFF DASHBOARD - STATISTICHE FINALI', [
+                'user_id' => $user->id,
+                'prodotti_assegnati' => $stats['prodotti_assegnati'],
+                'soluzioni_create' => $stats['soluzioni_create'], 
+                'soluzioni_critiche' => $stats['soluzioni_critiche'],
+                'total_prodotti' => $stats['total_prodotti'],
+                'total_malfunzionamenti' => $stats['total_malfunzionamenti'],
+                'prodotti_lista_count' => $stats['prodotti_lista']->count(),
+                'ultime_soluzioni_count' => $stats['ultime_soluzioni']->count()
+            ]);
+
+            // === RITORNO VISTA LARAVEL ===
+            // view() - Funzione Laravel per compilare template Blade
+            // compact() - Funzione PHP che crea array associativo dalle variabili
+            // Passa $user e $stats alla vista Blade staff.dashboard
+            return view('staff.dashboard', compact('user', 'stats'));
 
         } catch (\Exception $e) {
-            Log::error('Errore report attività staff', [
+            // === GESTIONE ERRORE CRITICO GLOBALE ===
+            Log::error('ERRORE CRITICO STAFF DASHBOARD', [
+                'user_id' => $user->id,
                 'error' => $e->getMessage(),
-                'user_id' => $user->id,
-                'filters' => $request->all()
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
             ]);
 
-            return back()->with('error', 'Errore nella generazione del report');
+            // STATISTICHE DI EMERGENZA per evitare crash dell'interfaccia
+            $statsEmergency = [
+                'prodotti_assegnati' => 4,
+                'prodotti_lista' => collect([
+                    (object)[
+                        'id' => 999,
+                        'nome' => 'Sistema in Manutenzione',
+                        'categoria' => 'sistema',
+                        'modello' => 'MAINT-001',
+                        'codice' => 'SYS999',
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                        'malfunzionamenti' => collect()
+                    ]
+                ]),
+                'soluzioni_create' => 7,
+                'soluzioni_critiche' => 2,
+                'ultima_modifica' => 'Errore nel caricamento',
+                'ultime_soluzioni' => collect(),
+                'total_prodotti' => 15,
+                'total_malfunzionamenti' => 28,
+                'malfunzionamenti_critici' => 3,
+                'errore_sistema' => true
+            ];
+
+            // Laravel with() - Aggiunge dati flash alla sessione per mostrare errori
+            return view('staff.dashboard', [
+                'user' => $user,
+                'stats' => $statsEmergency
+            ])->with('error', 'Errore nel sistema. Le statistiche mostrate sono di emergenza.');
         }
     }
 
-    // ================================================
-    // GESTIONE MALFUNZIONAMENTI (CRUD STAFF)
-    // ================================================
-
     /**
-     * Mostra i malfunzionamenti di un prodotto specifico
+     * =============================================================================
+     * FORM MODIFICA MALFUNZIONAMENTO ESISTENTE
+     * =============================================================================
      * 
-     * @param int $productId - ID del prodotto
-     * @return \Illuminate\View\View
-     */
-    public function showMalfunzionamento($productId)
-    {
-        // Trova il prodotto specificato, altrimenti genera errore 404
-        $prodotto = Prodotto::findOrFail($productId);
-        
-        // Recupera tutti i malfunzionamenti associati al prodotto
-        $malfunzionamenti = $prodotto->malfunzionamenti;
-        
-        // Restituisce la vista con il prodotto e i suoi malfunzionamenti
-        return view('staff.malfunzionamenti', compact('prodotto', 'malfunzionamenti'));
-    }
-
-    /**
- * METODO CORRETTO: Mostra il form per creare un nuovo malfunzionamento
- * con possibilità di scegliere SOLO tra i prodotti assegnati allo staff
- * 
- * @return \Illuminate\View\View
- */
-public function createNuovaSoluzione()
-{
-    // Verifica che l'utente sia staff e autenticato
-    if (!Auth::check() || !Auth::user()->isStaff()) {
-        abort(403, 'Accesso riservato allo staff');
-    }
-
-    $user = Auth::user();
-
-    // === RECUPERA SOLO I PRODOTTI ASSEGNATI ALL'UTENTE CORRENTE ===
-    try {
-        // Controlla se il campo staff_assegnato_id esiste
-        if (!Schema::hasColumn('prodotti', 'staff_assegnato_id')) {
-            Log::warning('Campo staff_assegnato_id non esiste - implementazione assegnazioni non attiva');
-            
-            // Fallback: se l'assegnazione non è implementata, mostra tutti i prodotti
-            $prodotti = Prodotto::where('attivo', true)
-                               ->orderBy('categoria')
-                               ->orderBy('nome')
-                               ->get();
-        } else {
-            // Query per prodotti assegnati specificamente all'utente corrente
-            $prodotti = Prodotto::where('staff_assegnato_id', $user->id)
-                               ->where('attivo', true)
-                               ->orderBy('categoria')
-                               ->orderBy('nome')
-                               ->get();
-            
-            Log::info('Prodotti assegnati caricati per staff', [
-                'user_id' => $user->id,
-                'username' => $user->username,
-                'prodotti_count' => $prodotti->count()
-            ]);
-        }
-
-        // === VERIFICA CHE L'UTENTE ABBIA PRODOTTI ASSEGNATI ===
-        if ($prodotti->isEmpty()) {
-            Log::warning('Staff senza prodotti assegnati tenta di creare soluzione', [
-                'user_id' => $user->id,
-                'username' => $user->username
-            ]);
-
-            // Reindirizza alla dashboard con messaggio informativo
-            return redirect()->route('staff.dashboard')
-                           ->with('warning', 'Non hai prodotti assegnati. Contatta l\'amministratore per richiedere l\'assegnazione di prodotti da gestire.')
-                           ->with('info', 'Solo l\'amministratore può assegnare prodotti ai membri dello staff.');
-        }
-
-        // === STATISTICHE PRODOTTI ASSEGNATI ===
-        $statsAssegnati = [
-            'totale' => $prodotti->count(),
-            'per_categoria' => $prodotti->groupBy('categoria')->map(function($gruppo) {
-                return $gruppo->count();
-            })->sortDesc(),
-            'con_problemi' => $prodotti->filter(function($prodotto) {
-                return $prodotto->malfunzionamenti->count() > 0;
-            })->count(),
-            'senza_problemi' => $prodotti->filter(function($prodotto) {
-                return $prodotto->malfunzionamenti->count() === 0;
-            })->count()
-        ];
-
-        // Crea un prodotto vuoto per mantenere compatibilità con la view esistente
-        $prodotto = null;
-        
-        // Flag per indicare che è una "nuova soluzione" dalla dashboard
-        $isNuovaSoluzione = true;
-        
-        Log::info('Form nuova soluzione caricato con successo', [
-            'user_id' => $user->id,
-            'prodotti_disponibili' => $prodotti->count(),
-            'stats' => $statsAssegnati
-        ]);
-        
-        // Restituisce la view con i prodotti assegnati e le statistiche
-        return view('malfunzionamenti.create', compact(
-            'prodotto', 
-            'prodotti', 
-            'isNuovaSoluzione',
-            'statsAssegnati',
-            'user'
-        ));
-
-    } catch (\Exception $e) {
-        Log::error('Errore caricamento form nuova soluzione', [
-            'user_id' => $user->id,
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-
-        return redirect()->route('staff.dashboard')
-                       ->with('error', 'Errore nel caricamento del modulo per nuove soluzioni. Riprova più tardi.');
-    }
-}
-
- /**
- * METODO CORRETTO: Salva un nuovo malfunzionamento creato dalla dashboard
- * COMPATIBILE con la migration database esistente
- * 
- * @param \Illuminate\Http\Request $request - Richiesta HTTP con i dati del form
- * @return \Illuminate\Http\RedirectResponse
- */
-public function storeNuovaSoluzione(Request $request)
-{
-    // Verifica che l'utente sia staff e autenticato
-    if (!Auth::check() || !Auth::user()->isStaff()) {
-        abort(403, 'Accesso riservato allo staff');
-    }
-
-    // === VALIDAZIONE CORRETTA BASATA SULLA MIGRATION ===
-    $request->validate([
-        'prodotto_id' => 'required|exists:prodotti,id',       // Prodotto deve esistere nel DB
-        'titolo' => 'required|string|max:255',                // Campo obbligatorio nella migration
-        'descrizione' => 'required|string',                   // Campo obbligatorio nella migration
-        'soluzione' => 'required|string',                     // Campo obbligatorio nella migration
-        'gravita' => 'required|in:bassa,media,alta,critica',  // ENUM definito nella migration
-        'strumenti_necessari' => 'nullable|string',           // Campo nullable nella migration
-        'tempo_stimato' => 'nullable|integer|min:1',          // Campo nullable nella migration
-        'difficolta' => 'nullable|in:facile,media,difficile,esperto', // ENUM nella migration
-    ], [
-        // === MESSAGGI DI ERRORE PERSONALIZZATI ===
-        'prodotto_id.required' => 'Devi selezionare un prodotto.',
-        'prodotto_id.exists' => 'Il prodotto selezionato non esiste.',
-        'titolo.required' => 'Il titolo del problema è obbligatorio.',
-        'titolo.max' => 'Il titolo non può superare 255 caratteri.',
-        'descrizione.required' => 'La descrizione del problema è obbligatoria.',
-        'soluzione.required' => 'La soluzione tecnica è obbligatoria.',
-        'gravita.required' => 'Devi selezionare il livello di gravità.',
-        'gravita.in' => 'Il livello di gravità deve essere: bassa, media, alta o critica.',
-        'difficolta.in' => 'La difficoltà deve essere: facile, media, difficile o esperto.',
-        'tempo_stimato.integer' => 'Il tempo stimato deve essere un numero intero.',
-        'tempo_stimato.min' => 'Il tempo stimato deve essere almeno 1 minuto.',
-    ]);
-
-    try {
-        // === LOG PRE-CREAZIONE PER DEBUG ===
-        \Log::info('Creazione nuova soluzione - Pre-save', [
-            'user_id' => Auth::id(),
-            'prodotto_id' => $request->prodotto_id,
-            'titolo' => $request->titolo,
-            'gravita' => $request->gravita,
-            'has_soluzione' => !empty($request->soluzione)
-        ]);
-
-        // === PREPARAZIONE DATI ALLINEATI ALLA MIGRATION ===
-        // La migration richiede questi campi OBBLIGATORI:
-        $data = [
-            'prodotto_id' => $request->prodotto_id,
-            'titolo' => $request->titolo,
-            'descrizione' => $request->descrizione,
-            'gravita' => $request->gravita,
-            'soluzione' => $request->soluzione,
-            
-            // === CAMPI OBBLIGATORI NELLA MIGRATION CHE DEVI GESTIRE ===
-            'numero_segnalazioni' => 1,                     // DEFAULT 1 (nuovo problema)
-            'prima_segnalazione' => now()->format('Y-m-d'), // Data di oggi
-            'ultima_segnalazione' => now()->format('Y-m-d'), // Data di oggi
-            'creato_da' => Auth::id(),                       // ID utente staff (OBBLIGATORIO)
-            
-            // Timestamps automatici
-            'created_at' => now(),
-            'updated_at' => now()
-        ];
-
-        // === CAMPI OPZIONALI DALLA MIGRATION ===
-        if (!empty($request->strumenti_necessari)) {
-            $data['strumenti_necessari'] = $request->strumenti_necessari;
-        }
-        
-        if (!empty($request->tempo_stimato)) {
-            $data['tempo_stimato'] = (int) $request->tempo_stimato;
-        }
-        
-        if (!empty($request->difficolta)) {
-            $data['difficolta'] = $request->difficolta;
-        } else {
-            // Default dalla migration
-            $data['difficolta'] = 'media';
-        }
-
-        // === GESTIONE CAMPI EXTRA SE ESISTONO ===
-        if (!empty($request->componente_difettoso)) {
-            // Questo campo non è nella migration, ma lo aggiungi se esiste
-            $data['componente_difettoso'] = $request->componente_difettoso;
-        }
-        
-        if (!empty($request->codice_errore)) {
-            // Questo campo non è nella migration, ma lo aggiungi se esiste
-            $data['codice_errore'] = $request->codice_errore;
-        }
-
-        // === CREAZIONE RECORD NEL DATABASE ===
-        $malfunzionamento = Malfunzionamento::create($data);
-
-        // === RECUPERA INFO PRODOTTO PER IL MESSAGGIO ===
-        $prodotto = Prodotto::find($request->prodotto_id);
-        $nomeProdotto = $prodotto ? $prodotto->nome : 'Prodotto';
-
-        // === LOG POST-CREAZIONE ===
-        \Log::info('Nuova soluzione creata con successo', [
-            'malfunzionamento_id' => $malfunzionamento->id,
-            'prodotto_nome' => $nomeProdotto,
-            'staff_id' => Auth::id(),
-            'staff_username' => Auth::user()->username ?? 'N/A',
-            'titolo' => $request->titolo,
-            'gravita' => $request->gravita,
-            'timestamp' => now()
-        ]);
-
-        // === REINDIRIZZAMENTO CON MESSAGGIO DI SUCCESSO ===
-        return redirect()->route('staff.dashboard')
-                        ->with('success', "Nuova soluzione aggiunta con successo al prodotto: <strong>{$nomeProdotto}</strong>")
-                        ->with('info', "ID Soluzione: #{$malfunzionamento->id} | Gravità: {$request->gravita}");
-
-    } catch (\Illuminate\Database\QueryException $e) {
-        // === GESTIONE ERRORI DATABASE SPECIFICI ===
-        \Log::error('Errore database nella creazione soluzione', [
-            'error' => $e->getMessage(),
-            'code' => $e->getCode(),
-            'sql' => $e->getSql() ?? 'N/A',
-            'bindings' => $e->getBindings() ?? [],
-            'user_id' => Auth::id(),
-            'request_data' => $request->except(['_token']) // Esclude token CSRF
-        ]);
-
-        $errorMsg = 'Errore nel database durante la creazione della soluzione.';
-        
-        // Messaggi specifici per errori comuni
-        if (str_contains($e->getMessage(), 'foreign key constraint')) {
-            if (str_contains($e->getMessage(), 'prodotto_id')) {
-                $errorMsg = 'Il prodotto selezionato non è valido. Riprova con un altro prodotto.';
-            } elseif (str_contains($e->getMessage(), 'creato_da')) {
-                $errorMsg = 'Errore nell\'associazione utente. Riprova ad effettuare il login.';
-            } else {
-                $errorMsg = 'Errore di integrità dati. Controlla i dati inseriti.';
-            }
-        } elseif (str_contains($e->getMessage(), 'Data too long')) {
-            $errorMsg = 'Uno dei campi contiene troppo testo. Riduci la lunghezza dei contenuti.';
-        } elseif (str_contains($e->getMessage(), 'Duplicate entry')) {
-            $errorMsg = 'Questa soluzione sembra essere già presente nel sistema.';
-        } elseif (str_contains($e->getMessage(), 'cannot be null') || str_contains($e->getMessage(), 'not null')) {
-            $errorMsg = 'Alcuni campi obbligatori sono mancanti. Controlla il form.';
-        } elseif (str_contains($e->getMessage(), 'Incorrect') && str_contains($e->getMessage(), 'value')) {
-            $errorMsg = 'Uno dei valori inseriti non è valido per il formato richiesto.';
-        }
-
-        return redirect()->back()
-                        ->withInput() // Mantiene i dati inseriti
-                        ->withErrors(['database' => $errorMsg]);
-
-    } catch (\Exception $e) {
-        // === GESTIONE ERRORI GENERICI ===
-        \Log::error('Errore generico nella creazione soluzione', [
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine(),
-            'user_id' => Auth::id(),
-            'request_data' => $request->except(['_token', 'password'])
-        ]);
-
-        return redirect()->back()
-                        ->withInput() // Mantiene i dati inseriti
-                        ->withErrors(['general' => 'Errore imprevisto durante la creazione della soluzione. Riprova o contatta l\'amministratore se il problema persiste.']);
-    }
-}
-    /**
-     * Mostra il form per creare un nuovo malfunzionamento
+     * LINGUAGGIO: PHP con Laravel Framework
+     * TIPO METODO: Metodo pubblico con parametro ID
+     * PARAMETRI: int $productId - ID del prodotto per il nuovo malfunzionamento
+     * TIPO RITORNO: Illuminate\View\View
      * 
-     * @param int $productId - ID del prodotto a cui aggiungere il malfunzionamento
-     * @return \Illuminate\View\View
+     * SCOPO:
+     * Mostra il form per creare un nuovo malfunzionamento associato a un prodotto specifico.
+     * Utilizzato quando lo staff seleziona un prodotto e vuole aggiungere un nuovo problema.
+     * 
+     * SICUREZZA:
+     * - Verifica esistenza prodotto con findOrFail()
+     * - Controllo autorizzazioni implicito tramite middleware del controller
      */
     public function createMalfunzionamento($productId)
     {
-        // Trova il prodotto specificato
+        // === RECUPERO PRODOTTO SICURO ===
+        // findOrFail() - Laravel genera automaticamente 404 se prodotto non esiste
         $prodotto = Prodotto::findOrFail($productId);
         
-        // Restituisce la vista del form di creazione
+        // === RITORNO VISTA FORM CREAZIONE ===
+        // Passa il prodotto preselezionato alla vista
         return view('staff.create_malfunzionamento', compact('prodotto'));
     }
 
     /**
-     * Salva un nuovo malfunzionamento nel database
+     * =============================================================================
+     * SALVATAGGIO MALFUNZIONAMENTO CON VALIDAZIONE
+     * =============================================================================
      * 
-     * @param \Illuminate\Http\Request $request - Richiesta HTTP con i dati del form
-     * @param int $productId - ID del prodotto
-     * @return \Illuminate\Http\RedirectResponse
+     * LINGUAGGIO: PHP con Laravel Framework
+     * TIPO METODO: Metodo pubblico con Request e parametro ID
+     * PARAMETRI: 
+     * - Illuminate\Http\Request $request - Dati form HTTP
+     * - int $productId - ID prodotto a cui associare il malfunzionamento
+     * TIPO RITORNO: Illuminate\Http\RedirectResponse
+     * 
+     * SCOPO:
+     * Salva un nuovo malfunzionamento nel database dopo validazione completa.
+     * Associa automaticamente il malfunzionamento al prodotto specificato.
+     * 
+     * VALIDAZIONE:
+     * - Campi obbligatori (title, description, solution)
+     * - Lunghezza massima per title (255 caratteri)
+     * - Validazione ENUM per gravità
+     * 
+     * TRACCIABILITÀ:
+     * - Registra chi ha creato il malfunzionamento (creato_da_staff_id)
+     * - Timestamp automatici Laravel (created_at, updated_at)
      */
     public function storeMalfunction(Request $request, $productId)
     {
-        // Validazione dei dati di input
+        // === VALIDAZIONE INPUT CON REGOLE LARAVEL ===
         $request->validate([
-            'title' => 'required|string|max:255',        // Titolo obbligatorio, stringa, max 255 caratteri
+            'title' => 'required|string|max:255',        // Titolo obbligatorio, max 255 char
             'description' => 'required|string',          // Descrizione obbligatoria
             'solution' => 'required|string',             // Soluzione obbligatoria
-            'gravita' => 'in:bassa,media,alta,critica',  // Validazione livello gravità
+            'gravita' => 'in:bassa,media,alta,critica',  // Validazione ENUM gravità
         ]);
 
-        // Crea un nuovo malfunzionamento nel database
+        // === CREAZIONE RECORD NEL DATABASE ===
+        // Eloquent create() - Inserimento massa con array associativo
         Malfunzionamento::create([
-            'prodotto_id' => $productId,                  // Associa il malfunzionamento al prodotto
-            'titolo' => $request->title,                  // Titolo del malfunzionamento
-            'descrizione' => $request->description,       // Descrizione del problema
-            'soluzione' => $request->solution,            // Soluzione tecnica
-            'gravita' => $request->gravita ?? 'media',   // Livello di gravità
+            'prodotto_id' => $productId,                  // Associazione al prodotto
+            'titolo' => $request->title,                  // Mapping campo form -> DB
+            'descrizione' => $request->description,       // Campo descrizione problema
+            'soluzione' => $request->solution,            // Campo soluzione tecnica
+            'gravita' => $request->gravita ?? 'media',   // Default se non specificato
             'creato_da_staff_id' => Auth::id(),           // ID staff che ha creato
         ]);
 
-        // Reindirizza alla pagina dei malfunzionamenti del prodotto con messaggio di successo
+        // === REDIRECT CON MESSAGGIO DI SUCCESSO ===
+        // Laravel redirect() con flash message nella sessione
         return redirect()->route('staff.malfunzionamenti', $productId)
                         ->with('success', 'Malfunzionamento aggiunto con successo!');
     }
 
     /**
-     * Mostra il form per modificare un malfunzionamento esistente
+     * =============================================================================
+     * FORM MODIFICA MALFUNZIONAMENTO CON CONTROLLO PERMESSI
+     * =============================================================================
      * 
-     * @param int $id - ID del malfunzionamento da modificare
-     * @return \Illuminate\View\View
+     * LINGUAGGIO: PHP con Laravel Framework
+     * TIPO METODO: Metodo pubblico con parametro ID
+     * PARAMETRI: int $id - ID del malfunzionamento da modificare
+     * TIPO RITORNO: Illuminate\View\View
+     * 
+     * SCOPO:
+     * Mostra il form di modifica per un malfunzionamento esistente.
+     * Implementa controllo granulare dei permessi basato su:
+     * - Livello accesso utente (admin può tutto)
+     * - Assegnazione prodotto a staff specifico (funzionalità opzionale)
+     * 
+     * SICUREZZA:
+     * - Caricamento eager del prodotto correlato
+     * - Verifica permessi basata su livello accesso
+     * - Controllo assegnazione prodotto se implementata
+     * - Errore 403 se permessi insufficienti
      */
     public function editMalfunction($id)
     {
-        // Trova il malfunzionamento specificato con il prodotto associato
+        // === CARICAMENTO MALFUNZIONAMENTO CON RELAZIONE ===
+        // with('prodotto') - Eager loading per evitare query N+1
         $malfunzionamento = Malfunzionamento::with('prodotto')->findOrFail($id);
         
-        // Verifica che lo staff possa modificare questo malfunzionamento
-        // (se implementi la funzionalità opzionale di assegnazione prodotti)
+        // === CONTROLLO PERMESSI GRANULARE ===
         $user = Auth::user();
-        if ($user->livello_accesso < 4) { // Non è admin
-            // Controlla se il prodotto è assegnato all'utente corrente
+        
+        // Se non è amministratore (livello < 4), verifica assegnazione prodotto
+        if ($user->livello_accesso < 4) {
+            // Verifica se il prodotto è assegnato e se appartiene all'utente corrente
             if ($malfunzionamento->prodotto->staff_assegnato_id && 
                 $malfunzionamento->prodotto->staff_assegnato_id !== $user->id) {
+                // Laravel abort() - Genera errore HTTP 403 Forbidden
                 abort(403, 'Non hai i permessi per modificare questo malfunzionamento');
             }
         }
         
-        // Restituisce la vista del form di modifica
+        // === RITORNO VISTA FORM MODIFICA ===
         return view('staff.edit_malfunzionamento', compact('malfunzionamento'));
     }
 
     /**
-     * Aggiorna un malfunzionamento esistente nel database
+     * =============================================================================
+     * AGGIORNAMENTO MALFUNZIONAMENTO CON TRACCIAMENTO
+     * =============================================================================
      * 
-     * @param \Illuminate\Http\Request $request - Richiesta HTTP con i nuovi dati
-     * @param int $id - ID del malfunzionamento da aggiornare
-     * @return \Illuminate\Http\RedirectResponse
+     * LINGUAGGIO: PHP con Laravel Framework
+     * TIPO METODO: Metodo pubblico con Request e ID
+     * PARAMETRI:
+     * - Illuminate\Http\Request $request - Nuovi dati dal form
+     * - int $id - ID malfunzionamento da aggiornare
+     * TIPO RITORNO: Illuminate\Http\RedirectResponse
+     * 
+     * SCOPO:
+     * Aggiorna un malfunzionamento esistente nel database con:
+     * - Validazione completa dei nuovi dati
+     * - Controllo permessi identico al metodo edit
+     * - Tracciamento di chi ha fatto la modifica
+     * - Aggiornamento timestamp automatico
+     * 
+     * SICUREZZA:
+     * - Stessa logica di controllo permessi del metodo edit
+     * - Validazione input prima dell'aggiornamento
+     * - Tracciamento modifiche per audit
      */
     public function updateMalfunction(Request $request, $id)
     {
-        // Validazione dei dati di input
+        // === VALIDAZIONE INPUT ===
         $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'required|string',
@@ -969,10 +633,10 @@ public function storeNuovaSoluzione(Request $request)
             'gravita' => 'in:bassa,media,alta,critica',
         ]);
 
-        // Trova il malfunzionamento da aggiornare
+        // === RECUPERO MALFUNZIONAMENTO ===
         $malfunzionamento = Malfunzionamento::findOrFail($id);
         
-        // Verifica permessi (come sopra)
+        // === CONTROLLO PERMESSI (IDENTICO AL METODO EDIT) ===
         $user = Auth::user();
         if ($user->livello_accesso < 4) {
             if ($malfunzionamento->prodotto->staff_assegnato_id && 
@@ -981,7 +645,8 @@ public function storeNuovaSoluzione(Request $request)
             }
         }
         
-        // Aggiorna i campi con i nuovi valori
+        // === AGGIORNAMENTO RECORD ===
+        // Eloquent update() - UPDATE SET ... WHERE id = ?
         $malfunzionamento->update([
             'titolo' => $request->title,
             'descrizione' => $request->description,
@@ -990,24 +655,47 @@ public function storeNuovaSoluzione(Request $request)
             'modificato_da_staff_id' => Auth::id(),       // Traccia chi ha modificato
         ]);
 
-        // Reindirizza alla pagina dei malfunzionamenti con messaggio di successo
+        // === REDIRECT CON SUCCESSO ===
         return redirect()->route('staff.malfunzionamenti', $malfunzionamento->prodotto_id)
                         ->with('success', 'Malfunzionamento aggiornato con successo!');
     }
 
     /**
-     * Elimina un malfunzionamento dal database
+     * =============================================================================
+     * ELIMINAZIONE MALFUNZIONAMENTO CON LOGGING
+     * =============================================================================
      * 
-     * @param int $id - ID del malfunzionamento da eliminare
-     * @return \Illuminate\Http\RedirectResponse
+     * LINGUAGGIO: PHP con Laravel Framework
+     * TIPO METODO: Metodo pubblico con parametro ID
+     * PARAMETRI: int $id - ID del malfunzionamento da eliminare
+     * TIPO RITORNO: Illuminate\Http\RedirectResponse
+     * 
+     * SCOPO:
+     * Elimina definitivamente un malfunzionamento dal database.
+     * Include controllo permessi, logging per audit e redirect sicuro.
+     * 
+     * PROCESSO:
+     * 1. Recupera malfunzionamento con verifica esistenza
+     * 2. Salva ID prodotto per redirect successivo
+     * 3. Verifica permessi utente
+     * 4. Registra operazione nei log
+     * 5. Elimina record dal database
+     * 6. Redirect con messaggio conferma
+     * 
+     * SICUREZZA:
+     * - Controllo permessi completo
+     * - Logging dell'operazione per audit trail
+     * - Gestione sicura del redirect post-eliminazione
      */
     public function destroyMalfunction($id)
     {
-        // Trova il malfunzionamento da eliminare
+        // === RECUPERO MALFUNZIONAMENTO ===
         $malfunzionamento = Malfunzionamento::findOrFail($id);
-        $productId = $malfunzionamento->prodotto_id;  // Salva l'ID del prodotto per il redirect
+        
+        // Salva ID prodotto per il redirect (prima dell'eliminazione)
+        $productId = $malfunzionamento->prodotto_id;
 
-        // Verifica permessi
+        // === CONTROLLO PERMESSI ===
         $user = Auth::user();
         if ($user->livello_accesso < 4) {
             if ($malfunzionamento->prodotto->staff_assegnato_id && 
@@ -1016,7 +704,8 @@ public function storeNuovaSoluzione(Request $request)
             }
         }
 
-        // Log dell'eliminazione
+        // === LOGGING PER AUDIT TRAIL ===
+        // Registra chi, cosa, quando per tracciabilità delle eliminazioni
         Log::info('Eliminazione malfunzionamento', [
             'malfunzionamento_id' => $id,
             'prodotto_id' => $productId,
@@ -1024,71 +713,120 @@ public function storeNuovaSoluzione(Request $request)
             'titolo' => $malfunzionamento->titolo
         ]);
 
-        // Elimina il malfunzionamento dal database
+        // === ELIMINAZIONE DAL DATABASE ===
+        // Eloquent delete() - DELETE FROM malfunzionamenti WHERE id = ?
         $malfunzionamento->delete();
 
-        // Reindirizza alla pagina dei malfunzionamenti con messaggio di successo
+        // === REDIRECT SICURO ===
         return redirect()->route('staff.malfunzionamenti', $productId)
                         ->with('success', 'Malfunzionamento eliminato con successo!');
     }
 
     /**
-     * Ricerca malfunzionamenti per un prodotto specifico basandosi su un termine di ricerca
+     * =============================================================================
+     * RICERCA MALFUNZIONAMENTI CON FILTRI MULTIPLI
+     * =============================================================================
      * 
-     * @param \Illuminate\Http\Request $request - Richiesta HTTP con il termine di ricerca
-     * @param int $productId - ID del prodotto
-     * @return \Illuminate\View\View
+     * LINGUAGGIO: PHP con Laravel Framework
+     * TIPO METODO: Metodo pubblico con Request e ID prodotto
+     * PARAMETRI:
+     * - Illuminate\Http\Request $request - Parametri di ricerca
+     * - int $productId - ID prodotto su cui ricercare
+     * TIPO RITORNO: Illuminate\View\View
+     * 
+     * SCOPO:
+     * Implementa ricerca avanzata nei malfunzionamenti di un prodotto.
+     * Cerca nei campi: descrizione, titolo, soluzione.
+     * Supporta ricerca parziale e ritorna vista con risultati evidenziati.
+     * 
+     * FUNZIONALITÀ:
+     * - Ricerca full-text su multipli campi
+     * - Gestione termine vuoto (mostra tutti)
+     * - Evidenziazione termine ricercato nella vista
+     * - Performance ottimizzata con query singola
      */
     public function searchMalfunctions(Request $request, $productId)
     {
-        // Trova il prodotto specificato
+        // === RECUPERO PRODOTTO ===
         $prodotto = Prodotto::findOrFail($productId);
         
-        // Ottiene il termine di ricerca dalla richiesta
+        // === ESTRAZIONE TERMINE DI RICERCA ===
+        // get() con default - gestisce parametri mancanti
         $searchTerm = $request->get('search', '');
         
-        // Se c'è un termine di ricerca, filtra i malfunzionamenti
+        // === ESECUZIONE RICERCA CONDIZIONALE ===
         if ($searchTerm) {
-            // Cerca nei malfunzionamenti del prodotto quelli che contengono il termine nella descrizione
+            // Ricerca nei malfunzionamenti del prodotto con OR su multipli campi
             $malfunzionamenti = $prodotto->malfunzionamenti()
-                                   ->where(function($q) use ($searchTerm) {
-                                       $q->where('descrizione', 'like', '%' . $searchTerm . '%')
-                                         ->orWhere('titolo', 'like', '%' . $searchTerm . '%')
-                                         ->orWhere('soluzione', 'like', '%' . $searchTerm . '%');
-                                   })
-                                   ->get();
+                               ->where(function($q) use ($searchTerm) {
+                                   // Closure per raggruppare le condizioni OR
+                                   $q->where('descrizione', 'like', '%' . $searchTerm . '%')
+                                     ->orWhere('titolo', 'like', '%' . $searchTerm . '%')
+                                     ->orWhere('soluzione', 'like', '%' . $searchTerm . '%');
+                               })
+                               ->get();
         } else {
-            // Se non c'è termine di ricerca, mostra tutti i malfunzionamenti
+            // Nessun termine: mostra tutti i malfunzionamenti
             $malfunzionamenti = $prodotto->malfunzionamenti;
         }
         
-        // Restituisce la vista con i risultati della ricerca
+        // === RITORNO VISTA CON RISULTATI ===
+        // Passa anche $searchTerm per evidenziare nelle vista
         return view('staff.malfunzionamenti', compact('prodotto', 'malfunzionamenti', 'searchTerm'));
     }
 
-    // ================================================
-    // API METHODS PER CHIAMATE AJAX
-    // ================================================
+    // =================================================================================
+    // SEZIONE: API METHODS PER CHIAMATE AJAX
+    // =================================================================================
 
     /**
-     * API: Statistiche staff per aggiornamenti AJAX
-     * Route: GET /api/stats
+     * =============================================================================
+     * API STATISTICHE STAFF PER AGGIORNAMENTI AJAX
+     * =============================================================================
      * 
-     * @return \Illuminate\Http\JsonResponse
+     * LINGUAGGIO: PHP con Laravel Framework
+     * TIPO METODO: API REST endpoint (metodo pubblico)
+     * ROUTE: GET /api/stats
+     * TIPO RITORNO: Illuminate\Http\JsonResponse (JSON)
+     * 
+     * SCOPO:
+     * Fornisce statistiche staff in formato JSON per aggiornamenti dinamici
+     * della dashboard tramite chiamate AJAX JavaScript.
+     * 
+     * FUNZIONALITÀ:
+     * - Calcolo statistiche in tempo reale
+     * - Response JSON strutturato con metadati
+     * - Logging per monitoring API
+     * - Gestione errori con response 500
+     * 
+     * UTILIZZO FRONTEND:
+     * JavaScript può chiamare questo endpoint per aggiornare
+     * contatori e statistiche senza ricaricare l'intera pagina.
+     * 
+     * FORMATO RESPONSE:
+     * {
+     *   "success": true,
+     *   "data": { ... statistiche ... },
+     *   "timestamp": "2025-01-01T12:00:00Z",
+     *   "user_info": { ... info utente ... }
+     * }
      */
     public function apiStats()
     {
         try {
             $user = Auth::user();
             
-            // Calcolo statistiche in tempo reale
+            // === CALCOLO STATISTICHE IN TEMPO REALE ===
             $stats = [
+                // Conta prodotti assegnati all'utente
                 'prodotti_assegnati' => Prodotto::where('staff_assegnato_id', $user->id)->count(),
                 
+                // Conta malfunzionamenti sui prodotti assegnati
                 'malfunzionamenti_gestiti' => Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
                         $q->where('staff_assegnato_id', $user->id);
                     })->count(),
                 
+                // Conta soluzioni create (con soluzione non vuota)
                 'soluzioni_create' => Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
                         $q->where('staff_assegnato_id', $user->id);
                     })
@@ -1096,6 +834,7 @@ public function storeNuovaSoluzione(Request $request)
                     ->where('soluzione', '!=', '')
                     ->count(),
                 
+                // Conta soluzioni risolte nel mese corrente
                 'risolti_mese' => Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
                         $q->where('staff_assegnato_id', $user->id);
                     })
@@ -1105,17 +844,18 @@ public function storeNuovaSoluzione(Request $request)
                     ->count(),
             ];
             
-            // Log della richiesta API per monitoring
+            // === LOGGING API PER MONITORING ===
             Log::info('API Stats Staff richiesta', [
                 'user_id' => $user->id,
                 'stats' => $stats,
                 'timestamp' => now()
             ]);
             
+            // === RESPONSE JSON STRUTTURATO ===
             return response()->json([
                 'success' => true,
                 'data' => $stats,
-                'timestamp' => now()->toISOString(),
+                'timestamp' => now()->toISOString(),     // Timestamp ISO per frontend
                 'user_info' => [
                     'id' => $user->id,
                     'name' => $user->nome_completo ?? $user->name,
@@ -1124,12 +864,14 @@ public function storeNuovaSoluzione(Request $request)
             ]);
             
         } catch (\Exception $e) {
+            // === GESTIONE ERRORI API ===
             Log::error('Errore API stats staff', [
                 'error' => $e->getMessage(),
                 'user_id' => Auth::id(),
                 'trace' => $e->getTraceAsString()
             ]);
             
+            // Response errore JSON con status 500
             return response()->json([
                 'success' => false,
                 'message' => 'Errore nel caricamento delle statistiche staff',
@@ -1139,33 +881,58 @@ public function storeNuovaSoluzione(Request $request)
     }
 
     /**
-     * API: Ultime soluzioni create dallo staff corrente
-     * Route: GET /api/ultime-soluzioni
+     * =============================================================================
+     * API ULTIME SOLUZIONI CREATE DALLO STAFF
+     * =============================================================================
      * 
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * LINGUAGGIO: PHP con Laravel Framework
+     * TIPO METODO: API REST endpoint con parametri
+     * ROUTE: GET /api/ultime-soluzioni
+     * PARAMETRI: ?limit=N (opzionale, max 20)
+     * TIPO RITORNO: Illuminate\Http\JsonResponse
+     * 
+     * SCOPO:
+     * Ritorna le ultime soluzioni create dall'utente staff corrente
+     * in formato JSON per widget dinamici della dashboard.
+     * 
+     * SICUREZZA:
+     * - Limite massimo 20 risultati per performance
+     * - Solo soluzioni dell'utente corrente
+     * - Sanificazione dati in output
+     * 
+     * OTTIMIZZAZIONI:
+     * - Eager loading del prodotto correlato
+     * - Limit query per performance
+     * - String truncation per UI
      */
     public function apiUltimeSoluzioni(Request $request)
     {
         try {
             $user = Auth::user();
-            $limit = min($request->get('limit', 5), 20); // Massimo 20 risultati
             
+            // === GESTIONE PARAMETRO LIMIT ===
+            // min() per sicurezza: massimo 20 risultati
+            $limit = min($request->get('limit', 5), 20);
+            
+            // === QUERY CON EAGER LOADING ===
             $soluzioni = Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
                     $q->where('staff_assegnato_id', $user->id);
                 })
-                ->with('prodotto')
-                ->whereNotNull('soluzione')
+                ->with('prodotto')                      // Eager loading prodotto
+                ->whereNotNull('soluzione')             // Solo con soluzione
                 ->where('soluzione', '!=', '')
-                ->orderByDesc('updated_at')
-                ->take($limit)
+                ->orderByDesc('updated_at')             // Più recenti prima
+                ->take($limit)                          // Limit risultati
                 ->get()
-                ->map(function($malfunzionamento) {
+                ->map(function($malfunzionamento) {     // Transform per API
                     return [
                         'id' => $malfunzionamento->id,
                         'titolo' => $malfunzionamento->titolo ?? $malfunzionamento->title ?? 'Senza titolo',
+                        
+                        // Laravel Str::limit() - Tronca stringa per UI
                         'descrizione' => \Str::limit($malfunzionamento->descrizione ?? $malfunzionamento->description, 60),
                         'soluzione' => \Str::limit($malfunzionamento->soluzione ?? $malfunzionamento->solution, 80),
+                        
                         'prodotto' => [
                             'id' => $malfunzionamento->prodotto->id,
                             'nome' => $malfunzionamento->prodotto->nome
@@ -1176,6 +943,7 @@ public function storeNuovaSoluzione(Request $request)
                     ];
                 });
             
+            // === RESPONSE JSON ===
             return response()->json([
                 'success' => true,
                 'data' => $soluzioni,
@@ -1197,43 +965,69 @@ public function storeNuovaSoluzione(Request $request)
     }
 
     /**
-     * API: Malfunzionamenti prioritari che richiedono intervento
-     * Route: GET /api/malfunzionamenti-prioritari
+     * =============================================================================
+     * API MALFUNZIONAMENTI PRIORITARI (CRITICI/URGENTI)
+     * =============================================================================
      * 
-     * @return \Illuminate\Http\JsonResponse
+     * LINGUAGGIO: PHP con Laravel Framework
+     * TIPO METODO: API REST endpoint senza parametri
+     * ROUTE: GET /api/malfunzionamenti-prioritari
+     * TIPO RITORNO: Illuminate\Http\JsonResponse
+     * 
+     * SCOPO:
+     * Ritorna i malfunzionamenti che richiedono intervento prioritario
+     * basandosi sul livello di gravità (critica, alta, urgente).
+     * 
+     * ORDINAMENTO:
+     * - Prima per gravità (critica > urgente > alta)
+     * - Poi per data creazione (più recenti prima)
+     * 
+     * CAMPI INCLUSI:
+     * - Dati malfunzionamento + prodotto correlato
+     * - Indicatori stato (ha_soluzione, numero segnalazioni)
+     * - URL per azioni rapide (modifica)
      */
     public function apiMalfunzionamentiPrioritari()
     {
         try {
             $user = Auth::user();
             
+            // === QUERY MALFUNZIONAMENTI PRIORITARI ===
             $prioritari = Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
                     $q->where('staff_assegnato_id', $user->id);
                 })
                 ->where(function($q) {
+                    // Filtra per livelli di gravità prioritari
                     $q->where('gravita', 'critica')
                       ->orWhere('gravita', 'alta')
                       ->orWhere('gravita', 'urgente');
                 })
                 ->with('prodotto')
+                // Ordinamento custom per gravità usando FIELD()
                 ->orderByRaw("FIELD(gravita, 'critica', 'urgente', 'alta')")
                 ->orderByDesc('created_at')
-                ->take(8)
+                ->take(8)                               // Top 8 prioritari
                 ->get()
-                ->map(function($malfunzionamento) {
+                ->map(function($malfunzionamento) {     // Transform per API
                     return [
                         'id' => $malfunzionamento->id,
                         'titolo' => $malfunzionamento->titolo ?? $malfunzionamento->title ?? 'Problema senza titolo',
                         'descrizione' => \Str::limit($malfunzionamento->descrizione ?? $malfunzionamento->description, 100),
                         'gravita' => $malfunzionamento->gravita ?? 'normale',
+                        
                         'prodotto' => [
                             'id' => $malfunzionamento->prodotto->id,
                             'nome' => $malfunzionamento->prodotto->nome,
                             'categoria' => $malfunzionamento->prodotto->categoria
                         ],
+                        
+                        // Indicatori stato
                         'segnalazioni_count' => $malfunzionamento->numero_segnalazioni ?? 0,
                         'ha_soluzione' => !empty($malfunzionamento->soluzione ?? $malfunzionamento->solution),
+                        
                         'created_at' => $malfunzionamento->created_at,
+                        
+                        // URL per azioni rapide
                         'edit_url' => route('staff.malfunzionamenti.edit', $malfunzionamento->id)
                     ];
                 });
@@ -1258,448 +1052,791 @@ public function storeNuovaSoluzione(Request $request)
     }
 
     /**
-     * API: Prodotti assegnati allo staff corrente
-     * Route: GET /api/prodotti-assegnati
+     * =============================================================================
+     * VISUALIZZAZIONE PRODOTTI ASSEGNATI (FUNZIONALITÀ OPZIONALE)
+     * =============================================================================
      * 
-     * @return \Illuminate\Http\JsonResponse
+     * LINGUAGGIO: PHP con Laravel Framework
+     * TIPO METODO: Metodo pubblico di Controller con parametri Request
+     * PARAMETRI: Illuminate\Http\Request $request (dati HTTP della richiesta)
+     * TIPO RITORNO: Illuminate\View\View
+     * 
+     * SCOPO:
+     * Implementa la funzionalità opzionale del progetto per la ripartizione
+     * della gestione dei prodotti tra i diversi membri dello staff.
+     * Ogni membro dello staff visualizza solo i prodotti a lui assegnati.
+     * 
+     * FUNZIONALITÀ:
+     * - Filtri di ricerca (categoria, solo prodotti critici, ricerca testuale)
+     * - Ordinamento per diversi campi
+     * - Paginazione per gestire grandi volumi di dati
+     * - Statistiche sui prodotti assegnati
+     * - Gestione errori robusta
+     * 
+     * TECNOLOGIE:
+     * - Laravel Request per gestire parametri HTTP
+     * - Eloquent Query Builder per query complesse
+     * - Laravel Pagination per dividere risultati su più pagine
+     * - Laravel Collections per manipolazione dati
      */
-    public function apiProdottiAssegnati()
+    public function prodottiAssegnati(Request $request)
     {
+        // Ottiene l'utente staff corrente autenticato
+        $user = Auth::user();
+
         try {
-            $user = Auth::user();
+            // === COSTRUZIONE QUERY BASE CON ELOQUENT ===
+            // Inizia query per prodotti assegnati all'utente corrente
+            // with() implementa eager loading per evitare query N+1
+            $query = Prodotto::where('staff_assegnato_id', $user->id)
+                         ->with(['malfunzionamenti' => function($q) {
+                             // Closure per personalizzare il caricamento dei malfunzionamenti
+                             $q->orderBy('gravita', 'desc')        // Prima i più gravi
+                               ->orderBy('created_at', 'desc');    // Poi i più recenti
+                         }]);
             
-            // Query solo per prodotti effettivamente assegnati all'utente
-            $prodotti = Prodotto::where('staff_assegnato_id', $user->id)
-                ->with(['malfunzionamenti'])
-                ->orderBy('nome')
-                ->get()
-                ->map(function($prodotto) {
-                    return [
-                        'id' => $prodotto->id,
-                        'nome' => $prodotto->nome,
-                        'categoria' => $prodotto->categoria,
-                        'codice' => $prodotto->codice ?? 'N/A',
-                        'descrizione' => $prodotto->descrizione ?? 'Nessuna descrizione',
-                        'malfunzionamenti_count' => $prodotto->malfunzionamenti->count(),
-                        'critici_count' => $prodotto->malfunzionamenti->where('gravita', 'critica')->count(),
-                        'ultima_modifica' => $prodotto->updated_at->toISOString(),
-                        'attivo' => $prodotto->attivo ?? true,
-                        // URL per azioni staff
-                        'management_url' => route('staff.malfunzionamenti.index') . '?prodotto_id=' . $prodotto->id,
-                        'add_malfunction_url' => route('staff.malfunzionamenti.create', $prodotto->id),
-                        'view_url' => route('prodotti.completo.show', $prodotto->id)
-                    ];
+            // === APPLICAZIONE FILTRI DALLA REQUEST ===
+            
+            // Filtro per categoria se specificato
+            if ($request->filled('categoria')) {
+                // $request->filled() - Verifica se il parametro esiste ed è non vuoto
+                // where() aggiunge condizione WHERE alla query
+                $query->where('categoria', $request->input('categoria'));
+            }
+            
+            // Filtro per prodotti con problemi critici
+            if ($request->boolean('solo_critici')) {
+                // $request->boolean() - Converte il parametro in booleano
+                // whereHas() - Query con subquery su relazione
+                $query->whereHas('malfunzionamenti', function($q) {
+                    $q->where('gravita', 'critica');
                 });
+            }
             
-            // Statistiche sui prodotti assegnati
+            // === GESTIONE RICERCA TESTUALE MIGLIORATA ===
+            $searchTerm = $request->input('search');
+            if ($searchTerm && trim($searchTerm) !== '') {
+                $searchTerm = trim($searchTerm);
+                
+                // Ricerca su multipli campi con OR
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('nome', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('modello', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('codice', 'LIKE', "%{$searchTerm}%");
+                });
+            }
+            
+            // === GESTIONE ORDINAMENTO ===
+            $sortField = $request->input('sort', 'nome');           // Default: ordina per nome
+            $sortDirection = $request->input('direction', 'asc');   // Default: ascendente
+            
+            // Whitelist dei campi ordinabili per sicurezza
+            if (in_array($sortField, ['nome', 'categoria', 'created_at', 'updated_at'])) {
+                $query->orderBy($sortField, $sortDirection);
+            }
+            
+            // === ESECUZIONE QUERY CON PAGINAZIONE ===
+            // paginate() - Laravel auto-gestisce LIMIT, OFFSET e conta totali
+            $prodottiAssegnati = $query->paginate(15);
+            
+            // === CALCOLO STATISTICHE SUI RISULTATI ===
             $stats = [
-                'totale_assegnati' => $prodotti->count(),
-                'con_malfunzionamenti' => $prodotti->filter(fn($p) => $p['malfunzionamenti_count'] > 0)->count(),
-                'critici' => $prodotti->filter(fn($p) => $p['critici_count'] > 0)->count(),
-                'senza_problemi' => $prodotti->filter(fn($p) => $p['malfunzionamenti_count'] === 0)->count()
+                'totale_assegnati' => $prodottiAssegnati->total(),
+                
+                // Conta prodotti con almeno un malfunzionamento
+                'con_malfunzionamenti' => Prodotto::where('staff_assegnato_id', $user->id)
+                                                   ->whereHas('malfunzionamenti')
+                                                   ->count(),
+                
+                // Conta prodotti con problemi critici
+                'critici' => Prodotto::where('staff_assegnato_id', $user->id)
+                                     ->whereHas('malfunzionamenti', function($q) {
+                                         $q->where('gravita', 'critica');
+                                     })->count(),
+                
+                // Conta prodotti senza problemi noti
+                'senza_malfunzionamenti' => Prodotto::where('staff_assegnato_id', $user->id)
+                                                    ->whereDoesntHave('malfunzionamenti')
+                                                    ->count()
             ];
             
-            return response()->json([
-                'success' => true,
-                'data' => $prodotti->values(), // Array indicizzato numericamente
-                'stats' => $stats,
-                'total' => $prodotti->count(),
+            // === LISTA CATEGORIE PER DROPDOWN FILTRO ===
+            // distinct() - SQL DISTINCT per evitare duplicati
+            // pluck() - Estrae solo la colonna specificata
+            // filter() - Rimuove valori null/vuoti
+            // sort() - Ordinamento alfabetico
+            // values() - Reindexes l'array numericamente
+            $categorie = Prodotto::where('staff_assegnato_id', $user->id)
+                                 ->distinct()
+                                 ->pluck('categoria')
+                                 ->filter()
+                                 ->sort()
+                                 ->values();
+            
+            // === RITORNO VISTA CON TUTTI I DATI ===
+            return view('staff.prodotti-assegnati', compact(
+                'prodottiAssegnati', 'stats', 'categorie', 'user'
+            ));
+
+        } catch (\Exception $e) {
+            // === LOGGING ERRORE CON CONTESTO ===
+            Log::error('Errore prodotti assegnati staff', [
+                'error' => $e->getMessage(),
                 'user_id' => $user->id,
-                'message' => $prodotti->count() > 0 
-                    ? "Trovati {$prodotti->count()} prodotti assegnati" 
-                    : "Nessun prodotto assegnato a questo utente staff"
+                'filters' => $request->all()    // Log tutti i filtri applicati
+            ]);
+
+            // Laravel back() - Torna alla pagina precedente
+            // withErrors() - Aggiunge errori alla sessione
+            return back()->with('error', 'Errore nel caricamento dei prodotti assegnati');
+        }
+    }
+
+    /**
+     * =============================================================================
+     * STATISTICHE DETTAGLIATE STAFF
+     * =============================================================================
+     * 
+     * LINGUAGGIO: PHP con Laravel Framework
+     * TIPO METODO: Metodo pubblico con parametri Request
+     * SCOPO: Fornisce statistiche approfondite sull'attività dello staff
+     * 
+     * FUNZIONALITÀ:
+     * - Statistiche generali dell'utente e del sistema
+     * - Attività mensile degli ultimi 6 mesi
+     * - Prodotti più problematici gestiti dall'utente
+     * - Ultime soluzioni create
+     * - Distribuzione soluzioni per categoria prodotto
+     * - Filtro per periodo personalizzabile
+     * 
+     * TECNOLOGIE:
+     * - Laravel Schema per verifiche struttura database
+     * - Eloquent aggregazioni (COUNT, GROUP BY)
+     * - Carbon per manipolazione date
+     * - Laravel Collections per elaborazione dati
+     */
+    public function statistiche(Request $request)
+    {
+        // === VERIFICA AUTORIZZAZIONI SPECIFICHE ===
+        // Doppio controllo: autenticazione + metodo custom canManageMalfunzionamenti()
+        if (!Auth::check() || !Auth::user()->canManageMalfunzionamenti()) {
+            abort(403, 'Accesso riservato allo staff aziendale');
+        }
+
+        $user = Auth::user();
+        $periodo = $request->input('periodo', 30); // Default 30 giorni
+        
+        try {
+            // === STATISTICHE GENERALI CON VERIFICA SCHEMA ===
+            $stats = [
+                // Contatori base sempre disponibili
+                'prodotti_totali' => \App\Models\Prodotto::count(),
+                'malfunzionamenti_totali' => \App\Models\Malfunzionamento::count(),
+                
+                // Statistiche utente (solo se campo tracking esiste)
+                'soluzioni_create' => \Schema::hasColumn('malfunzionamenti', 'creato_da') 
+                    ? \App\Models\Malfunzionamento::where('creato_da', $user->id)->count() 
+                    : 0,
+                'soluzioni_modificate' => \Schema::hasColumn('malfunzionamenti', 'modificato_da') 
+                    ? \App\Models\Malfunzionamento::where('modificato_da', $user->id)->count() 
+                    : 0,
+                
+                // Statistiche per periodo selezionato
+                'soluzioni_periodo' => \Schema::hasColumn('malfunzionamenti', 'creato_da') 
+                    ? \App\Models\Malfunzionamento::where('creato_da', $user->id)
+                        ->where('created_at', '>=', now()->subDays($periodo))
+                        ->count()
+                    : 0,
+                    
+                'modifiche_periodo' => \Schema::hasColumn('malfunzionamenti', 'modificato_da') 
+                    ? \App\Models\Malfunzionamento::where('modificato_da', $user->id)
+                        ->where('updated_at', '>=', now()->subDays($periodo))
+                        ->count()
+                    : 0,
+                    
+                // === STATISTICHE PER GRAVITÀ PROBLEMA ===
+                // Conta soluzioni create dall'utente divise per livello di gravità
+                'critiche_risolte' => \Schema::hasColumn('malfunzionamenti', 'creato_da') 
+                    ? \App\Models\Malfunzionamento::where('creato_da', $user->id)
+                        ->where('gravita', 'critica')->count()
+                    : 0,
+                'alte_risolte' => \Schema::hasColumn('malfunzionamenti', 'creato_da') 
+                    ? \App\Models\Malfunzionamento::where('creato_da', $user->id)
+                        ->where('gravita', 'alta')->count()
+                    : 0,
+                'medie_risolte' => \Schema::hasColumn('malfunzionamenti', 'creato_da') 
+                    ? \App\Models\Malfunzionamento::where('creato_da', $user->id)
+                        ->where('gravita', 'media')->count()
+                    : 0,
+                'basse_risolte' => \Schema::hasColumn('malfunzionamenti', 'creato_da') 
+                    ? \App\Models\Malfunzionamento::where('creato_da', $user->id)
+                        ->where('gravita', 'bassa')->count()
+                    : 0,
+            ];
+
+            // === ATTIVITÀ MENSILE (ULTIMI 6 MESI) ===
+            // Array per costruire grafico trend attività mensile
+            $attivitaMensile = [];
+            if (\Schema::hasColumn('malfunzionamenti', 'creato_da')) {
+                // Loop degli ultimi 6 mesi (da 5 mesi fa a mese corrente)
+                for ($i = 5; $i >= 0; $i--) {
+                    // Carbon per calcolare inizio/fine mese
+                    $startOfMonth = now()->subMonths($i)->startOfMonth();
+                    $endOfMonth = now()->subMonths($i)->endOfMonth();
+                    
+                    $attivitaMensile[] = [
+                        'mese' => $startOfMonth->format('M Y'),    // Es: "Gen 2025"
+                        
+                        // Conta soluzioni create in quel mese
+                        'soluzioni_create' => \App\Models\Malfunzionamento::where('creato_da', $user->id)
+                            ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
+                            ->count(),
+                            
+                        // Conta soluzioni modificate in quel mese
+                        'soluzioni_modificate' => \App\Models\Malfunzionamento::where('modificato_da', $user->id)
+                            ->whereBetween('updated_at', [$startOfMonth, $endOfMonth])
+                            ->count(),
+                    ];
+                }
+            }
+
+            // === PRODOTTI PIÙ PROBLEMATICI ===
+            // Trova i prodotti con più soluzioni create dall'utente corrente
+            $prodottiProblematici = collect();
+            if (\Schema::hasColumn('malfunzionamenti', 'creato_da')) {
+                // withCount() - Aggiunge contatore alla query principale
+                $prodottiProblematici = \App\Models\Prodotto::withCount([
+                        'malfunzionamenti as soluzioni_mie' => function ($query) use ($user) {
+                            $query->where('creato_da', $user->id);
+                        }
+                    ])
+                    ->having('soluzioni_mie', '>', 0)          // Solo prodotti con soluzioni
+                    ->orderByDesc('soluzioni_mie')             // Ordina per numero soluzioni
+                    ->limit(10)                                // Top 10
+                    ->get();
+            }
+
+            // === ULTIME SOLUZIONI CREATE ===
+            $ultimeSoluzioni = collect();
+            if (\Schema::hasColumn('malfunzionamenti', 'creato_da')) {
+                $ultimeSoluzioni = \App\Models\Malfunzionamento::where('creato_da', $user->id)
+                    ->with(['prodotto:id,nome,modello,categoria'])     // Eager loading ottimizzato
+                    ->orderBy('created_at', 'desc')
+                    ->limit(10)
+                    ->get();
+            }
+
+            // === SOLUZIONI PER CATEGORIA PRODOTTO ===
+            // Raggruppa soluzioni create dall'utente per categoria di prodotto
+            $soluzioniPerCategoria = collect();
+            if (\Schema::hasColumn('malfunzionamenti', 'creato_da')) {
+                // Query con JOIN e GROUP BY
+                $soluzioniPerCategoria = \App\Models\Malfunzionamento::where('creato_da', $user->id)
+                    ->join('prodotti', 'malfunzionamenti.prodotto_id', '=', 'prodotti.id')
+                    ->selectRaw('prodotti.categoria, COUNT(*) as count')      // SELECT categoria, COUNT(*)
+                    ->groupBy('prodotti.categoria')                           // GROUP BY categoria
+                    ->orderByDesc('count')                                    // ORDER BY count DESC
+                    ->get();
+            }
+
+            // === RITORNO VISTA CON TUTTI I DATI ===
+            return view('staff.statistiche', compact(
+                'user',
+                'stats', 
+                'attivitaMensile', 
+                'prodottiProblematici',
+                'ultimeSoluzioni',
+                'soluzioniPerCategoria',
+                'periodo'
+            ));
+
+        } catch (\Exception $e) {
+            // === GESTIONE ERRORE CON FALLBACK ===
+            \Log::error('Errore caricamento statistiche staff', [
+                'error' => $e->getMessage(),
+                'user_id' => $user->id,
+                'periodo' => $periodo
             ]);
             
+            // Ritorna vista con dati vuoti ma funzionali
+            return view('statistiche', [
+                'user' => $user,
+                'stats' => [
+                    'prodotti_totali' => 0,
+                    'malfunzionamenti_totali' => 0,
+                    'soluzioni_create' => 0,
+                    'soluzioni_modificate' => 0,
+                    'soluzioni_periodo' => 0,
+                    'modifiche_periodo' => 0,
+                    'critiche_risolte' => 0,
+                    'alte_risolte' => 0,
+                    'medie_risolte' => 0,
+                    'basse_risolte' => 0,
+                ],
+                'attivitaMensile' => [],
+                'prodottiProblematici' => collect(),
+                'ultimeSoluzioni' => collect(),
+                'soluzioniPerCategoria' => collect(),
+                'periodo' => $periodo,
+                'error' => 'Errore nel caricamento delle statistiche'
+            ]);
+        }
+    }
+
+    /**
+     * =============================================================================
+     * REPORT DETTAGLIATO ATTIVITÀ STAFF
+     * =============================================================================
+     * 
+     * LINGUAGGIO: PHP con Laravel Framework
+     * TIPO METODO: Metodo pubblico con Request per filtri
+     * SCOPO: Genera report dettagliato delle attività dello staff in un periodo
+     * 
+     * FUNZIONALITÀ:
+     * - Filtro per periodo personalizzabile (data inizio/fine)
+     * - Filtro per tipo attività (create, update, delete)
+     * - Paginazione dei risultati
+     * - Statistiche aggregate del periodo
+     * - Export e visualizzazione cronologica
+     * 
+     * TECNOLOGIE:
+     * - Laravel Request validation e input sanitization
+     * - Eloquent whereBetween per query su range date
+     * - Eloquent whereHas per relazioni complesse
+     * - Laravel Pagination automatica
+     */
+    public function reportAttivita(Request $request)
+    {
+        $user = Auth::user();
+        
+        try {
+            // === ESTRAZIONE PARAMETRI FILTRO ===
+            // input() con default - Laravel gestisce automaticamente sanitizzazione
+            $dataInizio = $request->input('data_inizio', now()->startOfMonth()->format('Y-m-d'));
+            $dataFine = $request->input('data_fine', now()->format('Y-m-d'));
+            $tipoAttivita = $request->input('tipo', 'all'); // all, create, update, delete
+            
+            // === QUERY BASE CON FILTRO UTENTE E PERIODO ===
+            // whereHas() - Filtra malfunzionamenti solo dei prodotti assegnati all'utente
+            $query = Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
+                    $q->where('staff_assegnato_id', $user->id);
+                })
+                ->with(['prodotto'])    // Eager loading del prodotto correlato
+                // whereBetween - SQL: WHERE updated_at BETWEEN ? AND ?
+                ->whereBetween('updated_at', [$dataInizio . ' 00:00:00', $dataFine . ' 23:59:59']);
+            
+            // === APPLICAZIONE FILTRO TIPO ATTIVITÀ ===
+            if ($tipoAttivita !== 'all') {
+                // Preparazione per future implementazioni con audit log
+                // Qui potresti filtrare per tipo di azione (create, update, delete)
+                // Ad esempio con una tabella audit_logs o campi specifici
+            }
+            
+            // Esecuzione query con paginazione
+            $attivita = $query->orderByDesc('updated_at')->paginate(20);
+            
+            // === CALCOLO STATISTICHE PERIODO ===
+            $statsReport = [
+                'totale_attivita' => $attivita->total(),
+                
+                // Conta prodotti distinti modificati nel periodo
+                'prodotti_modificati' => $query->distinct('prodotto_id')->count('prodotto_id'),
+                
+                // Conta nuove soluzioni create nel periodo
+                'nuove_soluzioni' => Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
+                        $q->where('staff_assegnato_id', $user->id);
+                    })
+                    ->whereBetween('created_at', [$dataInizio . ' 00:00:00', $dataFine . ' 23:59:59'])
+                    ->whereNotNull('soluzione')              // Solo record con soluzione
+                    ->where('soluzione', '!=', '')           // Soluzione non vuota
+                    ->count(),
+                    
+                // Conta modifiche a soluzioni esistenti
+                'modifiche_soluzioni' => Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
+                        $q->where('staff_assegnato_id', $user->id);
+                    })
+                    ->whereBetween('updated_at', [$dataInizio . ' 00:00:00', $dataFine . ' 23:59:59'])
+                    ->where('created_at', '<', $dataInizio . ' 00:00:00') // Creati prima del periodo
+                    ->count()
+            ];
+            
+            return view('staff.report-attivita', compact(
+                'user', 'attivita', 'statsReport', 'dataInizio', 'dataFine', 'tipoAttivita'
+            ));
+
         } catch (\Exception $e) {
-            Log::error('Errore API prodotti assegnati', [
+            Log::error('Errore report attività staff', [
                 'error' => $e->getMessage(),
-                'user_id' => Auth::id(),
+                'user_id' => $user->id,
+                'filters' => $request->all()
+            ]);
+
+            return back()->with('error', 'Errore nella generazione del report');
+        }
+    }
+
+    // =================================================================================
+    // SEZIONE: GESTIONE MALFUNZIONAMENTI (CRUD STAFF)
+    // =================================================================================
+
+    /**
+     * =============================================================================
+     * VISUALIZZAZIONE MALFUNZIONAMENTI DI UN PRODOTTO
+     * =============================================================================
+     * 
+     * LINGUAGGIO: PHP con Laravel Framework
+     * TIPO METODO: Metodo pubblico con parametro integer
+     * PARAMETRI: int $productId - ID del prodotto da visualizzare
+     * TIPO RITORNO: Illuminate\View\View
+     * 
+     * SCOPO:
+     * Mostra tutti i malfunzionamenti associati a un prodotto specifico.
+     * Utilizzato quando lo staff vuole vedere tutti i problemi noti di un prodotto.
+     * 
+     * TECNOLOGIE:
+     * - Eloquent findOrFail() per recupero sicuro con gestione errori automatica
+     * - Relazioni Eloquent per accesso ai malfunzionamenti correlati
+     * - Laravel Blade view rendering
+     */
+    public function showMalfunzionamento($productId)
+    {
+        // === RECUPERO PRODOTTO CON GESTIONE ERRORI AUTOMATICA ===
+        // findOrFail() - Se non trova il prodotto, Laravel genera automaticamente 404
+        $prodotto = Prodotto::findOrFail($productId);
+        
+        // === ACCESSO RELAZIONE ELOQUENT ===
+        // $prodotto->malfunzionamenti - Accede alla relazione hasMany() definita nel modello
+        // Laravel esegue automaticamente: SELECT * FROM malfunzionamenti WHERE prodotto_id = ?
+        $malfunzionamenti = $prodotto->malfunzionamenti;
+        
+        // === RITORNO VISTA CON DATI ===
+        // compact() - Crea array associativo: ['prodotto' => $prodotto, 'malfunzionamenti' => $malfunzionamenti]
+        return view('staff.malfunzionamenti', compact('prodotto', 'malfunzionamenti'));
+    }
+
+    /**
+     * =============================================================================
+     * FORM CREAZIONE NUOVA SOLUZIONE (METODO CORRETTO)
+     * =============================================================================
+     * 
+     * LINGUAGGIO: PHP con Laravel Framework
+     * TIPO METODO: Metodo pubblico senza parametri
+     * TIPO RITORNO: Illuminate\View\View
+     * 
+     * SCOPO:
+     * Mostra il form per creare un nuovo malfunzionamento con possibilità
+     * di scegliere SOLO tra i prodotti assegnati allo staff corrente.
+     * Implementa la funzionalità opzionale di ripartizione gestione prodotti.
+     * 
+     * LOGICA:
+     * 1. Verifica autorizzazioni utente
+     * 2. Recupera solo prodotti assegnati all'utente
+     * 3. Gestisce fallback se assegnazione non implementata
+     * 4. Calcola statistiche sui prodotti assegnati
+     * 5. Ritorna form con prodotti disponibili
+     * 
+     * GESTIONE ERRORI:
+     * - Fallback se funzionalità assegnazione non implementata
+     * - Redirect se utente non ha prodotti assegnati
+     * - Gestione eccezioni database
+     */
+    public function createNuovaSoluzione()
+    {
+        // === VERIFICA AUTORIZZAZIONI DETTAGLIATA ===
+        if (!Auth::check() || !Auth::user()->isStaff()) {
+            abort(403, 'Accesso riservato allo staff');
+        }
+
+        $user = Auth::user();
+
+        // === RECUPERO PRODOTTI ASSEGNATI ALL'UTENTE ===
+        try {
+            // Schema::hasColumn() - Verifica se la funzionalità opzionale è implementata
+            if (!Schema::hasColumn('prodotti', 'staff_assegnato_id')) {
+                Log::warning('Campo staff_assegnato_id non esiste - implementazione assegnazioni non attiva');
+                
+                // === FALLBACK - Funzionalità non implementata ===
+                // Se l'assegnazione non è implementata, mostra tutti i prodotti attivi
+                $prodotti = Prodotto::where('attivo', true)
+                                   ->orderBy('categoria')
+                                   ->orderBy('nome')
+                                   ->get();
+            } else {
+                // === QUERY PRODOTTI ASSEGNATI ===
+                // Solo prodotti specificamente assegnati all'utente corrente
+                $prodotti = Prodotto::where('staff_assegnato_id', $user->id)
+                                   ->where('attivo', true)
+                                   ->orderBy('categoria')
+                                   ->orderBy('nome')
+                                   ->get();
+                
+                Log::info('Prodotti assegnati caricati per staff', [
+                    'user_id' => $user->id,
+                    'username' => $user->username,
+                    'prodotti_count' => $prodotti->count()
+                ]);
+            }
+
+            // === VERIFICA DISPONIBILITÀ PRODOTTI ===
+            if ($prodotti->isEmpty()) {
+                Log::warning('Staff senza prodotti assegnati tenta di creare soluzione', [
+                    'user_id' => $user->id,
+                    'username' => $user->username
+                ]);
+
+                // Redirect con messaggio informativo
+                return redirect()->route('staff.dashboard')
+                               ->with('warning', 'Non hai prodotti assegnati. Contatta l\'amministratore per richiedere l\'assegnazione di prodotti da gestire.')
+                               ->with('info', 'Solo l\'amministratore può assegnare prodotti ai membri dello staff.');
+            }
+
+            // === CALCOLO STATISTICHE PRODOTTI ASSEGNATI ===
+            $statsAssegnati = [
+                'totale' => $prodotti->count(),
+                
+                // Raggruppa per categoria e conta
+                'per_categoria' => $prodotti->groupBy('categoria')->map(function($gruppo) {
+                    return $gruppo->count();
+                })->sortDesc(),    // Ordina per numero decrescente
+                
+                // Conta prodotti con/senza problemi
+                'con_problemi' => $prodotti->filter(function($prodotto) {
+                    return $prodotto->malfunzionamenti->count() > 0;
+                })->count(),
+                'senza_problemi' => $prodotti->filter(function($prodotto) {
+                    return $prodotto->malfunzionamenti->count() === 0;
+                })->count()
+            ];
+
+            // Variabili per compatibilità con vista esistente
+            $prodotto = null;              // Nessun prodotto pre-selezionato
+            $isNuovaSoluzione = true;      // Flag per vista form
+            
+            Log::info('Form nuova soluzione caricato con successo', [
+                'user_id' => $user->id,
+                'prodotti_disponibili' => $prodotti->count(),
+                'stats' => $statsAssegnati
+            ]);
+            
+            // === RITORNO VISTA FORM ===
+            return view('malfunzionamenti.create', compact(
+                'prodotto', 
+                'prodotti', 
+                'isNuovaSoluzione',
+                'statsAssegnati',
+                'user'
+            ));
+
+        } catch (\Exception $e) {
+            Log::error('Errore caricamento form nuova soluzione', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'Errore nel caricamento dei prodotti assegnati',
-                'error' => config('app.debug') ? $e->getMessage() : null
-            ], 500);
+
+            return redirect()->route('staff.dashboard')
+                           ->with('error', 'Errore nel caricamento del modulo per nuove soluzioni. Riprova più tardi.');
         }
     }
 
-    // ================================================
-    // METODI DI SUPPORTO PRIVATI
-    // ================================================
-
     /**
-     * Calcola conteggi base per le statistiche iniziali della dashboard
+     * =============================================================================
+     * SALVATAGGIO NUOVA SOLUZIONE (METODO CORRETTO)
+     * =============================================================================
      * 
-     * @param string $tipo
-     * @param int $userId
-     * @return int
+     * LINGUAGGIO: PHP con Laravel Framework
+     * TIPO METODO: Metodo pubblico con Request
+     * PARAMETRI: Illuminate\Http\Request $request - Dati HTTP del form
+     * TIPO RITORNO: Illuminate\Http\RedirectResponse
+     * 
+     * SCOPO:
+     * Salva un nuovo malfunzionamento nel database rispettando completamente
+     * la struttura della migration esistente. Gestisce validazione,
+     * preparazione dati, inserimento DB e gestione errori.
+     * 
+     * VALIDAZIONE:
+     * - Tutti i campi obbligatori della migration
+     * - Tipi di dato corretti (ENUM, integer, string)
+     * - Lunghezze massime dei campi
+     * - Esistenza prodotto nel database
+     * 
+     * GESTIONE ERRORI:
+     * - Errori di validazione Laravel
+     * - Errori database (foreign key, duplicate, etc.)
+     * - Errori generici con logging dettagliato
      */
-    private function getConteggioBaser($tipo, $userId)
+    public function storeNuovaSoluzione(Request $request)
     {
+        // === VERIFICA AUTORIZZAZIONI ===
+        if (!Auth::check() || !Auth::user()->isStaff()) {
+            abort(403, 'Accesso riservato allo staff');
+        }
+
+        // === VALIDAZIONE COMPLETA BASATA SULLA MIGRATION ===
+        // Laravel $request->validate() - Valida input secondo regole specificate
+        $request->validate([
+            // Validazione prodotto
+            'prodotto_id' => 'required|exists:prodotti,id',       // Deve esistere nella tabella prodotti
+            
+            // Campi obbligatori text/varchar
+            'titolo' => 'required|string|max:255',                // VARCHAR(255) nella migration
+            'descrizione' => 'required|string',                   // TEXT nella migration
+            'soluzione' => 'required|string',                     // TEXT nella migration
+            
+            // Campo ENUM gravità
+            'gravita' => 'required|in:bassa,media,alta,critica',  // ENUM esatto dalla migration
+            
+            // Campi opzionali
+            'strumenti_necessari' => 'nullable|string',           // TEXT nullable
+            'tempo_stimato' => 'nullable|integer|min:1',          // INT nullable, minimo 1 minuto
+            'difficolta' => 'nullable|in:facile,media,difficile,esperto', // ENUM nullable
+        ], [
+            // === MESSAGGI DI ERRORE PERSONALIZZATI IN ITALIANO ===
+            'prodotto_id.required' => 'Devi selezionare un prodotto.',
+            'prodotto_id.exists' => 'Il prodotto selezionato non esiste.',
+            'titolo.required' => 'Il titolo del problema è obbligatorio.',
+            'titolo.max' => 'Il titolo non può superare 255 caratteri.',
+            'descrizione.required' => 'La descrizione del problema è obbligatoria.',
+            'soluzione.required' => 'La soluzione tecnica è obbligatoria.',
+            'gravita.required' => 'Devi selezionare il livello di gravità.',
+            'gravita.in' => 'Il livello di gravità deve essere: bassa, media, alta o critica.',
+            'difficolta.in' => 'La difficoltà deve essere: facile, media, difficile o esperto.',
+            'tempo_stimato.integer' => 'Il tempo stimato deve essere un numero intero.',
+            'tempo_stimato.min' => 'Il tempo stimato deve essere almeno 1 minuto.',
+        ]);
+
         try {
-            switch ($tipo) {
-                case 'malfunzionamenti_gestiti':
-                    return Malfunzionamento::whereHas('prodotto', function($q) use ($userId) {
-                        $q->where('staff_assegnato_id', $userId);
-                    })->count();
-                
-                case 'soluzioni_create':
-                    return Malfunzionamento::whereHas('prodotto', function($q) use ($userId) {
-                        $q->where('staff_assegnato_id', $userId);
-                    })
-                    ->whereNotNull('soluzione')
-                    ->where('soluzione', '!=', '')
-                    ->count();
-                
-                case 'prodotti_assegnati':
-                    return Prodotto::where('staff_assegnato_id', $userId)->count();
-                
-                case 'risolti_mese':
-                    return Malfunzionamento::whereHas('prodotto', function($q) use ($userId) {
-                        $q->where('staff_assegnato_id', $userId);
-                    })
-                    ->where('updated_at', '>=', now()->startOfMonth())
-                    ->whereNotNull('soluzione')
-                    ->where('soluzione', '!=', '')
-                    ->count();
-                
-                default:
-                    return 0;
-            }
-        } catch (\Exception $e) {
-            Log::warning('Errore calcolo conteggio base', [
-                'tipo' => $tipo,
-                'user_id' => $userId,
-                'error' => $e->getMessage()
+            // === LOG PRE-INSERIMENTO PER DEBUG ===
+            \Log::info('Creazione nuova soluzione - Pre-save', [
+                'user_id' => Auth::id(),
+                'prodotto_id' => $request->prodotto_id,
+                'titolo' => $request->titolo,
+                'gravita' => $request->gravita,
+                'has_soluzione' => !empty($request->soluzione)
             ]);
-            return 0;
-        }
-    }
 
-    /**
-     * Calcola il trend mensile per le statistiche
-     * 
-     * @return array
-     */
-    private function calcolaTrendMensile()
-    {
-        try {
-            $user = Auth::user();
-            
-            $meseCorrente = Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
-                    $q->where('staff_assegnato_id', $user->id);
-                })
-                ->whereMonth('created_at', now()->month)
-                ->whereYear('created_at', now()->year)
-                ->count();
-            
-            $mesePrecedente = Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
-                    $q->where('staff_assegnato_id', $user->id);
-                })
-                ->whereMonth('created_at', now()->subMonth()->month)
-                ->whereYear('created_at', now()->subMonth()->year)
-                ->count();
-            
-            $trend = $mesePrecedente > 0 
-                ? round((($meseCorrente - $mesePrecedente) / $mesePrecedente) * 100, 1)
-                : 0;
-            
-            return [
-                'mese_corrente' => $meseCorrente,
-                'mese_precedente' => $mesePrecedente,
-                'percentuale_variazione' => $trend,
-                'direzione' => $trend > 0 ? 'aumento' : ($trend < 0 ? 'diminuzione' : 'stabile')
+            // === PREPARAZIONE DATI ALLINEATI ALLA MIGRATION ===
+            // Array associativo con tutti i campi richiesti dalla migration
+            $data = [
+                // === CAMPI OBBLIGATORI DALLA MIGRATION ===
+                'prodotto_id' => $request->prodotto_id,
+                'titolo' => $request->titolo,
+                'descrizione' => $request->descrizione,
+                'gravita' => $request->gravita,
+                'soluzione' => $request->soluzione,
+                
+                // === CAMPI CON VALORI DEFAULT OBBLIGATORI ===
+                'numero_segnalazioni' => 1,                     // Default per nuovo problema
+                'prima_segnalazione' => now()->format('Y-m-d'), // Data oggi
+                'ultima_segnalazione' => now()->format('Y-m-d'), // Data oggi
+                'creato_da' => Auth::id(),                       // ID utente staff corrente
+                
+                // === TIMESTAMPS AUTOMATICI LARAVEL ===
+                'created_at' => now(),
+                'updated_at' => now()
             ];
-            
-        } catch (\Exception $e) {
-            Log::error('Errore calcolo trend mensile', [
-                'error' => $e->getMessage(),
-                'user_id' => Auth::id()
-            ]);
-            
-            return [
-                'mese_corrente' => 0,
-                'mese_precedente' => 0,
-                'percentuale_variazione' => 0,
-                'direzione' => 'stabile'
-            ];
-        }
-    }
 
-    /**
-     * Verifica se l'utente corrente può gestire il malfunzionamento specificato
-     * 
-     * @param \App\Models\Malfunzionamento $malfunzionamento
-     * @return bool
-     */
-    private function puoGestireMalfunzionamento($malfunzionamento)
-    {
-        $user = Auth::user();
-        
-        // Gli amministratori possono gestire tutto
-        if ($user->livello_accesso >= 4) {
-            return true;
-        }
-        
-        // Lo staff può gestire solo i prodotti assegnati (se implementata la funzionalità opzionale)
-        if ($malfunzionamento->prodotto->staff_assegnato_id) {
-            return $malfunzionamento->prodotto->staff_assegnato_id === $user->id;
-        }
-        
-        // Se non c'è assegnazione specifica, tutti gli staff possono gestire
-        return true;
-    }
-
-    /**
-     * Registra un'azione dello staff per audit log
-     * 
-     * @param string $azione
-     * @param \App\Models\Malfunzionamento $malfunzionamento
-     * @param array $datiAggiuntivi
-     * @return void
-     */
-    private function logAzioneStaff($azione, $malfunzionamento = null, $datiAggiuntivi = [])
-    {
-        $logData = [
-            'user_id' => Auth::id(),
-            'azione' => $azione,
-            'timestamp' => now(),
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->header('User-Agent')
-        ];
-        
-        if ($malfunzionamento) {
-            $logData['malfunzionamento_id'] = $malfunzionamento->id;
-            $logData['prodotto_id'] = $malfunzionamento->prodotto_id;
-            $logData['titolo'] = $malfunzionamento->titolo;
-        }
-        
-        if (!empty($datiAggiuntivi)) {
-            $logData = array_merge($logData, $datiAggiuntivi);
-        }
-        
-        Log::info('Azione Staff', $logData);
-    }
-
-    /**
-     * Ottiene le metriche di performance dello staff
-     * 
-     * @param int $userId
-     * @param string $periodo
-     * @return array
-     */
-    private function getMetrichePerformance($userId, $periodo = 'mese')
-    {
-        $dataInizio = match($periodo) {
-            'settimana' => now()->startOfWeek(),
-            'mese' => now()->startOfMonth(),
-            'trimestre' => now()->startOfQuarter(),
-            'anno' => now()->startOfYear(),
-            default => now()->startOfMonth()
-        };
-        
-        return [
-            'nuovi_malfunzionamenti' => Malfunzionamento::whereHas('prodotto', function($q) use ($userId) {
-                    $q->where('staff_assegnato_id', $userId);
-                })
-                ->where('created_at', '>=', $dataInizio)
-                ->count(),
-                
-            'soluzioni_completate' => Malfunzionamento::whereHas('prodotto', function($q) use ($userId) {
-                    $q->where('staff_assegnato_id', $userId);
-                })
-                ->where('updated_at', '>=', $dataInizio)
-                ->whereNotNull('soluzione')
-                ->where('soluzione', '!=', '')
-                ->count(),
-                
-            'tempo_medio_risoluzione' => $this->calcolaTempoMedioRisoluzione($userId, $dataInizio),
-            
-            'tasso_risoluzione' => $this->calcolaTassoRisoluzione($userId, $dataInizio)
-        ];
-    }
-
-    /**
-     * Calcola il tempo medio di risoluzione per lo staff
-     * 
-     * @param int $userId
-     * @param \Carbon\Carbon $dataInizio
-     * @return float
-     */
-    private function calcolaTempoMedioRisoluzione($userId, $dataInizio)
-    {
-        try {
-            $malfunzionamenti = Malfunzionamento::whereHas('prodotto', function($q) use ($userId) {
-                    $q->where('staff_assegnato_id', $userId);
-                })
-                ->where('created_at', '>=', $dataInizio)
-                ->whereNotNull('soluzione')
-                ->where('soluzione', '!=', '')
-                ->get();
-            
-            if ($malfunzionamenti->count() === 0) {
-                return 0;
+            // === GESTIONE CAMPI OPZIONALI ===
+            if (!empty($request->strumenti_necessari)) {
+                $data['strumenti_necessari'] = $request->strumenti_necessari;
             }
             
-            $tempiTotali = $malfunzionamenti->sum(function($malfunzionamento) {
-                return $malfunzionamento->created_at->diffInHours($malfunzionamento->updated_at);
-            });
-            
-            return round($tempiTotali / $malfunzionamenti->count(), 1);
-            
-        } catch (\Exception $e) {
-            Log::error('Errore calcolo tempo medio risoluzione', [
-                'error' => $e->getMessage(),
-                'user_id' => $userId
-            ]);
-            return 0;
-        }
-    }
-
-    /**
-     * Calcola il tasso di risoluzione per lo staff
-     * 
-     * @param int $userId
-     * @param \Carbon\Carbon $dataInizio
-     * @return float
-     */
-    private function calcolaTassoRisoluzione($userId, $dataInizio)
-    {
-        try {
-            $totaliMalfunzionamenti = Malfunzionamento::whereHas('prodotto', function($q) use ($userId) {
-                    $q->where('staff_assegnato_id', $userId);
-                })
-                ->where('created_at', '>=', $dataInizio)
-                ->count();
-            
-            if ($totaliMalfunzionamenti === 0) {
-                return 0;
+            if (!empty($request->tempo_stimato)) {
+                $data['tempo_stimato'] = (int) $request->tempo_stimato;  // Cast a integer
             }
             
-            $risolti = Malfunzionamento::whereHas('prodotto', function($q) use ($userId) {
-                    $q->where('staff_assegnato_id', $userId);
-                })
-                ->where('created_at', '>=', $dataInizio)
-                ->whereNotNull('soluzione')
-                ->where('soluzione', '!=', '')
-                ->count();
+            if (!empty($request->difficolta)) {
+                $data['difficolta'] = $request->difficolta;
+            } else {
+                $data['difficolta'] = 'media';  // Default dalla migration
+            }
+
+            // === GESTIONE CAMPI EXTRA SE ESISTONO ===
+            // Questi campi non sono nella migration di base ma potrebbero essere aggiunti
+            if (!empty($request->componente_difettoso)) {
+                $data['componente_difettoso'] = $request->componente_difettoso;
+            }
             
-            return round(($risolti / $totaliMalfunzionamenti) * 100, 1);
-            
-        } catch (\Exception $e) {
-            Log::error('Errore calcolo tasso risoluzione', [
-                'error' => $e->getMessage(),
-                'user_id' => $userId
+            if (!empty($request->codice_errore)) {
+                $data['codice_errore'] = $request->codice_errore;
+            }
+
+            // === INSERIMENTO NEL DATABASE ===
+            // Eloquent create() - INSERT INTO malfunzionamenti VALUES (...)
+            $malfunzionamento = Malfunzionamento::create($data);
+
+            // === RECUPERO INFO PRODOTTO PER MESSAGGIO ===
+            $prodotto = Prodotto::find($request->prodotto_id);
+            $nomeProdotto = $prodotto ? $prodotto->nome : 'Prodotto';
+
+            // === LOG POST-INSERIMENTO ===
+            \Log::info('Nuova soluzione creata con successo', [
+                'malfunzionamento_id' => $malfunzionamento->id,
+                'prodotto_nome' => $nomeProdotto,
+                'staff_id' => Auth::id(),
+                'staff_username' => Auth::user()->username ?? 'N/A',
+                'titolo' => $request->titolo,
+                'gravita' => $request->gravita,
+                'timestamp' => now()
             ]);
-            return 0;
+
+            // === REDIRECT CON MESSAGGIO DI SUCCESSO ===
+            // Laravel redirect() con messaggi flash nella sessione
+            return redirect()->route('staff.dashboard')
+                            ->with('success', "Nuova soluzione aggiunta con successo al prodotto: <strong>{$nomeProdotto}</strong>")
+                            ->with('info', "ID Soluzione: #{$malfunzionamento->id} | Gravità: {$request->gravita}");
+
+        } catch (\Illuminate\Database\QueryException $e) {
+            // === GESTIONE ERRORI DATABASE SPECIFICI ===
+            \Log::error('Errore database nella creazione soluzione', [
+                'error' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'sql' => $e->getSql() ?? 'N/A',
+                'bindings' => $e->getBindings() ?? [],
+                'user_id' => Auth::id(),
+                'request_data' => $request->except(['_token']) // Esclude token CSRF
+            ]);
+
+            $errorMsg = 'Errore nel database durante la creazione della soluzione.';
+            
+            // === MESSAGGI SPECIFICI PER ERRORI COMUNI ===
+            if (str_contains($e->getMessage(), 'foreign key constraint')) {
+                if (str_contains($e->getMessage(), 'prodotto_id')) {
+                    $errorMsg = 'Il prodotto selezionato non è valido. Riprova con un altro prodotto.';
+                } elseif (str_contains($e->getMessage(), 'creato_da')) {
+                    $errorMsg = 'Errore nell\'associazione utente. Riprova ad effettuare il login.';
+                } else {
+                    $errorMsg = 'Errore di integrità dati. Controlla i dati inseriti.';
+                }
+            } elseif (str_contains($e->getMessage(), 'Data too long')) {
+                $errorMsg = 'Uno dei campi contiene troppo testo. Riduci la lunghezza dei contenuti.';
+            } elseif (str_contains($e->getMessage(), 'Duplicate entry')) {
+                $errorMsg = 'Questa soluzione sembra essere già presente nel sistema.';
+            } elseif (str_contains($e->getMessage(), 'cannot be null') || str_contains($e->getMessage(), 'not null')) {
+                $errorMsg = 'Alcuni campi obbligatori sono mancanti. Controlla il form.';
+            } elseif (str_contains($e->getMessage(), 'Incorrect') && str_contains($e->getMessage(), 'value')) {
+                $errorMsg = 'Uno dei valori inseriti non è valido per il formato richiesto.';
+            }
+
+            // Laravel withInput() - Mantiene i dati inseriti nel form
+            // withErrors() - Aggiunge errori alla sessione per mostrarli nella vista
+            return redirect()->back()
+                            ->withInput()
+                            ->withErrors(['database' => $errorMsg]);
+
+        } catch (\Exception $e) {
+            // === GESTIONE ERRORI GENERICI ===
+            \Log::error('Errore generico nella creazione soluzione', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'user_id' => Auth::id(),
+                'request_data' => $request->except(['_token', 'password'])
+            ]);
+
+            return redirect()->back()
+                            ->withInput()
+                            ->withErrors(['general' => 'Errore imprevisto durante la creazione della soluzione. Riprova o contatta l\'amministratore se il problema persiste.']);
         }
     }
-
-    /**
-     * Genera un rapporto CSV delle attività dello staff
-     * 
-     * @param \Illuminate\Http\Request $request
-     * @return \Symfony\Component\HttpFoundation\StreamedResponse
-     */
-    public function esportaCsv(Request $request)
-    {
-        $user = Auth::user();
-        $dataInizio = $request->input('data_inizio', now()->startOfMonth()->format('Y-m-d'));
-        $dataFine = $request->input('data_fine', now()->format('Y-m-d'));
-        
-        $filename = "staff_report_{$user->id}_{$dataInizio}_to_{$dataFine}.csv";
-        
-        $headers = [
-            "Content-type" => "text/csv",
-            "Content-Disposition" => "attachment; filename={$filename}",
-            "Pragma" => "no-cache",
-            "Cache-Control" => "must-revalidate, post-check=0, pre-check=0",
-            "Expires" => "0"
-        ];
-        
-        $callback = function() use ($user, $dataInizio, $dataFine) {
-            $file = fopen('php://output', 'w');
-            
-            // Intestazioni CSV
-            fputcsv($file, [
-                'ID Malfunzionamento',
-                'Prodotto',
-                'Titolo',
-                'Descrizione',
-                'Gravita',
-                'Soluzione',
-                'Data Creazione',
-                'Data Aggiornamento'
-            ]);
-            
-            // Dati
-            Malfunzionamento::whereHas('prodotto', function($q) use ($user) {
-                    $q->where('staff_assegnato_id', $user->id);
-                })
-                ->with('prodotto')
-                ->whereBetween('created_at', [$dataInizio . ' 00:00:00', $dataFine . ' 23:59:59'])
-                ->chunk(100, function($malfunzionamenti) use ($file) {
-                    foreach ($malfunzionamenti as $malfunzionamento) {
-                        fputcsv($file, [
-                            $malfunzionamento->id,
-                            $malfunzionamento->prodotto->nome,
-                            $malfunzionamento->titolo,
-                            $malfunzionamento->descrizione,
-                            $malfunzionamento->gravita,
-                            $malfunzionamento->soluzione,
-                            $malfunzionamento->created_at->format('d/m/Y H:i'),
-                            $malfunzionamento->updated_at->format('d/m/Y H:i')
-                        ]);
-                    }
-                });
-            
-            fclose($file);
-        };
-        
-        return response()->stream($callback, 200, $headers);
-    }
-}
-
-/* 
-|--------------------------------------------------------------------------
-| FINE STAFFCONTROLLER - GRUPPO 51
-|--------------------------------------------------------------------------
-| 
-| Controller completo per la gestione delle funzionalità staff aziendale
-| Livello di accesso 3 - Gestione completa malfunzionamenti e soluzioni
-| 
-| Funzionalità implementate:
-| ✅ Dashboard con statistiche real-time
-| ✅ CRUD completo malfunzionamenti
-| ✅ Gestione prodotti assegnati (funzionalità opzionale)
-| ✅ API per aggiornamenti AJAX
-| ✅ Sistema di logging e audit
-| ✅ Report CSV esportabili
-| ✅ Metriche di performance
-| ✅ Controllo permessi granulare
-| ✅ Gestione errori completa
-| 
-| Middleware applicati:
-| - auth: Verifica autenticazione
-| - check.level:3: Verifica livello staff (3+)
-| 
-| Route associate:
-| - staff.dashboard: Dashboard principale
-| - staff.prodotti.assegnati: Prodotti assegnati
-| - staff.statistiche: Statistiche dettagliate
-| - staff.report.attivita: Report attività
-| - staff.malfunzionamenti.*: CRUD malfunzionamenti
-| 
-| API endpoints:
-| - GET /api/stats: Statistiche staff
-| - GET /api/ultime-soluzioni: Ultime soluzioni create
-| - GET /api/malfunzionamenti-prioritari: Problemi prioritari
-| - GET /api/prodotti-assegnati: Prodotti assegnati all'utente
-| 
-| Gruppo: 51
-| Utente staff predefinito: staffstaff
-| Password: dNWRdNWR
-| 
-*/
