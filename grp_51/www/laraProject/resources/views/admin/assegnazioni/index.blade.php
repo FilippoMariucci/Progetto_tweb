@@ -1,14 +1,21 @@
-{{-- Vista per gestione assegnazioni prodotti a staff --}}
-@extends('layouts.app')
+{{-- 
+/**
+ * BLADE TEMPLATE: Gestione Assegnazioni Prodotti - TechSupport Pro Gruppo 51
+ * 
+ * TECNOLOGIE: Blade (Laravel) + HTML5 + Bootstrap 5 + PHP + JavaScript
+ * PATTERN: MVC View Layer + Template Inheritance + Component-Based CSS
+ * SCOPO: Vista admin per assegnazione prodotti a staff con filtri e bulk operations
+ */
+--}}
 
+{{-- BLADE INHERITANCE: Estende layout principale con sezioni specifiche --}}
+@extends('layouts.app')
 @section('title', 'Gestione Assegnazioni Prodotti')
 
 @section('content')
 <div class="container mt-4">
     
-    
-
-    <!-- === HEADER === -->
+    {{-- HEADER SECTION: Bootstrap Flexbox + Icons + Responsive Layout --}}
     <div class="row mb-4">
         <div class="col-12">
             <div class="d-flex align-items-center justify-content-between mb-3">
@@ -22,13 +29,14 @@
                     </p>
                 </div>
                 <div>
+                    {{-- BOOTSTRAP MODAL TRIGGER: data-bs-* attributes --}}
                     <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#bulkAssignModal">
                         <i class="bi bi-collection me-1"></i>Assegnazione Multipla
                     </button>
                 </div>
             </div>
             
-            <!-- Alert Informativo -->
+            {{-- BOOTSTRAP ALERT: Info component con blade variables --}}
             <div class="alert alert-info border-start border-info border-4">
                 <div class="row">
                     <div class="col-md-8">
@@ -36,6 +44,7 @@
                         <strong>Funzionalità Opzionale:</strong> Ogni membro dello staff può gestire un sottoinsieme specifico di prodotti.
                     </div>
                     <div class="col-md-4 text-end">
+                        {{-- BLADE ECHO: Sicuro output con array access --}}
                         <span class="badge bg-success">{{ $stats['prodotti_assegnati'] }}</span> Assegnati
                         <span class="badge bg-warning">{{ $stats['prodotti_non_assegnati'] }}</span> Non Assegnati
                     </div>
@@ -44,7 +53,7 @@
         </div>
     </div>
 
-    <!-- === STATISTICHE RAPIDE === -->
+    {{-- DASHBOARD CARDS: Bootstrap Grid + Themed Cards + Statistics Display --}}
     <div class="row g-3 mb-4">
         <div class="col-md-3">
             <div class="card bg-primary text-white">
@@ -85,7 +94,7 @@
     </div>
 
     <div class="row">
-        <!-- === FILTRI === -->
+        {{-- FILTERS SIDEBAR: HTML Forms + Laravel Request Helpers + Form Persistence --}}
         <div class="col-lg-3">
             <div class="card card-custom">
                 <div class="card-header">
@@ -95,9 +104,10 @@
                     </h5>
                 </div>
                 <div class="card-body">
+                    {{-- LARAVEL FORM: GET method + route helper + request persistence --}}
                     <form method="GET" action="{{ route('admin.assegnazioni.index') }}" id="filterForm">
                         
-                        <!-- Ricerca -->
+                        <!-- Search Input -->
                         <div class="mb-3">
                             <label for="search" class="form-label">
                                 <i class="bi bi-search me-1"></i>Ricerca
@@ -110,7 +120,8 @@
                                    placeholder="Nome o modello prodotto">
                         </div>
                         
-                        <!-- Staff -->
+                        {{-- BLADE FOREACH: Loop con Laravel Collections + Selected Logic --}}
+                        <!-- Staff Filter -->
                         <div class="mb-3">
                             <label for="staff_id" class="form-label">
                                 <i class="bi bi-person me-1"></i>Membro Staff
@@ -128,7 +139,7 @@
                             </select>
                         </div>
                         
-                        <!-- Categoria -->
+                        <!-- Category Filter -->
                         <div class="mb-3">
                             <label for="categoria" class="form-label">
                                 <i class="bi bi-tag me-1"></i>Categoria
@@ -143,7 +154,7 @@
                             </select>
                         </div>
                         
-                        <!-- Solo non assegnati -->
+                        {{-- BOOTSTRAP FORM-CHECK: Checkbox styling + Boolean filter --}}
                         <div class="mb-3">
                             <div class="form-check">
                                 <input class="form-check-input" 
@@ -170,7 +181,7 @@
                 </div>
             </div>
 
-            <!-- === STAFF OVERVIEW === -->
+            {{-- ELOQUENT RELATIONSHIPS: @forelse loop + relationship count() --}}
             <div class="card card-custom mt-4">
                 <div class="card-header">
                     <h5 class="mb-0">
@@ -204,7 +215,7 @@
             </div>
         </div>
 
-        <!-- === LISTA PRODOTTI === -->
+        {{-- PRODUCTS TABLE: Laravel Pagination + Responsive Table + JavaScript Hooks --}}
         <div class="col-lg-9">
             <div class="card card-custom">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -214,6 +225,7 @@
                         <span class="badge bg-secondary">{{ $prodotti->total() }}</span>
                     </h5>
                     <div>
+                        {{-- JAVASCRIPT INTEGRATION: IDs per DOM manipulation --}}
                         <button type="button" class="btn btn-outline-primary btn-sm" id="selectAllBtn">
                             <i class="bi bi-check-all me-1"></i>Seleziona Tutti
                         </button>
@@ -223,6 +235,7 @@
                     </div>
                 </div>
                 <div class="card-body">
+                    {{-- CONDITIONAL RENDERING: Blade @if per empty state --}}
                     @if($prodotti->count() > 0)
                         <div class="table-responsive">
                             <table class="table table-hover">
@@ -239,6 +252,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    {{-- LARAVEL PAGINATION: Collection iteration con Eloquent Models --}}
                                     @foreach($prodotti as $prodotto)
                                         <tr>
                                             <td>
@@ -247,6 +261,7 @@
                                                        value="{{ $prodotto->id }}">
                                             </td>
                                             <td>
+                                                {{-- BOOTSTRAP FLEXBOX + Image styling + Eloquent attributes --}}
                                                 <div class="d-flex align-items-center">
                                                     <img src="{{ $prodotto->foto_url }}" 
                                                          class="rounded me-3" 
@@ -259,11 +274,13 @@
                                                 </div>
                                             </td>
                                             <td>
+                                                {{-- ELOQUENT ACCESSOR: categoria_label formatting --}}
                                                 <span class="badge bg-secondary">
                                                     {{ $prodotto->categoria_label }}
                                                 </span>
                                             </td>
                                             <td>
+                                                {{-- ELOQUENT RELATIONSHIPS: Conditional display con belongsTo --}}
                                                 @if($prodotto->staffAssegnato)
                                                     <div class="d-flex align-items-center">
                                                         <i class="bi bi-person-check text-success me-2"></i>
@@ -281,6 +298,7 @@
                                                 @endif
                                             </td>
                                             <td>
+                                                {{-- PHP INLINE: Collection methods + statistics calculation --}}
                                                 @php
                                                     $problemiCount = $prodotto->malfunzionamenti->count();
                                                     $criticiCount = $prodotto->malfunzionamenti->where('gravita', 'critica')->count();
@@ -298,8 +316,9 @@
                                                 </div>
                                             </td>
                                             <td>
+                                                {{-- BOOTSTRAP BTN-GROUP + Modal triggers + Laravel Forms --}}
                                                 <div class="btn-group" role="group">
-                                                    <!-- Assegna -->
+                                                    {{-- MODAL DATA ATTRIBUTES: JavaScript data passing --}}
                                                     <button type="button" 
                                                             class="btn btn-outline-warning btn-sm assign-btn"
                                                             data-product-id="{{ $prodotto->id }}"
@@ -310,13 +329,13 @@
                                                         <i class="bi bi-person-plus"></i>
                                                     </button>
                                                     
-                                                    <!-- Visualizza -->
+                                                    {{-- LARAVEL ROUTE + Model Binding --}}
                                                     <a href="{{ route('admin.prodotti.show', $prodotto) }}" 
                                                        class="btn btn-outline-primary btn-sm">
                                                         <i class="bi bi-eye"></i>
                                                     </a>
                                                     
-                                                    <!-- Rimuovi assegnazione se assegnato -->
+                                                    {{-- CONDITIONAL FORM: CSRF + Hidden inputs + Confirmation --}}
                                                     @if($prodotto->staffAssegnato)
                                                         <form action="{{ route('admin.assegnazioni.prodotto') }}" 
                                                               method="POST" 
@@ -339,67 +358,62 @@
                             </table>
                         </div>
 
-                        <!-- Paginazione -->
-                        {{-- Paginazione centrata come richiesto --}}
-    @if($prodotti->hasPages())
-        <div class="row mt-4">
-            <div class="col-12">
-                {{-- Info paginazione centrata sopra --}}
-                <div class="text-center mb-2">
-                    <small class="text-muted">
-                        Visualizzati {{ $prodotti->firstItem() }}-{{ $prodotti->lastItem() }} 
-                        di {{ $prodotti->total() }} prodotti
-                        @if(request('staff_filter') === 'my_products')
-                            assegnati
+                        {{-- LARAVEL PAGINATION: Custom pagination con query persistence --}}
+                        @if($prodotti->hasPages())
+                            <div class="row mt-4">
+                                <div class="col-12">
+                                    <div class="text-center mb-2">
+                                        <small class="text-muted">
+                                            Visualizzati {{ $prodotti->firstItem() }}-{{ $prodotti->lastItem() }} 
+                                            di {{ $prodotti->total() }} prodotti
+                                        </small>
+                                    </div>
+                                    
+                                    {{-- BOOTSTRAP PAGINATION: Manual pagination controls --}}
+                                    <div class="d-flex justify-content-center">
+                                        <nav aria-label="Paginazione prodotti">
+                                            <ul class="pagination pagination-sm mb-0">
+                                                {{-- Previous/Next + Query String Persistence --}}
+                                                @if ($prodotti->onFirstPage())
+                                                    <li class="page-item disabled">
+                                                        <span class="page-link">‹</span>
+                                                    </li>
+                                                @else
+                                                    <li class="page-item">
+                                                        <a class="page-link" href="{{ $prodotti->appends(request()->query())->previousPageUrl() }}">‹</a>
+                                                    </li>
+                                                @endif
+
+                                                {{-- Page Numbers Loop --}}
+                                                @foreach ($prodotti->getUrlRange(1, $prodotti->lastPage()) as $page => $url)
+                                                    @if ($page == $prodotti->currentPage())
+                                                        <li class="page-item active">
+                                                            <span class="page-link">{{ $page }}</span>
+                                                        </li>
+                                                    @else
+                                                        <li class="page-item">
+                                                            <a class="page-link" href="{{ $prodotti->appends(request()->query())->url($page) }}">{{ $page }}</a>
+                                                        </li>
+                                                    @endif
+                                                @endforeach
+
+                                                @if ($prodotti->hasMorePages())
+                                                    <li class="page-item">
+                                                        <a class="page-link" href="{{ $prodotti->appends(request()->query())->nextPageUrl() }}">›</a>
+                                                    </li>
+                                                @else
+                                                    <li class="page-item disabled">
+                                                        <span class="page-link">›</span>
+                                                    </li>
+                                                @endif
+                                            </ul>
+                                        </nav>
+                                    </div>
+                                </div>
+                            </div>
                         @endif
-                    </small>
-                </div>
-                
-                {{-- Controlli paginazione centrati --}}
-                <div class="d-flex justify-content-center">
-                    <nav aria-label="Paginazione prodotti">
-                        <ul class="pagination pagination-sm mb-0">
-                            {{-- Previous --}}
-                            @if ($prodotti->onFirstPage())
-                                <li class="page-item disabled">
-                                    <span class="page-link">‹</span>
-                                </li>
-                            @else
-                                <li class="page-item">
-                                    <a class="page-link" href="{{ $prodotti->appends(request()->query())->previousPageUrl() }}">‹</a>
-                                </li>
-                            @endif
-
-                            {{-- Numeri pagina --}}
-                            @foreach ($prodotti->getUrlRange(1, $prodotti->lastPage()) as $page => $url)
-                                @if ($page == $prodotti->currentPage())
-                                    <li class="page-item active">
-                                        <span class="page-link">{{ $page }}</span>
-                                    </li>
-                                @else
-                                    <li class="page-item">
-                                        <a class="page-link" href="{{ $prodotti->appends(request()->query())->url($page) }}">{{ $page }}</a>
-                                    </li>
-                                @endif
-                            @endforeach
-
-                            {{-- Next --}}
-                            @if ($prodotti->hasMorePages())
-                                <li class="page-item">
-                                    <a class="page-link" href="{{ $prodotti->appends(request()->query())->nextPageUrl() }}">›</a>
-                                </li>
-                            @else
-                                <li class="page-item disabled">
-                                    <span class="page-link">›</span>
-                                </li>
-                            @endif
-                        </ul>
-                    </nav>
-                </div>
-            </div>
-        </div>
-    @endif
                     @else
+                        {{-- EMPTY STATE: UX pattern per no results --}}
                         <div class="text-center py-5">
                             <i class="bi bi-box display-1 text-muted"></i>
                             <h5 class="text-muted mt-3">Nessun prodotto trovato</h5>
@@ -412,6 +426,7 @@
     </div>
 </div>
 
+{{-- BOOTSTRAP MODALS: Single + Bulk Assignment con Laravel Forms --}}
 <!-- === MODAL ASSEGNAZIONE SINGOLA === -->
 <div class="modal fade" id="assignModal" tabindex="-1">
     <div class="modal-dialog">
@@ -480,7 +495,6 @@
                         Seleziona i prodotti dalla lista e scegli il membro dello staff per l'assegnazione.
                     </div>
                     
-                    <!-- Lista prodotti selezionati -->
                     <div class="mb-3">
                         <label class="form-label">Prodotti Selezionati:</label>
                         <div id="selected-products" class="border rounded p-3 bg-light">
@@ -488,7 +502,6 @@
                         </div>
                     </div>
                     
-                    <!-- Staff selection -->
                     <div class="mb-3">
                         <label for="bulk-staff-id" class="form-label">
                             <i class="bi bi-person me-1"></i>Assegna a Staff:
@@ -505,7 +518,7 @@
                         </select>
                     </div>
                     
-                    <!-- Riepilogo staff -->
+                    {{-- STAFF OVERVIEW GRID: Real-time counters --}}
                     <div class="row">
                         @foreach($staffMembers as $staff)
                             <div class="col-md-6 mb-2">
@@ -537,8 +550,10 @@
 
 @endsection
 
+{{-- BLADE STACK SYSTEM: Component-specific CSS --}}
 @push('styles')
 <style>
+/* CUSTOM STYLING: Card shadows + transitions + hover effects */
 .card-custom {
     border: none;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -551,28 +566,23 @@
     color: #495057;
 }
 
-.badge {
-    font-size: 0.75rem;
-}
-
-/* Checkbox styling */
+/* BOOTSTRAP OVERRIDES: Checkbox + selection styling */
 .form-check-input:checked {
     background-color: #0d6efd;
     border-color: #0d6efd;
 }
 
-/* Product selection highlighting */
 tr.selected {
     background-color: #e3f2fd !important;
 }
 
-/* Staff overview cards */
+/* INTERACTIVE EFFECTS: Hover states */
 .bg-light:hover {
     background-color: #e9ecef !important;
     transition: background-color 0.2s ease;
 }
 
-/* Selected products styling */
+/* MODAL STYLING: Product items */
 #selected-products .product-item {
     display: inline-block;
     background-color: #fff;
@@ -582,49 +592,18 @@ tr.selected {
     margin: 0.25rem;
     font-size: 0.875rem;
 }
-
-#selected-products .product-item .remove-btn {
-    background: none;
-    border: none;
-    color: #dc3545;
-    padding: 0;
-    margin-left: 0.5rem;
-}
 </style>
 @endpush
 
+{{-- PHP TO JAVASCRIPT: Data transfer pattern --}}
 @push('scripts')
 <script>
-// Inizializza i dati della pagina se non esistono già
+// GLOBAL DATA OBJECT: Laravel → JavaScript data transfer
 window.PageData = window.PageData || {};
 
-// Aggiungi dati specifici solo se necessari per questa view
-@if(isset($prodotto))
-window.PageData.prodotto = @json($prodotto);
-@endif
-
+// CONDITIONAL DATA PASSING: Only if exists to avoid JSON errors
 @if(isset($prodotti))
 window.PageData.prodotti = @json($prodotti);
-@endif
-
-@if(isset($malfunzionamento))
-window.PageData.malfunzionamento = @json($malfunzionamento);
-@endif
-
-@if(isset($malfunzionamenti))
-window.PageData.malfunzionamenti = @json($malfunzionamenti);
-@endif
-
-@if(isset($centro))
-window.PageData.centro = @json($centro);
-@endif
-
-@if(isset($centri))
-window.PageData.centri = @json($centri);
-@endif
-
-@if(isset($categorie))
-window.PageData.categorie = @json($categorie);
 @endif
 
 @if(isset($staffMembers))
@@ -635,10 +614,7 @@ window.PageData.staffMembers = @json($staffMembers);
 window.PageData.stats = @json($stats);
 @endif
 
-@if(isset($user))
-window.PageData.user = @json($user);
-@endif
-
-// Aggiungi altri dati che potrebbero servire...
+// DATA TYPES: Models→JSON, Collections→Arrays, Arrays→Objects
+// INTEGRATION READY: For filtering, modal population, AJAX, bulk operations
 </script>
 @endpush
